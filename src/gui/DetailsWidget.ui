@@ -38,7 +38,7 @@
         <number>0</number>
        </property>
        <item>
-        <layout class="QHBoxLayout" name="entryHorizontalLayout" stretch="0,0,0,0,0">
+        <layout class="QHBoxLayout" name="entryHorizontalLayout" stretch="0,0,0,0,0,0">
          <property name="sizeConstraint">
           <enum>QLayout::SetDefaultConstraint</enum>
          </property>
@@ -75,6 +75,19 @@
             <enum>Qt::AutoText</enum>
            </property>
           </widget>
+         </item>
+         <item>
+          <spacer name="entryHorizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
          </item>
          <item>
           <widget class="QWidget" name="entryTotpWidget" native="true">
@@ -271,13 +284,13 @@
                 </property>
                </widget>
               </item>
-              <item row="3" column="2">
-               <widget class="QLabel" name="entryExpirationLabel">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
+              <item row="1" column="2">
+               <widget class="ElidedLabel" name="entryPasswordLabel">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>0</height>
+                 </size>
                 </property>
                </widget>
               </item>
@@ -303,24 +316,24 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="0">
-               <spacer name="entryLeftHorizontalSpacer">
-                <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
-                </property>
-                <property name="sizeType">
-                 <enum>QSizePolicy::Fixed</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
+              <item row="2" column="2">
+               <widget class="ElidedLabel" name="entryUrlLabel">
+                <property name="minimumSize">
                  <size>
-                  <width>20</width>
-                  <height>20</height>
+                  <width>100</width>
+                  <height>0</height>
                  </size>
                 </property>
-               </spacer>
+                <property name="cursor">
+                 <cursorShape>PointingHandCursor</cursorShape>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+               </widget>
               </item>
-              <item row="1" column="1">
-               <widget class="QLabel" name="entryPasswordTitleLabel">
+              <item row="3" column="1">
+               <widget class="QLabel" name="entryExpirationTitleLabel">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
                   <horstretch>0</horstretch>
@@ -334,22 +347,32 @@
                  </font>
                 </property>
                 <property name="text">
-                 <string>Password</string>
+                 <string>Expiration</string>
                 </property>
                 <property name="alignment">
                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                 </property>
                </widget>
               </item>
+              <item row="3" column="2">
+               <widget class="QLabel" name="entryExpirationLabel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
               <item row="4" column="2">
-               <spacer name="verticalSpacer">
+               <spacer name="entryBottomVerticalSpacer">
                 <property name="orientation">
                  <enum>Qt::Vertical</enum>
                 </property>
                 <property name="sizeHint" stdset="0">
                  <size>
-                  <width>0</width>
-                  <height>0</height>
+                  <width>20</width>
+                  <height>10</height>
                  </size>
                 </property>
                </spacer>
@@ -470,7 +493,7 @@
         <number>0</number>
        </property>
        <item>
-        <layout class="QHBoxLayout" name="groupHorizontalLayout" stretch="0,0,0">
+        <layout class="QHBoxLayout" name="groupHorizontalLayout" stretch="0,0,0,0">
          <property name="sizeConstraint">
           <enum>QLayout::SetDefaultConstraint</enum>
          </property>
@@ -507,6 +530,19 @@
             <enum>Qt::AutoText</enum>
            </property>
           </widget>
+         </item>
+         <item>
+          <spacer name="groupHorizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
          </item>
          <item>
           <widget class="QToolButton" name="groupCloseButton">
@@ -670,9 +706,15 @@
                </widget>
               </item>
               <item row="3" column="2">
-               <spacer name="verticalSpacer_2">
+               <spacer name="groupBottomVerticalSpacer">
                 <property name="orientation">
                  <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>10</height>
+                 </size>
                 </property>
                </spacer>
               </item>
@@ -694,6 +736,71 @@
              <property name="readOnly">
               <bool>true</bool>
              </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="groupShareTab">
+          <attribute name="title">
+           <string>Share</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_12">
+           <item>
+            <widget class="QWidget" name="groupShareWidget" native="true">
+             <layout class="QGridLayout" name="gridLayout_4">
+              <item row="1" column="2">
+               <widget class="QLabel" name="groupSharePathLabel">
+                <property name="text">
+                 <string notr="true">&lt;path&gt;</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QLabel" name="groupShareTypeLabel">
+                <property name="font">
+                 <font>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                 </font>
+                </property>
+                <property name="text">
+                 <string notr="true">&lt;type&gt;</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="2">
+               <spacer name="verticalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>147</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item row="1" column="0">
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::Fixed</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
             </widget>
            </item>
           </layout>

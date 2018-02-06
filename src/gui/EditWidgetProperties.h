@@ -23,9 +23,9 @@
 #include <QStandardItemModel>
 #include <QWidget>
 
-#include "core/CustomData.h"
-#include "core/TimeInfo.h"
-#include "core/Uuid.h"
+class CustomData;
+class TimeInfo;
+class Uuid;
 
 namespace Ui
 {

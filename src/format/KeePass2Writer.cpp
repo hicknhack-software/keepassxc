@@ -80,7 +80,6 @@ bool KeePass2Writer::implicitUpgradeNeeded(Database const* db) const
  * @param db source database
  * @return true on success
  */
-
 bool KeePass2Writer::writeDatabase(QIODevice* device, Database* db)
 {
     m_error = false;

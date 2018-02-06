@@ -45,6 +45,7 @@ set(keepassx_SOURCES
     core/CustomData.cpp
     core/Database.cpp
     core/DatabaseIcons.cpp
+    core/DatabaseSharing.cpp
     core/Entry.cpp
     core/EntryAttachments.cpp
     core/EntryAttributes.cpp
@@ -54,6 +55,7 @@ set(keepassx_SOURCES
     core/Group.cpp
     core/InactivityTimer.cpp
     core/ListDeleter.h
+    core/Merger.cpp
     core/Metadata.cpp
     core/PasswordGenerator.cpp
     core/PassphraseGenerator.cpp
@@ -150,6 +152,7 @@ set(keepassx_SOURCES
     gui/entry/EntryModel.cpp
     gui/entry/EntryView.cpp
     gui/group/EditGroupWidget.cpp
+    gui/group/GroupSharingWidget.cpp
     gui/group/GroupModel.cpp
     gui/group/GroupView.cpp
     keys/ChallengeResponseKey.h

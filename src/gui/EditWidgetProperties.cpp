@@ -19,6 +19,11 @@
 #include "MessageBox.h"
 #include "ui_EditWidgetProperties.h"
 
+
+#include "core/CustomData.h"
+#include "core/TimeInfo.h"
+#include "core/Uuid.h"
+
 EditWidgetProperties::EditWidgetProperties(QWidget* parent)
     : QWidget(parent)
     , m_ui(new Ui::EditWidgetProperties())

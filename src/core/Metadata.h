@@ -89,6 +89,10 @@ public:
     Group* recycleBin();
     const Group* recycleBin() const;
     QDateTime recycleBinChanged() const;
+    Group* shareBin();
+    const Group* shareBin() const;
+    bool shareBinEnabled() const;
+    Uuid shareBinUuid() const;
     const Group* entryTemplatesGroup() const;
     QDateTime entryTemplatesGroupChanged() const;
     const Group* lastSelectedGroup() const;
@@ -127,6 +131,7 @@ public:
     void setRecycleBinEnabled(bool value);
     void setRecycleBin(Group* group);
     void setRecycleBinChanged(const QDateTime& value);
+    void setShareBin(Group* group);
     void setEntryTemplatesGroup(Group* group);
     void setEntryTemplatesGroupChanged(const QDateTime& value);
     void setLastSelectedGroup(Group* group);

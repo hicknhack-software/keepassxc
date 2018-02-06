@@ -41,7 +41,8 @@ public:
                             const QString& filter = QString(),
                             QString* selectedFilter = nullptr,
                             QFileDialog::Options options = 0,
-                            const QString& defaultExtension = QString());
+                            const QString& defaultExtension = QString(),
+                            const QString& defaultName = QString());
     QString getExistingDirectory(QWidget* parent = nullptr,
                                  const QString& caption = QString(),
                                  QString dir = QString(),

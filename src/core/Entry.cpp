@@ -23,6 +23,7 @@
 #include "core/DatabaseIcons.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
+#include "core/DatabaseSharing.h"
 #include "totp/totp.h"
 
 #include <QRegularExpression>
@@ -88,6 +89,11 @@ void Entry::updateTimeinfo()
         m_data.timeInfo.setLastModificationTime(QDateTime::currentDateTimeUtc());
         m_data.timeInfo.setLastAccessTime(QDateTime::currentDateTimeUtc());
     }
+}
+
+bool Entry::canUpdateTimeinfo() const
+{
+    return m_updateTimeinfo;
 }
 
 void Entry::setUpdateTimeinfo(bool value)
@@ -158,7 +164,8 @@ QPixmap Entry::iconScaledPixmap() const
     if (m_data.customIcon.isNull()) {
         // built-in icons are 16x16 so don't need to be scaled
         return databaseIcons()->iconPixmap(m_data.iconNumber);
-    } else {
+    }
+    else {
         Q_ASSERT(database());
 
         return database()->metadata()->customIconScaledPixmap(m_data.customIcon);
@@ -195,7 +202,7 @@ QString Entry::tags() const
     return m_data.tags;
 }
 
-TimeInfo Entry::timeInfo() const
+const TimeInfo &Entry::timeInfo() const
 {
     return m_data.timeInfo;
 }
@@ -549,6 +556,8 @@ const QList<Entry*>& Entry::historyItems() const
 void Entry::addHistoryItem(Entry* entry)
 {
     Q_ASSERT(!entry->parent());
+    // Tests would not pass if the assertion is active
+    // Q_ASSERT(entry->uuid().isNull() || entry->uuid() == uuid());
 
     m_history.append(entry);
     emit modified();
@@ -562,7 +571,7 @@ void Entry::removeHistoryItems(const QList<Entry*>& historyEntries)
 
     for (Entry* entry : historyEntries) {
         Q_ASSERT(!entry->parent());
-        Q_ASSERT(entry->uuid() == uuid());
+        Q_ASSERT(entry->uuid().isNull() || entry->uuid() == uuid());
         Q_ASSERT(m_history.contains(entry));
 
         m_history.removeOne(entry);
@@ -627,6 +636,31 @@ void Entry::truncateHistory()
     }
 }
 
+bool Entry::equals(const Entry& other) const
+{
+    bool equal = m_uuid == other.uuid()
+            && m_data == other.m_data
+            && *m_customData == *other.m_customData
+            && *m_attributes == *other.m_attributes
+            && *m_attachments == *other.m_attachments
+            && *m_autoTypeAssociations == *other.m_autoTypeAssociations
+            && m_history.count() == other.m_history.count();
+    if (!equal) {
+        return false;
+    }
+    for (int i = 0; i < m_history.count(); ++i) {
+        if (!m_history[i]->equals(*other.m_history[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Entry::equals(const Entry *other) const
+{
+    return other && equals(*other);
+}
+
 Entry* Entry::clone(CloneFlags flags) const
 {
     Entry* entry = new Entry();
@@ -672,6 +706,9 @@ Entry* Entry::clone(CloneFlags flags) const
         entry->m_data.timeInfo.setLastModificationTime(now);
         entry->m_data.timeInfo.setLastAccessTime(now);
         entry->m_data.timeInfo.setLocationChanged(now);
+    }
+    else {
+        entry->m_data.timeInfo = m_data.timeInfo;
     }
 
     if (flags & CloneRenameTitle)
@@ -964,6 +1001,21 @@ QString Entry::maskPasswordPlaceholders(const QString& str) const
     return result;
 }
 
+Entry *Entry::resolveReference(const QString &str) const
+{
+    QRegularExpressionMatch match = EntryAttributes::matchReference(str);
+    if (!match.hasMatch()) {
+        return nullptr;
+    }
+
+    const QString searchIn = match.captured(EntryAttributes::SearchInGroupName);
+    const QString searchText = match.captured(EntryAttributes::SearchTextGroupName);
+
+    const EntryReferenceType searchInType = Entry::referenceType(searchIn);
+    return m_group->database()->resolveEntry(searchText, searchInType);
+
+}
+
 QString Entry::resolveMultiplePlaceholders(const QString& str) const
 {
     return resolveMultiplePlaceholdersRecursive(str, ResolveMaximumDepth);
@@ -1074,38 +1126,18 @@ QString Entry::resolveUrl(const QString& url) const
     return QString("");
 }
 
-void Entry::mergeHistory(const Entry *otherEntry)
+bool EntryData::operator==(const EntryData &other) const
 {
-    QMap<QDateTime, Entry*> merged;
-    foreach( Entry *historyItem, m_history ){
-        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime();
-        merged[ modificationTime ] = historyItem;
-    }
-    foreach( Entry *historyItem, otherEntry->historyItems() ){
-        // Items with same modification-time changes will be regarded as same (like KeePass2)
-        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime();
-        if( ! merged.contains( modificationTime ) ){
-            merged[ modificationTime ] = historyItem->clone( Entry::CloneNoFlags );
-        }
-    }
-    const QDateTime ownModificationTime = timeInfo().lastModificationTime();
-    const QDateTime otherModificationTime = otherEntry->timeInfo().lastModificationTime();
-    if( ownModificationTime < otherModificationTime && ! merged.contains( ownModificationTime ) ){
-        merged[ ownModificationTime ] = clone( Entry::CloneNoFlags );
-    }
-    if( ownModificationTime > otherModificationTime && ! merged.contains( otherModificationTime )){
-        merged[ otherModificationTime ] = otherEntry->clone( Entry::CloneNoFlags );
-    }
-    if( m_history.count() == merged.count() ){
-        // each change would result in a change in the number of items
-        return;
-    }
-    m_history.clear();
-    foreach( Entry *historyItem, merged.values() ){
-        Q_ASSERT(!historyItem->parent());
-        m_history.append( historyItem );
-    }
-    truncateHistory();
-
-    emit modified();
+    return iconNumber == other.iconNumber
+            && customIcon == other.customIcon
+            && foregroundColor == other.foregroundColor
+            && backgroundColor == other.backgroundColor
+            && overrideUrl == other.overrideUrl
+            && tags == other.tags
+            && autoTypeEnabled == other.autoTypeEnabled
+            && autoTypeObfuscation == other.autoTypeObfuscation
+            && defaultAutoTypeSequence == other.defaultAutoTypeSequence
+            && timeInfo.equals(other.timeInfo)
+            && totpDigits == other.totpDigits
+            && totpStep == other.totpStep;
 }

@@ -71,6 +71,8 @@ public:
         Group::TriState autoTypeEnabled;
         Group::TriState searchingEnabled;
         Group::MergeMode mergeMode;
+
+        bool operator==(const GroupData& other) const;
     };
 
     Group();
@@ -86,7 +88,7 @@ public:
     QPixmap iconScaledPixmap() const;
     int iconNumber() const;
     Uuid iconUuid() const;
-    TimeInfo timeInfo() const;
+    const TimeInfo& timeInfo() const;
     bool isExpanded() const;
     QString defaultAutoTypeSequence() const;
     QString effectiveAutoTypeSequence() const;
@@ -100,6 +102,9 @@ public:
     CustomData* customData();
     const CustomData* customData() const;
 
+    bool equals(const Group& other) const;
+    bool equals(const Group* other) const;
+
     static const int DefaultIconNumber;
     static const int RecycleBinIconNumber;
     static CloneFlags DefaultCloneFlags;
@@ -107,10 +112,10 @@ public:
     static const QString RootAutoTypeSequence;
 
     Group* findChildByName(const QString& name);
-    Group* findChildByUuid(const Uuid& uuid);
     Entry* findEntry(QString entryId);
     Entry* findEntryByUuid(const Uuid& uuid);
     Entry* findEntryByPath(QString entryPath, QString basePath = QString(""));
+    Group* findGroupByUuid(const Uuid& uuid);
     Group* findGroupByPath(QString groupPath, QString basePath = QString("/"));
     QStringList locate(QString locateTerm, QString currentPath = QString("/"));
     Entry* addEntryWithPath(QString entryPath);
@@ -129,6 +134,7 @@ public:
     void setExpiryTime(const QDateTime& dateTime);
     void setMergeMode(MergeMode newMode);
 
+    bool canUpdateTimeinfo() const;
     void setUpdateTimeinfo(bool value);
 
     Group* parentGroup();
@@ -155,9 +161,10 @@ public:
                  CloneFlags groupFlags = DefaultCloneFlags) const;
 
     void copyDataFrom(const Group* other);
-    void merge(const Group* other);
     QString print(bool recursive = false, int depth = 0);
 
+    void addEntry(Entry* entry);
+    void removeEntry(Entry* entry);
 signals:
     void dataChanged(Group* group);
 
@@ -186,12 +193,7 @@ private slots:
 private:
     template <class P, class V> bool set(P& property, const V& value);
 
-    void addEntry(Entry* entry);
-    void removeEntry(Entry* entry);
     void setParent(Database* db);
-    void markOlderEntry(Entry* entry);
-    void resolveEntryConflict(Entry* existingEntry, Entry* otherEntry);
-    void resolveGroupConflict(Group* existingGroup, Group* otherGroup);
 
     void recSetDatabase(Database* db);
     void cleanupParent();

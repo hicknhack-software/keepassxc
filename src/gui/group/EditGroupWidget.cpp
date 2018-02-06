@@ -22,6 +22,7 @@
 #include "core/Metadata.h"
 #include "gui/EditWidgetIcons.h"
 #include "gui/EditWidgetProperties.h"
+#include "gui/group/GroupSharingWidget.h"
 
 EditGroupWidget::EditGroupWidget(QWidget* parent)
     : EditWidget(parent)
@@ -29,6 +30,7 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
     , m_editGroupWidgetMain(new QWidget())
     , m_editGroupWidgetIcons(new EditWidgetIcons())
     , m_editWidgetProperties(new EditWidgetProperties())
+    , m_editWidgetSharing(new GroupSharingWidget())
     , m_group(nullptr)
     , m_database(nullptr)
 {
@@ -37,6 +39,7 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
     addPage(tr("Group"), FilePath::instance()->icon("actions", "document-edit"), m_editGroupWidgetMain);
     addPage(tr("Icon"), FilePath::instance()->icon("apps", "preferences-desktop-icons"), m_editGroupWidgetIcons);
     addPage(tr("Properties"), FilePath::instance()->icon("actions", "document-properties"), m_editWidgetProperties);
+    addPage(tr("Sharing"), FilePath::instance()->icon("sharing", "preference-sharing"), m_editWidgetSharing );
 
     connect(m_mainUi->expireCheck, SIGNAL(toggled(bool)), m_mainUi->expireDatePicker, SLOT(setEnabled(bool)));
     connect(m_mainUi->autoTypeSequenceCustomRadio,
@@ -95,8 +98,14 @@ void EditGroupWidget::loadGroup(Group* group, bool create, Database* database)
     iconStruct.number = group->iconNumber();
     m_editGroupWidgetIcons->load(group->uuid(), database, iconStruct);
 
+    // TODO CK: CustomData is changed at multiple places within the edit dialog
+    //          we should use a unified source or update the references accordingly
+
     m_editWidgetProperties->setFields(group->timeInfo(), group->uuid());
     m_editWidgetProperties->setCustomData(group->customData());
+
+    m_editWidgetSharing->setGroup(group);
+    m_editWidgetSharing->setCustomData(group->customData());
 
     setCurrentPage(0);
 
@@ -117,10 +126,13 @@ void EditGroupWidget::apply()
     m_group->setExpires(m_mainUi->expireCheck->isChecked());
     m_group->setExpiryTime(m_mainUi->expireDatePicker->dateTime().toUTC());
 
+    // TODO CK: CustomData is changed at multiple places within the edit dialog
+    //          we should use a unified source or update the references accordingly
     m_group->setSearchingEnabled(triStateFromIndex(m_mainUi->searchComboBox->currentIndex()));
     m_group->setAutoTypeEnabled(triStateFromIndex(m_mainUi->autotypeComboBox->currentIndex()));
 
     m_group->customData()->copyDataFrom(m_editWidgetProperties->customData());
+    m_group->customData()->copyDataFrom(m_editWidgetSharing->customData());
 
     if (m_mainUi->autoTypeSequenceInherit->isChecked()) {
         m_group->setDefaultAutoTypeSequence(QString());
