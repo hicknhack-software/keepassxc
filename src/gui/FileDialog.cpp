@@ -85,7 +85,8 @@ QString FileDialog::getSaveFileName(QWidget* parent,
                                     const QString& filter,
                                     QString* selectedFilter,
                                     QFileDialog::Options options,
-                                    const QString& defaultExtension)
+                                    const QString& defaultExtension, 
+                                    const QString& defaultName)
 {
     if (!m_nextFileName.isEmpty()) {
         QString result = m_nextFileName;
@@ -107,6 +108,9 @@ QString FileDialog::getSaveFileName(QWidget* parent,
         dialog.setFileMode(QFileDialog::AnyFile);
         if (selectedFilter) {
             dialog.selectNameFilter(*selectedFilter);
+        }
+        if (!defaultName.isEmpty()){
+            dialog.selectFile(defaultName);
         }
         dialog.setOptions(options);
         dialog.setDefaultSuffix(defaultExtension);

@@ -33,6 +33,8 @@ public:
     int usageCount() const;
     QDateTime locationChanged() const;
 
+    bool equals(const TimeInfo& other, bool ignoreStatistics = true) const;
+
     void setLastModificationTime(const QDateTime& dateTime);
     void setCreationTime(const QDateTime& dateTime);
     void setLastAccessTime(const QDateTime& dateTime);

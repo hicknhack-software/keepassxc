@@ -31,6 +31,7 @@ class Entry;
 enum class EntryReferenceType;
 class Group;
 class Metadata;
+class DatabaseSharing;
 class QTimer;
 class QIODevice;
 
@@ -38,6 +39,11 @@ struct DeletedObject
 {
     Uuid uuid;
     QDateTime deletionTime;
+    bool operator==(const DeletedObject& other) const
+    {
+        return uuid == other.uuid
+                && deletionTime == other.deletionTime;
+    }
 };
 
 Q_DECLARE_TYPEINFO(DeletedObject, Q_MOVABLE_TYPE);
@@ -83,12 +89,20 @@ public:
 
     Metadata* metadata();
     const Metadata* metadata() const;
+
+    DatabaseSharing* sharing();
+    const DatabaseSharing* sharing() const;
+
     Entry* resolveEntry(const Uuid& uuid);
     Entry* resolveEntry(const QString& text, EntryReferenceType referenceType);
     Group* resolveGroup(const Uuid& uuid);
     QList<DeletedObject> deletedObjects();
+    const QList<DeletedObject>& deletedObjects() const;
     void addDeletedObject(const DeletedObject& delObj);
     void addDeletedObject(const Uuid& uuid);
+    bool containsDeletedObject(const Uuid& uuid) const;
+    bool containsDeletedObject(const DeletedObject& uuid) const;
+    void setDeletedObjects(const QList<DeletedObject>& delObjs);
 
     Uuid cipher() const;
     Database::CompressionAlgorithm compressionAlgo() const;
@@ -111,7 +125,7 @@ public:
     void recycleGroup(Group* group);
     void emptyRecycleBin();
     void setEmitModified(bool value);
-    void merge(const Database* other);
+    void markAsModified();
     QString saveToFile(QString filePath, bool atomic = true, bool backup = false);
 
     /**
@@ -145,10 +159,12 @@ private:
     Group* findGroupRecursive(const Uuid& uuid, Group* group);
 
     void createRecycleBin();
+    void createShareBin();
     QString writeDatabase(QIODevice* device);
     bool backupDatabase(QString filePath);
 
     Metadata* const m_metadata;
+    DatabaseSharing* const m_sharing;
     Group* m_rootGroup;
     QList<DeletedObject> m_deletedObjects;
     QTimer* m_timer;

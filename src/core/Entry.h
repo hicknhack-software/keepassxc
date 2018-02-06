@@ -63,6 +63,8 @@ struct EntryData
     TimeInfo timeInfo;
     mutable quint8 totpDigits;
     mutable quint8 totpStep;
+
+    bool operator==(const EntryData& other) const;
 };
 
 class Entry : public QObject
@@ -82,7 +84,7 @@ public:
     QColor backgroundColor() const;
     QString overrideUrl() const;
     QString tags() const;
-    TimeInfo timeInfo() const;
+    const TimeInfo& timeInfo() const;
     bool autoTypeEnabled() const;
     int autoTypeObfuscation() const;
     QString defaultAutoTypeSequence() const;
@@ -143,6 +145,10 @@ public:
     void removeHistoryItems(const QList<Entry*>& historyEntries);
     void truncateHistory();
 
+    bool equals(const Entry& other) const;
+    bool equals(const Entry* other) const;
+
+
     enum CloneFlag
     {
         CloneNoFlags = 0,
@@ -188,12 +194,12 @@ public:
     Entry* clone(CloneFlags flags) const;
     void copyDataFrom(const Entry* other);
     QString maskPasswordPlaceholders(const QString& str) const;
+    Entry* resolveReference(const QString& str) const;
     QString resolveMultiplePlaceholders(const QString& str) const;
     QString resolvePlaceholder(const QString& str) const;
     QString resolveUrlPlaceholder(const QString& str, PlaceholderType placeholderType) const;
     PlaceholderType placeholderType(const QString& placeholder) const;
     QString resolveUrl(const QString& url) const;
-    void mergeHistory(const Entry* other);
 
     /**
      * Call before and after set*() methods to create a history item
@@ -205,9 +211,12 @@ public:
     Group* group();
     const Group* group() const;
     void setGroup(Group* group);
+    const Database* database() const;
 
+    bool canUpdateTimeinfo() const;
     void setUpdateTimeinfo(bool value);
 
+    static EntryReferenceType referenceType(const QString& referenceStr);
 signals:
     /**
      * Emitted when a default attribute has been changed.
@@ -228,9 +237,6 @@ private:
     QString resolveReferencePlaceholderRecursive(const QString& placeholder, int maxDepth) const;
     QString referenceFieldValue(EntryReferenceType referenceType) const;
 
-    static EntryReferenceType referenceType(const QString& referenceStr);
-
-    const Database* database() const;
     template <class T> bool set(T& property, const T& value);
 
     Uuid m_uuid;
@@ -239,8 +245,8 @@ private:
     QPointer<EntryAttachments> m_attachments;
     QPointer<AutoTypeAssociations> m_autoTypeAssociations;
     QPointer<CustomData> m_customData;
+    QList<Entry*> m_history; // Items sorted from oldest to newest
 
-    QList<Entry*> m_history;
     Entry* m_tmpHistoryItem;
     bool m_modifiedSinceBegin;
     QPointer<Group> m_group;

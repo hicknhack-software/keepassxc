@@ -22,6 +22,7 @@
 
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
+#include "core/DatabaseSharing.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "core/Tools.h"
@@ -125,7 +126,9 @@ QVariant GroupModel::data(const QModelIndex& index, int role) const
     Group* group = groupFromIndex(index);
 
     if (role == Qt::DisplayRole) {
-        return group->name();
+        QString nameTemplate = tr("%1", "Template for name without annotation");
+        nameTemplate = DatabaseSharing::sharingIndicatorSuffix(group, nameTemplate);
+        return nameTemplate.arg( group->name() );
     } else if (role == Qt::DecorationRole) {
         if (group->isExpired()) {
             return databaseIcons()->iconPixmap(DatabaseIcons::ExpiredIconIndex);

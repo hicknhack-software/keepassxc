@@ -85,6 +85,11 @@ bool Uuid::operator!=(const Uuid& other) const
     return !operator==(other);
 }
 
+bool Uuid::operator<(const Uuid &other) const
+{
+    return m_data < other.m_data;
+}
+
 Uuid Uuid::fromBase64(const QString& str)
 {
     QByteArray data = QByteArray::fromBase64(str.toLatin1());

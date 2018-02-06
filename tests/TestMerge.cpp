@@ -19,9 +19,20 @@
 #include "TestGlobal.h"
 
 #include "core/Metadata.h"
+#include "core/Merger.h"
 #include "crypto/Crypto.h"
 
 QTEST_GUILESS_MAIN(TestMerge)
+
+namespace {
+TimeInfo  moveTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
+{
+    const QDateTime time = timeInfo.lastModificationTime();
+    timeInfo.setLastModificationTime( time.addYears( iYears ).addMonths( iMonths ).addDays( iDays ) );
+    timeInfo.setLocationChanged( time.addYears( iYears ).addMonths( iMonths ).addDays( iDays ) );
+    return timeInfo;
+}
+}
 
 void TestMerge::initTestCase()
 {
@@ -37,18 +48,16 @@ void TestMerge::initTestCase()
  */
 void TestMerge::testMergeIntoNew()
 {
-    Database* dbSource = createTestDatabase();
-    Database* dbDestination = new Database();
+    QScopedPointer<Database> dbSource(createTestDatabase());
+    QScopedPointer<Database> dbDestination(new Database());
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     QCOMPARE(dbDestination->rootGroup()->children().size(), 2);
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 2);
     // Test for retention of history
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().isEmpty(), false);
-
-    delete dbDestination;
-    delete dbSource;
 }
 
 /**
@@ -57,26 +66,23 @@ void TestMerge::testMergeIntoNew()
  */
 void TestMerge::testMergeNoChanges()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
     QCOMPARE(dbSource->rootGroup()->entriesRecursive().size(), 2);
 
-    dbDestination->merge(dbSource);
+    Merger merger1(dbSource.data(), dbDestination.data());
+    merger1.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
     QCOMPARE(dbSource->rootGroup()->entriesRecursive().size(), 2);
 
-    dbDestination->merge(dbSource);
+    Merger merger2(dbSource.data(), dbDestination.data());
+    merger2.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
     QCOMPARE(dbSource->rootGroup()->entriesRecursive().size(), 2);
-
-    delete dbDestination;
-    delete dbSource;
 }
 
 /**
@@ -85,46 +91,42 @@ void TestMerge::testMergeNoChanges()
  */
 void TestMerge::testResolveConflictNewer()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     // sanity check
-    Group* group1 = dbSource->rootGroup()->findChildByName("group1");
-    QVERIFY(group1 != nullptr);
-    QCOMPARE(group1->entries().size(), 2);
+    QPointer<Group> groupSourceInitial = dbSource->rootGroup()->findChildByName("group1");
+    QVERIFY(groupSourceInitial != nullptr);
+    QCOMPARE(groupSourceInitial->entries().size(), 2);
 
-    Entry* entry1 = dbSource->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
+    QPointer<Entry> entrySourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entrySourceInitial != nullptr);
 
     // Make sure the two changes have a different timestamp.
     QTest::qSleep(1);
     // make this entry newer than in destination db
-    entry1->beginUpdate();
-    entry1->setPassword("password");
-    entry1->endUpdate();
+    entrySourceInitial->beginUpdate();
+    entrySourceInitial->setPassword("password");
+    entrySourceInitial->endUpdate();
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     // sanity check
-    group1 = dbDestination->rootGroup()->findChildByName("group1");
-    QVERIFY(group1 != nullptr);
-    QCOMPARE(group1->entries().size(), 2);
+    QPointer<Group> groupDestinationMerged = dbDestination->rootGroup()->findChildByName("group1");
+    QVERIFY(groupDestinationMerged != nullptr);
+    QCOMPARE(groupDestinationMerged->entries().size(), 2);
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    QVERIFY(entry1->group() != nullptr);
-    QCOMPARE(entry1->password(), QString("password"));
+    QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationMerged != nullptr);
+    QVERIFY(entryDestinationMerged->group() != nullptr);
+    QCOMPARE(entryDestinationMerged->password(), QString("password"));
 
     // When updating an entry, it should not end up in the
     // deleted objects.
     for (DeletedObject deletedObject : dbDestination->deletedObjects()) {
-        QVERIFY(deletedObject.uuid != entry1->uuid());
+        QVERIFY(deletedObject.uuid != entryDestinationMerged->uuid());
     }
-
-    delete dbDestination;
-    delete dbSource;
 }
 
 /**
@@ -134,55 +136,51 @@ void TestMerge::testResolveConflictNewer()
  */
 void TestMerge::testResolveConflictOlder()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     // sanity check
-    Group* group1 = dbSource->rootGroup()->findChildByName("group1");
-    QVERIFY(group1 != nullptr);
-    QCOMPARE(group1->entries().size(), 2);
+    QPointer<Group> groupSourceInitial = dbSource->rootGroup()->findChildByName("group1");
+    QVERIFY(groupSourceInitial != nullptr);
+    QCOMPARE(groupSourceInitial->entries().size(), 2);
 
-    Entry* entry1 = dbSource->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
+    QPointer<Entry> entrySourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entrySourceInitial != nullptr);
 
     // Make sure the two changes have a different timestamp.
     QTest::qSleep(1);
     // make this entry newer than in destination db
-    entry1->beginUpdate();
-    entry1->setPassword("password1");
-    entry1->endUpdate();
+    entrySourceInitial->beginUpdate();
+    entrySourceInitial->setPassword("password1");
+    entrySourceInitial->endUpdate();
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
+    QPointer<Entry> entryDestinationUpated = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationUpated != nullptr);
 
     // Make sure the two changes have a different timestamp.
     QTest::qSleep(1);
     // make this entry newer than in destination db
-    entry1->beginUpdate();
-    entry1->setPassword("password2");
-    entry1->endUpdate();
+    entryDestinationUpated->beginUpdate();
+    entryDestinationUpated->setPassword("password2");
+    entryDestinationUpated->endUpdate();
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(),dbDestination.data());
+    merger.merge();
 
     // sanity check
-    group1 = dbDestination->rootGroup()->findChildByName("group1");
-    QVERIFY(group1 != nullptr);
-    QCOMPARE(group1->entries().size(), 2);
+    QPointer<Group> groupDestinationMerged = dbDestination->rootGroup()->findChildByName("group1");
+    QVERIFY(groupDestinationMerged != nullptr);
+    QCOMPARE(groupDestinationMerged->entries().size(), 2);
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    QCOMPARE(entry1->password(), QString("password2"));
+    QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationMerged != nullptr);
+    QCOMPARE(entryDestinationMerged->password(), QString("password2"));
 
     // When updating an entry, it should not end up in the
     // deleted objects.
     for (DeletedObject deletedObject : dbDestination->deletedObjects()) {
-        QVERIFY(deletedObject.uuid != entry1->uuid());
+        QVERIFY(deletedObject.uuid != entryDestinationMerged->uuid());
     }
-
-    delete dbDestination;
-    delete dbSource;
 }
 
 /**
@@ -190,47 +188,33 @@ void TestMerge::testResolveConflictOlder()
  */
 void TestMerge::testResolveConflictKeepBoth()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneIncludeHistory, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneIncludeHistory, Group::CloneIncludeEntries));
 
     // sanity check
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 2);
 
     // make this entry newer than in original db
-    Entry* updatedEntry = dbDestination->rootGroup()->children().at(0)->entries().at(0);
-    TimeInfo updatedTimeInfo = updatedEntry->timeInfo();
+    QPointer<Entry> updatedDestinationEntry = dbDestination->rootGroup()->children().at(0)->entries().at(0);
+    TimeInfo updatedTimeInfo = updatedDestinationEntry->timeInfo();
     updatedTimeInfo.setLastModificationTime(updatedTimeInfo.lastModificationTime().addYears(1));
-    updatedEntry->setTimeInfo(updatedTimeInfo);
+    updatedDestinationEntry->setTimeInfo(updatedTimeInfo);
 
     dbDestination->rootGroup()->setMergeMode(Group::MergeMode::KeepBoth);
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     // one entry is duplicated because of mode
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 3);
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().isEmpty(), false);
     // the older entry was merged from the other db as last in the group
-    Entry* olderEntry = dbDestination->rootGroup()->children().at(0)->entries().at(2);
+    QPointer<Entry> olderEntry = dbDestination->rootGroup()->children().at(0)->entries().at(2);
     QVERIFY2(olderEntry->attributes()->hasKey("merged"), "older entry is marked with an attribute \"merged\"");
     QCOMPARE(olderEntry->historyItems().isEmpty(), false);
 
-    QVERIFY2(olderEntry->uuid().toHex() != updatedEntry->uuid().toHex(),
+    QVERIFY2(olderEntry->uuid().toHex() != updatedDestinationEntry->uuid().toHex(),
              "KeepBoth should not reuse the UUIDs when cloning.");
-
-    delete dbSource;
-    delete dbDestination;
-}
-
-namespace {
-TimeInfo  moveTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
-{
-    const QDateTime time = timeInfo.lastModificationTime();
-    timeInfo.setLastModificationTime( time.addYears( iYears ).addMonths( iMonths ).addDays( iDays ) );
-    timeInfo.setLocationChanged( time.addYears( iYears ).addMonths( iMonths ).addDays( iDays ) );
-    return timeInfo;
-}
 }
 
 /**
@@ -238,7 +222,7 @@ TimeInfo  moveTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
  */
 void TestMerge::testResolveConflictSynchronized()
 {
-    Database* dbDestination = createTestDatabase();
+    QScopedPointer<Database> dbDestination(createTestDatabase());
 
     const TimeInfo initialTimeInfo = moveTime( TimeInfo(), -1, -1, -1 );
     Entry *deletedEntry1 = new Entry();
@@ -256,8 +240,7 @@ void TestMerge::testResolveConflictSynchronized()
     deletedEntry2->setTimeInfo(initialTimeInfo);
     deletedEntry2->endUpdate();
 
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneIncludeHistory, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneIncludeHistory, Group::CloneIncludeEntries));
 
     // sanity check
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 2);
@@ -268,10 +251,10 @@ void TestMerge::testResolveConflictSynchronized()
     QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 1);
 
     // simulate some work in the dbs (manipulate the history)
-    Entry* destinationEntry0 = dbDestination->rootGroup()->children().at(0)->entries().at(0);
-    Entry* destinationEntry1 = dbDestination->rootGroup()->children().at(0)->entries().at(1);
-    Entry* sourceEntry0 = dbSource->rootGroup()->children().at(0)->entries().at(0);
-    Entry* sourceEntry1 = dbSource->rootGroup()->children().at(0)->entries().at(1);
+    QPointer<Entry> destinationEntry0 = dbDestination->rootGroup()->children().at(0)->entries().at(0);
+    QPointer<Entry> destinationEntry1 = dbDestination->rootGroup()->children().at(0)->entries().at(1);
+    QPointer<Entry> sourceEntry0 = dbSource->rootGroup()->children().at(0)->entries().at(0);
+    QPointer<Entry> sourceEntry1 = dbSource->rootGroup()->children().at(0)->entries().at(1);
 
     const TimeInfo commonHistoryRootTimeInfo = initialTimeInfo;
 
@@ -302,12 +285,12 @@ void TestMerge::testResolveConflictSynchronized()
     sourceEntry0->setTimeInfo( differentEarlieTimeInfo );
     sourceEntry1->setTimeInfo( differentLaterTimeInfo );
 
-    Entry *deletedEntryDestination = dbDestination->rootGroup()->findEntry("deletedDestination");
+    QPointer<Entry> deletedEntryDestination = dbDestination->rootGroup()->findEntry("deletedDestination");
     dbDestination->recycleEntry(deletedEntryDestination);
-    Entry *deletedEntrySource = dbSource->rootGroup()->findEntry("deletedSource");
+    QPointer<Entry> deletedEntrySource = dbSource->rootGroup()->findEntry("deletedSource");
     dbSource->recycleEntry(deletedEntrySource);
 
-    Entry *destinationEntrySingle = new Entry();
+    Entry* destinationEntrySingle = new Entry();
     destinationEntrySingle->beginUpdate();
     destinationEntrySingle->setUuid(Uuid::random());
     destinationEntrySingle->setGroup(dbDestination->rootGroup()->children().at(1));
@@ -323,7 +306,8 @@ void TestMerge::testResolveConflictSynchronized()
 
     dbDestination->rootGroup()->setMergeMode(Group::MergeMode::Synchronize);
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     // Stategies to synchronize from KeePass2
     //   - entries are equal - do nothing
@@ -345,9 +329,6 @@ void TestMerge::testResolveConflictSynchronized()
     QVERIFY(dbDestination->rootGroup()->children().at(0)->entries().at(1)->timeInfo().lastModificationTime() >= differentLaterTimeInfo.lastModificationTime() );
     QVERIFY(dbDestination->rootGroup()->findEntry("entryDestination") );
     QVERIFY(dbDestination->rootGroup()->findEntry("entrySource") );
-
-    delete dbSource;
-    delete dbDestination;
 }
 
 
@@ -357,31 +338,27 @@ void TestMerge::testResolveConflictSynchronized()
  */
 void TestMerge::testMoveEntry()
 {
-    Database* dbDestination = createTestDatabase();
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QPointer<Entry> entrySourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entrySourceInitial != nullptr);
 
-    Entry* entry1 = dbSource->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-
-    Group* group2 = dbSource->rootGroup()->findChildByName("group2");
-    QVERIFY(group2 != nullptr);
+    QPointer<Group> groupSourceInitial = dbSource->rootGroup()->findChildByName("group2");
+    QVERIFY(groupSourceInitial != nullptr);
 
     // Make sure the two changes have a different timestamp.
     QTest::qSleep(1);
-    entry1->setGroup(group2);
-    QCOMPARE(entry1->group()->name(), QString("group2"));
+    entrySourceInitial->setGroup(groupSourceInitial);
+    QCOMPARE(entrySourceInitial->group()->name(), QString("group2"));
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    QCOMPARE(entry1->group()->name(), QString("group2"));
+    QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationMerged != nullptr);
+    QCOMPARE(entryDestinationMerged->group()->name(), QString("group2"));
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
-
-    delete dbDestination;
-    delete dbSource;
 }
 
 /**
@@ -391,95 +368,83 @@ void TestMerge::testMoveEntry()
  */
 void TestMerge::testMoveEntryPreserveChanges()
 {
-    Database* dbDestination = createTestDatabase();
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QPointer<Entry> entrySourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entrySourceInitial != nullptr);
 
-    Entry* entry1 = dbSource->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-
-    Group* group2 = dbSource->rootGroup()->findChildByName("group2");
-    QVERIFY(group2 != nullptr);
+    QPointer<Group> group2Source = dbSource->rootGroup()->findChildByName("group2");
+    QVERIFY(group2Source != nullptr);
 
     QTest::qSleep(1);
-    entry1->setGroup(group2);
-    QCOMPARE(entry1->group()->name(), QString("group2"));
+    entrySourceInitial->setGroup(group2Source);
+    QCOMPARE(entrySourceInitial->group()->name(), QString("group2"));
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
+    QPointer<Entry> entryDestinationInitial = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationInitial != nullptr);
 
     QTest::qSleep(1);
-    entry1->beginUpdate();
-    entry1->setPassword("password");
-    entry1->endUpdate();
+    entryDestinationInitial->beginUpdate();
+    entryDestinationInitial->setPassword("password");
+    entryDestinationInitial->endUpdate();
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    QCOMPARE(entry1->group()->name(), QString("group2"));
+    QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationMerged != nullptr);
+    QCOMPARE(entryDestinationMerged->group()->name(), QString("group2"));
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
-    QCOMPARE(entry1->password(), QString("password"));
-
-    delete dbDestination;
-    delete dbSource;
+    QCOMPARE(entryDestinationMerged->password(), QString("password"));
 }
 
 void TestMerge::testCreateNewGroups()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     QTest::qSleep(1);
-    Group* group3 = new Group();
-    group3->setName("group3");
-    group3->setUuid(Uuid::random());
-    group3->setParent(dbSource->rootGroup());
+    Group* groupSourceCreated = new Group();
+    groupSourceCreated->setName("group3");
+    groupSourceCreated->setUuid(Uuid::random());
+    groupSourceCreated->setParent(dbSource->rootGroup());
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
-    group3 = dbDestination->rootGroup()->findChildByName("group3");
-    QVERIFY(group3 != nullptr);
-    QCOMPARE(group3->name(), QString("group3"));
-
-    delete dbDestination;
-    delete dbSource;
+    QPointer<Group> groupDestinationMerged = dbDestination->rootGroup()->findChildByName("group3");
+    QVERIFY(groupDestinationMerged != nullptr);
+    QCOMPARE(groupDestinationMerged->name(), QString("group3"));
 }
 
 void TestMerge::testMoveEntryIntoNewGroup()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     QTest::qSleep(1);
-    Group* group3 = new Group();
-    group3->setName("group3");
-    group3->setUuid(Uuid::random());
-    group3->setParent(dbSource->rootGroup());
+    Group* groupSourceCreated = new Group();
+    groupSourceCreated->setName("group3");
+    groupSourceCreated->setUuid(Uuid::random());
+    groupSourceCreated->setParent(dbSource->rootGroup());
 
-    Entry* entry1 = dbSource->rootGroup()->findEntry("entry1");
-    entry1->setGroup(group3);
+    QPointer<Entry> entrySourceMoved = dbSource->rootGroup()->findEntry("entry1");
+    entrySourceMoved->setGroup(groupSourceCreated);
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
 
-    group3 = dbDestination->rootGroup()->findChildByName("group3");
-    QVERIFY(group3 != nullptr);
-    QCOMPARE(group3->name(), QString("group3"));
-    QCOMPARE(group3->entries().size(), 1);
+    QPointer<Group> groupDestinationMerged = dbDestination->rootGroup()->findChildByName("group3");
+    QVERIFY(groupDestinationMerged != nullptr);
+    QCOMPARE(groupDestinationMerged->name(), QString("group3"));
+    QCOMPARE(groupDestinationMerged->entries().size(), 1);
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    QCOMPARE(entry1->group()->name(), QString("group3"));
-
-    delete dbDestination;
-    delete dbSource;
+    QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationMerged != nullptr);
+    QCOMPARE(entryDestinationMerged->group()->name(), QString("group3"));
 }
 
 /**
@@ -488,42 +453,47 @@ void TestMerge::testMoveEntryIntoNewGroup()
  */
 void TestMerge::testUpdateEntryDifferentLocation()
 {
-    Database* dbDestination = createTestDatabase();
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    Group* groupDestinationCreated = new Group();
+    groupDestinationCreated->setName("group3");
+    groupDestinationCreated->setUuid(Uuid::random());
+    groupDestinationCreated->setParent(dbDestination->rootGroup());
 
-    Group* group3 = new Group();
-    group3->setName("group3");
-    group3->setUuid(Uuid::random());
-    group3->setParent(dbDestination->rootGroup());
+    QTest::qSleep(1);
 
-    Entry* entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    entry1->setGroup(group3);
-    Uuid uuidBeforeSyncing = entry1->uuid();
+    QPointer<Entry> entryDestinationMoved = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationMoved != nullptr);
+    entryDestinationMoved->setGroup(groupDestinationCreated);
+    Uuid uuidBeforeSyncing = entryDestinationMoved->uuid();
+    QDateTime destinationLocationChanged = entryDestinationMoved->timeInfo().locationChanged();
 
     // Change the entry in the source db.
     QTest::qSleep(1);
-    entry1 = dbSource->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    entry1->beginUpdate();
-    entry1->setUsername("username");
-    entry1->endUpdate();
 
-    dbDestination->merge(dbSource);
+    QPointer<Entry> entrySourceMoved = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entrySourceMoved != nullptr);
+    entrySourceMoved->beginUpdate();
+    entrySourceMoved->setUsername("username");
+    entrySourceMoved->endUpdate();
+    QDateTime sourceLocationChanged = entrySourceMoved->timeInfo().locationChanged();
+
+    QVERIFY(destinationLocationChanged > sourceLocationChanged);
+
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    QVERIFY(entry1->group() != nullptr);
-    QCOMPARE(entry1->username(), QString("username"));
-    QCOMPARE(entry1->group()->name(), QString("group3"));
-    QCOMPARE(uuidBeforeSyncing, entry1->uuid());
-
-    delete dbDestination;
-    delete dbSource;
+    QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationMerged != nullptr);
+    QVERIFY(entryDestinationMerged->group() != nullptr);
+    QCOMPARE(entryDestinationMerged->username(), QString("username"));
+    QCOMPARE(entryDestinationMerged->group()->name(), QString("group3"));
+    QCOMPARE(uuidBeforeSyncing, entryDestinationMerged->uuid());
+    // default merge strategie is KeepNewer - therefore the older location is used!
+    QCOMPARE(entryDestinationMerged->timeInfo().locationChanged(), sourceLocationChanged);
 }
 
 /**
@@ -531,77 +501,82 @@ void TestMerge::testUpdateEntryDifferentLocation()
  */
 void TestMerge::testUpdateGroup()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     QTest::qSleep(1);
 
-    Group* group2 = dbSource->rootGroup()->findChildByName("group2");
-    group2->setName("group2 renamed");
-    group2->setNotes("updated notes");
+    QPointer<Group> groupSourceInitial = dbSource->rootGroup()->findChildByName("group2");
+    groupSourceInitial->setName("group2 renamed");
+    groupSourceInitial->setNotes("updated notes");
     Uuid customIconId = Uuid::random();
     QImage customIcon;
     dbSource->metadata()->addCustomIcon(customIconId, customIcon);
-    group2->setIcon(customIconId);
+    groupSourceInitial->setIcon(customIconId);
 
-    Entry* entry1 = dbSource->rootGroup()->findEntry("entry1");
-    QVERIFY(entry1 != nullptr);
-    entry1->setGroup(group2);
-    entry1->setTitle("entry1 renamed");
-    Uuid uuidBeforeSyncing = entry1->uuid();
+    QPointer<Entry> entrySourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entrySourceInitial != nullptr);
+    entrySourceInitial->setGroup(groupSourceInitial);
+    entrySourceInitial->setTitle("entry1 renamed");
+    Uuid uuidBeforeSyncing = entrySourceInitial->uuid();
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
 
-    entry1 = dbDestination->rootGroup()->findEntry("entry1 renamed");
-    QVERIFY(entry1 != nullptr);
-    QVERIFY(entry1->group() != nullptr);
-    QCOMPARE(entry1->group()->name(), QString("group2 renamed"));
-    QCOMPARE(uuidBeforeSyncing, entry1->uuid());
+    QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1 renamed");
+    QVERIFY(entryDestinationMerged != nullptr);
+    QVERIFY(entryDestinationMerged->group() != nullptr);
+    QCOMPARE(entryDestinationMerged->group()->name(), QString("group2 renamed"));
+    QCOMPARE(uuidBeforeSyncing, entryDestinationMerged->uuid());
 
-    group2 = dbDestination->rootGroup()->findChildByName("group2 renamed");
-    QCOMPARE(group2->notes(), QString("updated notes"));
-    QCOMPARE(group2->iconUuid(), customIconId);
-
-    delete dbDestination;
-    delete dbSource;
+    QPointer<Group> groupMerged = dbDestination->rootGroup()->findChildByName("group2 renamed");
+    QCOMPARE(groupMerged->notes(), QString("updated notes"));
+    QCOMPARE(groupMerged->iconUuid(), customIconId);
 }
 
 void TestMerge::testUpdateGroupLocation()
 {
-    Database* dbDestination = createTestDatabase();
-    Group* group3 = new Group();
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    Group* group3DestinationCreated = new Group();
     Uuid group3Uuid = Uuid::random();
-    group3->setUuid(group3Uuid);
-    group3->setName("group3");
-    group3->setParent(dbDestination->rootGroup()->findChildByName("group1"));
+    group3DestinationCreated->setUuid(group3Uuid);
+    group3DestinationCreated->setName("group3");
+    group3DestinationCreated->setParent(dbDestination->rootGroup()->findChildByName("group1"));
 
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     // Sanity check
-    group3 = dbSource->rootGroup()->findChildByUuid(group3Uuid);
-    QVERIFY(group3 != nullptr);
+    QPointer<Group> group3SourceInitial = dbSource->rootGroup()->findGroupByUuid(group3Uuid);
+    QVERIFY(group3DestinationCreated != nullptr);
+
+    QDateTime initialLocationChanged = group3SourceInitial->timeInfo().locationChanged();
 
     QTest::qSleep(1);
 
-    group3->setParent(dbSource->rootGroup()->findChildByName("group2"));
+    QPointer<Group> group3SourceMoved = dbSource->rootGroup()->findGroupByUuid(group3Uuid);
+    QVERIFY(group3SourceMoved != nullptr);
+    group3SourceMoved->setParent(dbSource->rootGroup()->findChildByName("group2"));
 
-    dbDestination->merge(dbSource);
-    group3 = dbDestination->rootGroup()->findChildByUuid(group3Uuid);
-    QVERIFY(group3 != nullptr);
-    QCOMPARE(group3->parent(), dbDestination->rootGroup()->findChildByName("group2"));
+    QDateTime movedLocaltionChanged = group3SourceMoved->timeInfo().locationChanged();
+    QVERIFY(initialLocationChanged < movedLocaltionChanged);
 
-    dbDestination->merge(dbSource);
-    group3 = dbDestination->rootGroup()->findChildByUuid(group3Uuid);
-    QVERIFY(group3 != nullptr);
-    QCOMPARE(group3->parent(), dbDestination->rootGroup()->findChildByName("group2"));
+    Merger merger1(dbSource.data(), dbDestination.data());
+    merger1.merge();
 
-    delete dbDestination;
-    delete dbSource;
+    QPointer<Group> group3DestinationMerged1 = dbDestination->rootGroup()->findGroupByUuid(group3Uuid);
+    QVERIFY(group3DestinationMerged1 != nullptr);
+    QCOMPARE(group3DestinationMerged1->parent(), dbDestination->rootGroup()->findChildByName("group2"));
+    QCOMPARE(group3DestinationMerged1->timeInfo().locationChanged(), movedLocaltionChanged);
+
+    Merger merger2(dbSource.data(), dbDestination.data());
+    merger2.merge();
+
+    QPointer<Group> group3DestinationMerged2 = dbDestination->rootGroup()->findGroupByUuid(group3Uuid);
+    QVERIFY(group3DestinationMerged2 != nullptr);
+    QCOMPARE(group3DestinationMerged2->parent(), dbDestination->rootGroup()->findChildByName("group2"));
+    QCOMPARE(group3DestinationMerged1->timeInfo().locationChanged(), movedLocaltionChanged);
 }
 
 /**
@@ -611,22 +586,21 @@ void TestMerge::testUpdateGroupLocation()
  */
 void TestMerge::testMergeAndSync()
 {
-    Database* dbDestination = new Database();
-    Database* dbSource = createTestDatabase();
+    QScopedPointer<Database> dbDestination(new Database());
+    QScopedPointer<Database> dbSource(createTestDatabase());
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 0);
 
-    dbDestination->merge(dbSource);
+    Merger merger1(dbSource.data(), dbDestination.data());
+    merger1.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
 
-    dbDestination->merge(dbSource);
+    Merger merger2(dbSource.data(), dbDestination.data());
+    merger2.merge();
 
     // Still only 2 entries, since now we detect which are already present.
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
-
-    delete dbDestination;
-    delete dbSource;
 }
 
 /**
@@ -634,8 +608,8 @@ void TestMerge::testMergeAndSync()
  */
 void TestMerge::testMergeCustomIcons()
 {
-    Database* dbDestination = new Database();
-    Database* dbSource = createTestDatabase();
+    QScopedPointer<Database> dbDestination(new Database());
+    QScopedPointer<Database> dbSource(createTestDatabase());
 
     Uuid customIconId = Uuid::random();
     QImage customIcon;
@@ -644,13 +618,196 @@ void TestMerge::testMergeCustomIcons()
     // Sanity check.
     QVERIFY(dbSource->metadata()->containsCustomIcon(customIconId));
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     QVERIFY(dbDestination->metadata()->containsCustomIcon(customIconId));
-
-    delete dbDestination;
-    delete dbSource;
 }
+
+void TestMerge::testMetadata()
+{
+    QSKIP("Sophisticated merging for Metadata not implemented");
+    // TODO CK: I think a merge of recycle bins would be nice since duplicating them
+    //          is not realy a good solution - the one to use as final recycle bin
+    //          is determined by the merge method - if only one has a bin, this one
+    //          will be used - exception is the target has no recycle bin activated
+}
+
+void TestMerge::testDeletedEntry()
+{
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
+
+    QPointer<Entry> entry1SourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entry1SourceInitial != nullptr);
+    Uuid entry1Uuid = entry1SourceInitial->uuid();
+    delete entry1SourceInitial;
+    QVERIFY(dbSource->containsDeletedObject(entry1Uuid));
+
+    QPointer<Entry> entry2DestinationInitial = dbDestination->rootGroup() ->findEntry("entry2");
+    QVERIFY(entry2DestinationInitial != nullptr);
+    Uuid entry2Uuid = entry2DestinationInitial->uuid();
+    delete entry2DestinationInitial;
+    QVERIFY(dbDestination->containsDeletedObject(entry2Uuid));
+
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
+
+    QPointer<Entry> entry1DestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(!entry1DestinationMerged);
+    QVERIFY(dbDestination->containsDeletedObject(entry1Uuid));
+    QPointer<Entry> entry2DestinationMerged = dbDestination->rootGroup()->findEntry("entry2");
+    QVERIFY(!entry2DestinationMerged);
+    QVERIFY(dbDestination->containsDeletedObject(entry2Uuid));
+
+    QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 0);
+}
+
+void TestMerge::testDeletedGroup()
+{
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
+
+    QPointer<Group> group2DestinationInitial = dbDestination->rootGroup()->findChildByName("group2");
+    QVERIFY(group2DestinationInitial != nullptr);
+    Entry *entry3DestinationCreated = new Entry();
+    entry3DestinationCreated->beginUpdate();
+    entry3DestinationCreated->setUuid(Uuid::random());
+    entry3DestinationCreated->setGroup(group2DestinationInitial);
+    entry3DestinationCreated->setTitle("entry3");
+    entry3DestinationCreated->endUpdate();
+
+    QTest::qSleep(1);
+
+    QPointer<Group> group1SourceInitial = dbSource->rootGroup()->findChildByName("group1");
+    QVERIFY(group1SourceInitial != nullptr);
+    QPointer<Entry> entry1SourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entry1SourceInitial != nullptr);
+    QPointer<Entry> entry2SourceInitial = dbSource->rootGroup()->findEntry("entry2");
+    QVERIFY(entry2SourceInitial != nullptr);
+    Uuid group1Uuid = group1SourceInitial->uuid();
+    Uuid entry1Uuid = entry1SourceInitial->uuid();
+    Uuid entry2Uuid = entry2SourceInitial->uuid();
+    delete group1SourceInitial;
+    QVERIFY(dbSource->containsDeletedObject(group1Uuid));
+    QVERIFY(dbSource->containsDeletedObject(entry1Uuid));
+    QVERIFY(dbSource->containsDeletedObject(entry2Uuid));
+
+    QTest::qSleep(1);
+
+    QPointer<Group> group2SourceInitial = dbSource->rootGroup()->findChildByName("group2");
+    QVERIFY(group2SourceInitial != nullptr);
+    Uuid group2Uuid = group2SourceInitial->uuid();
+    delete group2SourceInitial;
+    QVERIFY(dbSource->containsDeletedObject(group2Uuid));
+
+    QTest::qSleep(1);
+
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
+
+    QVERIFY(dbDestination->containsDeletedObject(group1Uuid));
+    QVERIFY(dbDestination->containsDeletedObject(entry1Uuid));
+    QVERIFY(dbDestination->containsDeletedObject(entry2Uuid));
+    QVERIFY(!dbDestination->containsDeletedObject(group2Uuid));
+
+    QPointer<Entry> entry1DestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(!entry1DestinationMerged);
+    QPointer<Entry> entry2DestinationMerged = dbDestination->rootGroup()->findEntry("entry2");
+    QVERIFY(!entry2DestinationMerged);
+    QPointer<Entry> entry3DestinationMerged = dbDestination->rootGroup()->findEntry("entry3");
+    QVERIFY(entry3DestinationMerged);
+    QPointer<Group> group1DestinationMerged = dbDestination->rootGroup()->findChildByName("group1");
+    QVERIFY(!group1DestinationMerged);
+    QPointer<Group> group2DestinationMerged = dbDestination->rootGroup()->findChildByName("group2");
+    QVERIFY(group2DestinationMerged);
+
+    QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 1);
+}
+
+void TestMerge::testDeletedRevertedEntry()
+{
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
+
+    QPointer<Entry> entry1DestinationInitial = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entry1DestinationInitial != nullptr);
+    Uuid entry1Uuid = entry1DestinationInitial->uuid();
+    delete entry1DestinationInitial;
+    QVERIFY(dbDestination->containsDeletedObject(entry1Uuid));
+
+    QPointer<Entry> entry2SourceInitial = dbSource->rootGroup()->findEntry("entry2");
+    QVERIFY(entry2SourceInitial != nullptr);
+    Uuid entry2Uuid = entry2SourceInitial->uuid();
+    delete entry2SourceInitial;
+    QVERIFY(dbSource->containsDeletedObject(entry2Uuid));
+
+    QTest::qSleep(1);
+
+    QPointer<Entry> entry1SourceInitial = dbSource->rootGroup()->findEntry("entry1");
+    QVERIFY(entry1SourceInitial != nullptr);
+    entry1SourceInitial->setNotes("Updated");
+
+    QPointer<Entry> entry2DestinationInitial = dbDestination->rootGroup()->findEntry("entry2");
+    QVERIFY(entry2DestinationInitial != nullptr);
+    entry2DestinationInitial->setNotes("Updated");
+
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
+
+    QVERIFY(!dbDestination->containsDeletedObject(entry1Uuid));
+    QVERIFY(!dbDestination->containsDeletedObject(entry2Uuid));
+
+    QPointer<Entry> entry1DestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entry1DestinationMerged != nullptr);
+    QVERIFY(entry1DestinationMerged->notes() == "Updated");
+    QPointer<Entry> entry2DestinationMerged = dbDestination->rootGroup()->findEntry("entry2");
+    QVERIFY(entry2DestinationMerged != nullptr);
+    QVERIFY(entry2DestinationMerged->notes() == "Updated");
+}
+
+void TestMerge::testDeletedRevertedGroup()
+{
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
+
+    QPointer<Group> group2SourceInitial = dbSource->rootGroup()->findChildByName("group2");
+    QVERIFY(group2SourceInitial != nullptr);
+    Uuid group2Uuid = group2SourceInitial->uuid();
+    delete group2SourceInitial;
+    QVERIFY(dbSource->containsDeletedObject(group2Uuid));
+
+    QPointer<Group> group1DestinationInitial = dbDestination->rootGroup()->findChildByName("group1");
+    QVERIFY(group1DestinationInitial != nullptr);
+    Uuid group1Uuid = group1DestinationInitial->uuid();
+    delete group1DestinationInitial;
+    QVERIFY(dbDestination->containsDeletedObject(group1Uuid));
+
+    QTest::qSleep(1);
+
+    QPointer<Group> group1SourceInitial = dbSource->rootGroup()->findChildByName("group1");
+    QVERIFY(group1SourceInitial != nullptr);
+    group1SourceInitial->setNotes("Updated");
+
+    QPointer<Group> group2DestinationInitial = dbDestination->rootGroup()->findChildByName("group2");
+    QVERIFY(group2DestinationInitial != nullptr);
+    group2DestinationInitial->setNotes("Updated");
+
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
+
+    QVERIFY(!dbDestination->containsDeletedObject(group1Uuid));
+    QVERIFY(!dbDestination->containsDeletedObject(group2Uuid));
+
+    QPointer<Group> group1DestinationMerged = dbDestination->rootGroup()->findChildByName("group1");
+    QVERIFY(group1DestinationMerged != nullptr);
+    QVERIFY(group1DestinationMerged->notes() == "Updated");
+    QPointer<Group> group2DestinationMerged = dbDestination->rootGroup()->findChildByName("group2");
+    QVERIFY(group2DestinationMerged != nullptr);
+    QVERIFY(group2DestinationMerged->notes() == "Updated");
+
+}
+
 
 /**
  * If the group is updated in the source database, and the
@@ -659,33 +816,29 @@ void TestMerge::testMergeCustomIcons()
  */
 void TestMerge::testResolveGroupConflictOlder()
 {
-    Database* dbDestination = createTestDatabase();
-
-    Database* dbSource = new Database();
-    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneNoFlags, Group::CloneIncludeEntries));
+    QScopedPointer<Database> dbDestination(createTestDatabase());
+    QScopedPointer<Database> dbSource(createTestDatabaseStructureClone(dbDestination.data(),Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
     // sanity check
-    Group* group1 = dbSource->rootGroup()->findChildByName("group1");
-    QVERIFY(group1 != nullptr);
+    QPointer<Group> groupSourceInitial = dbSource->rootGroup()->findChildByName("group1");
+    QVERIFY(groupSourceInitial != nullptr);
 
     // Make sure the two changes have a different timestamp.
     QTest::qSleep(1);
-    group1->setName("group1 updated in source");
+    groupSourceInitial->setName("group1 updated in source");
 
     // Make sure the two changes have a different timestamp.
     QTest::qSleep(1);
 
-    group1 = dbDestination->rootGroup()->findChildByName("group1");
-    group1->setName("group1 updated in destination");
+    QPointer<Group> groupDestinationUpdated = dbDestination->rootGroup()->findChildByName("group1");
+    groupDestinationUpdated->setName("group1 updated in destination");
 
-    dbDestination->merge(dbSource);
+    Merger merger(dbSource.data(), dbDestination.data());
+    merger.merge();
 
     // sanity check
-    group1 = dbDestination->rootGroup()->findChildByName("group1 updated in destination");
-    QVERIFY(group1 != nullptr);
-
-    delete dbDestination;
-    delete dbSource;
+    QPointer<Group> groupDestinationMerged = dbDestination->rootGroup()->findChildByName("group1 updated in destination");
+    QVERIFY(groupDestinationMerged != nullptr);
 }
 
 Database* TestMerge::createTestDatabase()
@@ -722,3 +875,12 @@ Database* TestMerge::createTestDatabase()
 
     return db;
 }
+
+Database* TestMerge::createTestDatabaseStructureClone(Database* source, int entryFlags, int groupFlags)
+{
+    Database* db = new Database();
+    // the old root group is deleted by QObject::parent relationship
+    db->setRootGroup(source->rootGroup()->clone(static_cast<Entry::CloneFlag>(entryFlags), static_cast<Group::CloneFlag>(groupFlags)));
+    return db;
+}
+

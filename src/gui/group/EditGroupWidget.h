@@ -26,6 +26,7 @@
 
 class EditWidgetIcons;
 class EditWidgetProperties;
+class GroupSharingWidget;
 
 namespace Ui
 {
@@ -63,6 +64,7 @@ private:
     QWidget* const m_editGroupWidgetMain;
     EditWidgetIcons* const m_editGroupWidgetIcons;
     EditWidgetProperties* const m_editWidgetProperties;
+    GroupSharingWidget* const m_editWidgetSharing;
     Group* m_group;
     Database* m_database;
 

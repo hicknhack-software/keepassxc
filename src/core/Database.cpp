@@ -27,7 +27,9 @@
 
 #include "cli/Utils.h"
 #include "core/Group.h"
+#include "core/Merger.h"
 #include "core/Metadata.h"
+#include "core/DatabaseSharing.h"
 #include "crypto/kdf/AesKdf.h"
 #include "format/KeePass2.h"
 #include "format/KeePass2Reader.h"
@@ -39,6 +41,8 @@ QHash<Uuid, Database*> Database::m_uuidMap;
 
 Database::Database()
     : m_metadata(new Metadata(this))
+    , m_sharing(new DatabaseSharing(this, this))
+    , m_rootGroup(nullptr)
     , m_timer(new QTimer(this))
     , m_emitModified(false)
     , m_uuid(Uuid::random())
@@ -95,6 +99,16 @@ Metadata* Database::metadata()
 const Metadata* Database::metadata() const
 {
     return m_metadata;
+}
+
+DatabaseSharing* Database::sharing()
+{
+    return m_sharing;
+}
+
+const DatabaseSharing* Database::sharing() const
+{
+    return m_sharing;
 }
 
 Entry* Database::resolveEntry(const Uuid& uuid)
@@ -203,6 +217,40 @@ Group* Database::findGroupRecursive(const Uuid& uuid, Group* group)
 QList<DeletedObject> Database::deletedObjects()
 {
     return m_deletedObjects;
+}
+
+
+const QList<DeletedObject>& Database::deletedObjects() const
+{
+    return m_deletedObjects;
+}
+
+bool Database::containsDeletedObject(const Uuid& uuid) const
+{
+    for (const DeletedObject& currentObject : m_deletedObjects) {
+        if (currentObject.uuid == uuid) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Database::containsDeletedObject(const DeletedObject& object) const
+{
+    for (const DeletedObject& currentObject : m_deletedObjects) {
+        if (currentObject.uuid == object.uuid) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Database::setDeletedObjects(const QList<DeletedObject>& delObjs)
+{
+    if (m_deletedObjects == delObjs) {
+        return;
+    }
+    m_deletedObjects = delObjs;
 }
 
 void Database::addDeletedObject(const DeletedObject& delObj)
@@ -383,21 +431,6 @@ void Database::emptyRecycleBin()
     }
 }
 
-void Database::merge(const Database* other)
-{
-    m_rootGroup->merge(other->rootGroup());
-
-    for (Uuid customIconId : other->metadata()->customIcons().keys()) {
-        QImage customIcon = other->metadata()->customIcon(customIconId);
-        if (!this->metadata()->containsCustomIcon(customIconId)) {
-            qDebug("Adding custom icon %s to database.", qPrintable(customIconId.toHex()));
-            this->metadata()->addCustomIcon(customIconId, customIcon);
-        }
-    }
-
-    emit modified();
-}
-
 void Database::setEmitModified(bool value)
 {
     if (m_emitModified && !value) {
@@ -406,6 +439,12 @@ void Database::setEmitModified(bool value)
 
     m_emitModified = value;
 }
+
+void Database::markAsModified()
+{
+    emit modified();
+}
+
 
 Uuid Database::uuid()
 {
@@ -449,7 +488,6 @@ Database* Database::openDatabaseFile(QString fileName, CompositeKey key)
 
     KeePass2Reader reader;
     Database* db = reader.readDatabase(&dbFile, key);
-
     if (reader.hasError()) {
         qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));
         return nullptr;
@@ -582,7 +620,6 @@ QString Database::writeDatabase(QIODevice* device)
  * @param filePath Path to the file to backup
  * @return
  */
-
 bool Database::backupDatabase(QString filePath)
 {
     QString backupFilePath = filePath;
@@ -616,3 +653,4 @@ bool Database::changeKdf(QSharedPointer<Kdf> kdf)
 
     return true;
 }
+

@@ -32,11 +32,14 @@
 #include <QProcess>
 #include <QSplitter>
 
+#include "core/Uuid.h"
 #include "autotype/AutoType.h"
 #include "core/Config.h"
+#include "core/DatabaseSharing.h"
 #include "core/EntrySearcher.h"
 #include "core/FilePath.h"
 #include "core/Group.h"
+#include "core/Merger.h"
 #include "core/Metadata.h"
 #include "core/Tools.h"
 #include "format/KeePass2Reader.h"
@@ -881,7 +884,8 @@ void DatabaseWidget::mergeDatabase(bool accepted)
             return;
         }
 
-        m_db->merge(srcDb);
+        Merger merger(srcDb, m_db);
+        merger.merge();
     }
 
     m_databaseOpenMergeWidget->clearForms();
@@ -1267,7 +1271,7 @@ void DatabaseWidget::reloadDatabaseFile()
 
         if (mb == QMessageBox::No) {
             // Notify everyone the database does not match the file
-            emit m_db->modified();
+            m_db->markAsModified();
             m_databaseModified = true;
             // Rewatch the database file
             m_fileWatcher.addPath(m_filePath);
@@ -1292,7 +1296,8 @@ void DatabaseWidget::reloadDatabaseFile()
                 if (mb == QMessageBox::Yes) {
                     // Merge the old database into the new one
                     m_db->setEmitModified(false);
-                    db->merge(m_db);
+                    Merger merger(m_db, db);
+                    merger.merge();
                 } else {
                     // Since we are accepting the new file as-is, internally mark as unmodified
                     // TODO: when saving is moved out of DatabaseTabWidget, this should be replaced
@@ -1323,7 +1328,7 @@ void DatabaseWidget::reloadDatabaseFile()
             MessageWidget::Error);
         // HACK: Directly calling the database's signal
         // Mark db as modified since existing data may differ from file or file was deleted
-        m_db->modified();
+        m_db->markAsModified();
     }
 
     // Rewatch the database file

@@ -26,6 +26,7 @@
 #include "crypto/kdf/Kdf.h"
 #include "gui/DialogyWidget.h"
 
+
 class Database;
 
 namespace Ui
@@ -33,6 +34,7 @@ namespace Ui
     class DatabaseSettingsWidget;
     class DatabaseSettingsWidgetGeneral;
     class DatabaseSettingsWidgetEncryption;
+    class DatabaseSettingsWidgetSharing;
 }
 
 class DatabaseSettingsWidget : public DialogyWidget
@@ -63,8 +65,10 @@ private:
     const QScopedPointer<Ui::DatabaseSettingsWidget> m_ui;
     const QScopedPointer<Ui::DatabaseSettingsWidgetGeneral> m_uiGeneral;
     const QScopedPointer<Ui::DatabaseSettingsWidgetEncryption> m_uiEncryption;
+    const QScopedPointer<Ui::DatabaseSettingsWidgetSharing> m_uiSharing;
     QWidget* m_uiGeneralPage;
     QWidget* m_uiEncryptionPage;
+    QWidget* m_uiSharingPage;
     Database* m_db;
 };
 
