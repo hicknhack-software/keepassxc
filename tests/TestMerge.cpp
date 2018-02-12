@@ -223,6 +223,134 @@ void TestMerge::testResolveConflictKeepBoth()
     delete dbDestination;
 }
 
+namespace {
+TimeInfo  moveTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
+{
+    const QDateTime time = timeInfo.lastModificationTime();
+    timeInfo.setLastModificationTime( time.addYears( iYears ).addMonths( iMonths ).addDays( iDays ) );
+    timeInfo.setLocationChanged( time.addYears( iYears ).addMonths( iMonths ).addDays( iDays ) );
+    return timeInfo;
+}
+}
+
+/**
+ * Tests the Synchronized merge mode.
+ */
+void TestMerge::testResolveConflictSynchronized()
+{
+    Database* dbDestination = createTestDatabase();
+
+    const TimeInfo initialTimeInfo = moveTime( TimeInfo(), -1, -1, -1 );
+    Entry *deletedEntry1 = new Entry();
+    deletedEntry1->beginUpdate();
+    deletedEntry1->setUuid(Uuid::random());
+    deletedEntry1->setGroup(dbDestination->rootGroup());
+    deletedEntry1->setTitle("deletedDestination");
+    deletedEntry1->setTimeInfo(initialTimeInfo);
+    deletedEntry1->endUpdate();
+    Entry *deletedEntry2 = new Entry();
+    deletedEntry2->beginUpdate();
+    deletedEntry2->setUuid(Uuid::random());
+    deletedEntry2->setGroup(dbDestination->rootGroup());
+    deletedEntry2->setTitle("deletedSource");
+    deletedEntry2->setTimeInfo(initialTimeInfo);
+    deletedEntry2->endUpdate();
+
+    Database* dbSource = new Database();
+    dbSource->setRootGroup(dbDestination->rootGroup()->clone(Entry::CloneIncludeHistory, Group::CloneIncludeEntries));
+
+    // sanity check
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 2);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 1);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 1);
+    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().size(), 2);
+    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 1);
+    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 1);
+
+    // simulate some work in the dbs (manipulate the history)
+    Entry* destinationEntry0 = dbDestination->rootGroup()->children().at(0)->entries().at(0);
+    Entry* destinationEntry1 = dbDestination->rootGroup()->children().at(0)->entries().at(1);
+    Entry* sourceEntry0 = dbSource->rootGroup()->children().at(0)->entries().at(0);
+    Entry* sourceEntry1 = dbSource->rootGroup()->children().at(0)->entries().at(1);
+
+    const TimeInfo commonHistoryRootTimeInfo = initialTimeInfo;
+
+    destinationEntry0->historyItems().first()->setTimeInfo( commonHistoryRootTimeInfo );
+    destinationEntry1->historyItems().first()->setTimeInfo( commonHistoryRootTimeInfo );
+    sourceEntry0->historyItems().at(0)->setTimeInfo( commonHistoryRootTimeInfo );
+    sourceEntry1->historyItems().at(0)->setTimeInfo( commonHistoryRootTimeInfo );
+
+    const TimeInfo commonHistoryChangeTimeInfo = moveTime( initialTimeInfo, 0, 0, 1 );
+    destinationEntry0->addHistoryItem( destinationEntry0->clone( Entry::CloneNoFlags ) );
+    destinationEntry1->addHistoryItem( destinationEntry1->clone( Entry::CloneNoFlags ) );
+    sourceEntry0->addHistoryItem( sourceEntry0->clone( Entry::CloneNoFlags ) );
+    sourceEntry1->addHistoryItem( sourceEntry1->clone( Entry::CloneNoFlags ) );
+    // sanity check
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 2);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 2);
+    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 2);
+    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 2);
+    destinationEntry0->historyItems().at(1)->setTimeInfo( commonHistoryChangeTimeInfo );
+    destinationEntry1->historyItems().at(1)->setTimeInfo( commonHistoryChangeTimeInfo );
+    sourceEntry0->historyItems().at(1)->setTimeInfo( commonHistoryChangeTimeInfo );
+    sourceEntry1->historyItems().at(1)->setTimeInfo( commonHistoryChangeTimeInfo );
+
+    const TimeInfo differentEarlieTimeInfo = moveTime( initialTimeInfo, 0, 1, 1 );
+    const TimeInfo differentLaterTimeInfo = moveTime( initialTimeInfo, 1, 0, 1 );
+    destinationEntry0->setTimeInfo( differentLaterTimeInfo );
+    destinationEntry1->setTimeInfo( differentEarlieTimeInfo );
+    sourceEntry0->setTimeInfo( differentEarlieTimeInfo );
+    sourceEntry1->setTimeInfo( differentLaterTimeInfo );
+
+    Entry *deletedEntryDestination = dbDestination->rootGroup()->findEntry("deletedDestination");
+    dbDestination->recycleEntry(deletedEntryDestination);
+    Entry *deletedEntrySource = dbSource->rootGroup()->findEntry("deletedSource");
+    dbSource->recycleEntry(deletedEntrySource);
+
+    Entry *destinationEntrySingle = new Entry();
+    destinationEntrySingle->beginUpdate();
+    destinationEntrySingle->setUuid(Uuid::random());
+    destinationEntrySingle->setGroup(dbDestination->rootGroup()->children().at(1));
+    destinationEntrySingle->setTitle("entryDestination");
+    destinationEntrySingle->endUpdate();
+
+    Entry *sourceEntrySingle = new Entry();
+    sourceEntrySingle->beginUpdate();
+    sourceEntrySingle->setUuid(Uuid::random());
+    sourceEntrySingle->setGroup(dbSource->rootGroup()->children().at(1));
+    sourceEntrySingle->setTitle("entrySource");
+    sourceEntrySingle->endUpdate();
+
+    dbDestination->rootGroup()->setMergeMode(Group::MergeMode::Synchronize);
+
+    dbDestination->merge(dbSource);
+
+    // Stategies to synchronize from KeePass2
+    //   - entries are equal - do nothing
+    //   - one entry is older than the other - create an history item for this entry - sort items for both entries by changetime and order them accordingly
+    QCOMPARE(dbDestination->rootGroup()->entries().size(), 0 );
+    // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other exists as normal group
+    QCOMPARE(dbDestination->metadata()->recycleBin()->entries().size(), 1);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 2);
+    QCOMPARE(dbDestination->rootGroup()->children().at(1)->entries().size(), 2);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 3);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().at(0)->timeInfo().lastModificationTime(), commonHistoryRootTimeInfo.lastModificationTime() );
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().at(1)->timeInfo().lastModificationTime(), commonHistoryChangeTimeInfo.lastModificationTime() );
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().at(2)->timeInfo().lastModificationTime(), differentEarlieTimeInfo.lastModificationTime() );
+    QVERIFY(dbDestination->rootGroup()->children().at(0)->entries().at(0)->timeInfo().lastModificationTime() >= differentLaterTimeInfo.lastModificationTime() );
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 3);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().at(0)->timeInfo().lastModificationTime(), commonHistoryRootTimeInfo.lastModificationTime() );
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().at(1)->timeInfo().lastModificationTime(), commonHistoryChangeTimeInfo.lastModificationTime() );
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().at(2)->timeInfo().lastModificationTime(), differentEarlieTimeInfo.lastModificationTime() );
+    QVERIFY(dbDestination->rootGroup()->children().at(0)->entries().at(1)->timeInfo().lastModificationTime() >= differentLaterTimeInfo.lastModificationTime() );
+    QVERIFY(dbDestination->rootGroup()->findEntry("entryDestination") );
+    QVERIFY(dbDestination->rootGroup()->findEntry("entrySource") );
+
+    delete dbSource;
+    delete dbDestination;
+}
+
+
 /**
  * The location of an entry should be updated in the
  * destination database.

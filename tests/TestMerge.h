@@ -33,6 +33,7 @@ private slots:
     void testResolveConflictOlder();
     void testResolveGroupConflictOlder();
     void testResolveConflictKeepBoth();
+    void testResolveConflictSynchronized();
     void testMoveEntry();
     void testMoveEntryPreserveChanges();
     void testMoveEntryIntoNewGroup();

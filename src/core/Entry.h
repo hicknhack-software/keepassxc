@@ -193,6 +193,7 @@ public:
     QString resolveUrlPlaceholder(const QString& str, PlaceholderType placeholderType) const;
     PlaceholderType placeholderType(const QString& placeholder) const;
     QString resolveUrl(const QString& url) const;
+    void mergeHistory(const Entry* other);
 
     /**
      * Call before and after set*() methods to create a history item

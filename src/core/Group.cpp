@@ -947,17 +947,15 @@ void Group::resolveEntryConflict(Entry* existingEntry, Entry* otherEntry)
     const QDateTime timeExisting = existingEntry->timeInfo().lastModificationTime();
     const QDateTime timeOther = otherEntry->timeInfo().lastModificationTime();
 
-    Entry* clonedEntry;
-
     switch (mergeMode()) {
     case KeepBoth:
         // if one entry is newer, create a clone and add it to the group
         if (timeExisting > timeOther) {
-            clonedEntry = otherEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
+            Entry* clonedEntry = otherEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
             clonedEntry->setGroup(this);
             markOlderEntry(clonedEntry);
         } else if (timeExisting < timeOther) {
-            clonedEntry = otherEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
+            Entry* clonedEntry = otherEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
             clonedEntry->setGroup(this);
             markOlderEntry(existingEntry);
         }
@@ -970,9 +968,13 @@ void Group::resolveEntryConflict(Entry* existingEntry, Entry* otherEntry)
             currentGroup->removeEntry(existingEntry);
             otherEntry->clone(Entry::CloneIncludeHistory)->setGroup(currentGroup);
         }
-
         break;
     case KeepExisting:
+        break;
+    case Synchronize:
+        Q_ASSERT( existingEntry );
+        Q_ASSERT( otherEntry );
+        existingEntry->mergeHistory( otherEntry );
         break;
     default:
         // do nothing
