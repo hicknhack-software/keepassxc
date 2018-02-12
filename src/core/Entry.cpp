@@ -1073,3 +1073,39 @@ QString Entry::resolveUrl(const QString& url) const
     // No valid http URL's found
     return QString("");
 }
+
+void Entry::mergeHistory(const Entry *otherEntry)
+{
+    QMap<QDateTime, Entry*> merged;
+    foreach( Entry *historyItem, m_history ){
+        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime();
+        merged[ modificationTime ] = historyItem;
+    }
+    foreach( Entry *historyItem, otherEntry->historyItems() ){
+        // Items with same modification-time changes will be regarded as same (like KeePass2)
+        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime();
+        if( ! merged.contains( modificationTime ) ){
+            merged[ modificationTime ] = historyItem->clone( Entry::CloneNoFlags );
+        }
+    }
+    const QDateTime ownModificationTime = timeInfo().lastModificationTime();
+    const QDateTime otherModificationTime = otherEntry->timeInfo().lastModificationTime();
+    if( ownModificationTime < otherModificationTime && ! merged.contains( ownModificationTime ) ){
+        merged[ ownModificationTime ] = clone( Entry::CloneNoFlags );
+    }
+    if( ownModificationTime > otherModificationTime && ! merged.contains( otherModificationTime )){
+        merged[ otherModificationTime ] = otherEntry->clone( Entry::CloneNoFlags );
+    }
+    if( m_history.count() == merged.count() ){
+        // each change would result in a change in the number of items
+        return;
+    }
+    m_history.clear();
+    foreach( Entry *historyItem, merged.values() ){
+        Q_ASSERT(!historyItem->parent());
+        m_history.append( historyItem );
+    }
+    truncateHistory();
+
+    emit modified();
+}
