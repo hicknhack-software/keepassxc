@@ -181,7 +181,7 @@ Uuid Group::iconUuid() const
     return m_data.customIcon;
 }
 
-const TimeInfo &Group::timeInfo() const
+const TimeInfo& Group::timeInfo() const
 {
     return m_data.timeInfo;
 }
@@ -264,13 +264,10 @@ const CustomData* Group::customData() const
     return m_customData;
 }
 
-bool Group::equals(const Group &other) const
+bool Group::equals(const Group& other) const
 {
-    bool equal = m_uuid == other.m_uuid
-                && m_data == other.m_data
-                && m_customData == other.m_customData
-                && m_children.count() == other.m_children.count()
-                && m_entries.count() == other.m_entries.count();
+    bool equal = m_uuid == other.m_uuid && m_data == other.m_data && m_customData == other.m_customData
+                 && m_children.count() == other.m_children.count() && m_entries.count() == other.m_entries.count();
     if (!equal) {
         return false;
     }
@@ -296,7 +293,7 @@ bool Group::equals(const Group &other) const
     return true;
 }
 
-bool Group::equals(const Group *other) const
+bool Group::equals(const Group* other) const
 {
     return other && equals(*other);
 }
@@ -778,8 +775,7 @@ Group* Group::clone(Entry::CloneFlags entryFlags, Group::CloneFlags groupFlags) 
         clonedGroup->m_data.timeInfo.setLastModificationTime(now);
         clonedGroup->m_data.timeInfo.setLastAccessTime(now);
         clonedGroup->m_data.timeInfo.setLocationChanged(now);
-    }
-    else {
+    } else {
         clonedGroup->m_data.timeInfo = m_data.timeInfo;
     }
 
@@ -812,7 +808,9 @@ void Group::addEntry(Entry* entry)
 
 void Group::removeEntry(Entry* entry)
 {
-    Q_ASSERT_X(m_entries.contains(entry), Q_FUNC_INFO, QString("Group %1 does not contain %2").arg( this->name()).arg(entry->title()).toLatin1());
+    Q_ASSERT_X(m_entries.contains(entry),
+               Q_FUNC_INFO,
+               QString("Group %1 does not contain %2").arg(this->name()).arg(entry->title()).toLatin1());
 
     emit entryAboutToRemove(entry);
 
@@ -974,20 +972,14 @@ Entry* Group::addEntryWithPath(QString entryPath)
     entry->setGroup(group);
 
     return entry;
-
 }
 
-bool Group::GroupData::operator==(const Group::GroupData &other) const
+bool Group::GroupData::operator==(const Group::GroupData& other) const
 {
-    return name == other.name
-            && notes == other.notes
-            && iconNumber == other.iconNumber
-            && customIcon == other.customIcon
-            && timeInfo.equals(other.timeInfo)
-            // TODO CK: Some properties are configurable - should they be ignored?
-            && isExpanded == other.isExpanded
-            && defaultAutoTypeSequence == other.defaultAutoTypeSequence
-            && autoTypeEnabled == other.autoTypeEnabled
-            && searchingEnabled == other.searchingEnabled
-            && mergeMode == other.mergeMode;
+    return name == other.name && notes == other.notes && iconNumber == other.iconNumber
+           && customIcon == other.customIcon && timeInfo.equals(other.timeInfo)
+           // TODO HNH: Some properties are configurable - should they be ignored?
+           && isExpanded == other.isExpanded && defaultAutoTypeSequence == other.defaultAutoTypeSequence
+           && autoTypeEnabled == other.autoTypeEnabled && searchingEnabled == other.searchingEnabled
+           && mergeMode == other.mergeMode;
 }

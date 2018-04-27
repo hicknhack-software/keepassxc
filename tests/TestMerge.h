@@ -52,8 +52,6 @@ private slots:
 private:
     Database* createTestDatabase();
     Database* createTestDatabaseStructureClone(Database* source, int entryFlags, int groupFlags);
-
 };
 
 #endif // KEEPASSX_TESTMERGE_H
-

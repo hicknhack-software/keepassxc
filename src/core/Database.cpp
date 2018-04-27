@@ -26,10 +26,10 @@
 #include <QXmlStreamReader>
 
 #include "cli/Utils.h"
+#include "core/DatabaseSharing.h"
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
-#include "core/DatabaseSharing.h"
 #include "crypto/kdf/AesKdf.h"
 #include "format/KeePass2.h"
 #include "format/KeePass2Reader.h"
@@ -218,7 +218,6 @@ QList<DeletedObject> Database::deletedObjects()
 {
     return m_deletedObjects;
 }
-
 
 const QList<DeletedObject>& Database::deletedObjects() const
 {
@@ -445,7 +444,6 @@ void Database::markAsModified()
     emit modified();
 }
 
-
 Uuid Database::uuid()
 {
     return m_uuid;
@@ -653,4 +651,3 @@ bool Database::changeKdf(QSharedPointer<Kdf> kdf)
 
     return true;
 }
-

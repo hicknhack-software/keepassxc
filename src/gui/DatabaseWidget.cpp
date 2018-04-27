@@ -32,7 +32,6 @@
 #include <QProcess>
 #include <QSplitter>
 
-#include "core/Uuid.h"
 #include "autotype/AutoType.h"
 #include "core/Config.h"
 #include "core/DatabaseSharing.h"
@@ -42,6 +41,7 @@
 #include "core/Merger.h"
 #include "core/Metadata.h"
 #include "core/Tools.h"
+#include "core/Uuid.h"
 #include "format/KeePass2Reader.h"
 #include "gui/ChangeMasterKeyWidget.h"
 #include "gui/Clipboard.h"

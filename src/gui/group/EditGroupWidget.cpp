@@ -39,7 +39,7 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
     addPage(tr("Group"), FilePath::instance()->icon("actions", "document-edit"), m_editGroupWidgetMain);
     addPage(tr("Icon"), FilePath::instance()->icon("apps", "preferences-desktop-icons"), m_editGroupWidgetIcons);
     addPage(tr("Properties"), FilePath::instance()->icon("actions", "document-properties"), m_editWidgetProperties);
-    addPage(tr("Sharing"), FilePath::instance()->icon("sharing", "preference-sharing"), m_editWidgetSharing );
+    addPage(tr("Sharing"), FilePath::instance()->icon("sharing", "preference-sharing"), m_editWidgetSharing);
 
     connect(m_mainUi->expireCheck, SIGNAL(toggled(bool)), m_mainUi->expireDatePicker, SLOT(setEnabled(bool)));
     connect(m_mainUi->autoTypeSequenceCustomRadio,
@@ -98,8 +98,8 @@ void EditGroupWidget::loadGroup(Group* group, bool create, Database* database)
     iconStruct.number = group->iconNumber();
     m_editGroupWidgetIcons->load(group->uuid(), database, iconStruct);
 
-    // TODO CK: CustomData is changed at multiple places within the edit dialog
-    //          we should use a unified source or update the references accordingly
+    // TODO HNH: CustomData is changed at multiple places within the edit dialog
+    //           we should use a unified source or update the references accordingly
 
     m_editWidgetProperties->setFields(group->timeInfo(), group->uuid());
     m_editWidgetProperties->setCustomData(group->customData());
@@ -126,8 +126,8 @@ void EditGroupWidget::apply()
     m_group->setExpires(m_mainUi->expireCheck->isChecked());
     m_group->setExpiryTime(m_mainUi->expireDatePicker->dateTime().toUTC());
 
-    // TODO CK: CustomData is changed at multiple places within the edit dialog
-    //          we should use a unified source or update the references accordingly
+    // TODO HNH: CustomData is changed at multiple places within the edit dialog
+    //           we should use a unified source or update the references accordingly
     m_group->setSearchingEnabled(triStateFromIndex(m_mainUi->searchComboBox->currentIndex()));
     m_group->setAutoTypeEnabled(triStateFromIndex(m_mainUi->autotypeComboBox->currentIndex()));
 

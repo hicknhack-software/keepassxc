@@ -336,7 +336,8 @@ bool DatabaseTabWidget::saveDatabase(Database* db, QString filePath)
             dbStruct.saveAttempts = 0;
             dbStruct.fileInfo = QFileInfo(filePath);
             dbStruct.dbWidget->databaseSaved();
-            // TODO CK: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
+            // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
+            // architecture
             db->sharing()->exportSharedEntries();
 
             updateTabName(db);
@@ -397,8 +398,9 @@ bool DatabaseTabWidget::saveDatabaseAs(Database* db)
                 continue;
             }
 
-            // TODO CK: SaveAs as trigger for sharing? Don't think it would be appropiate since once may dismiss the changes of the current database
-            //          SaveAs for non-existing datbase doesn't matter since one has to set the path while creation
+            // TODO HNH: SaveAs as trigger for sharing? Don't think it would be appropiate since one may dismiss the
+            // changes of the current database
+            //           SaveAs for non-existing datbase doesn't matter since one has to set the path while creation
 
             dbStruct.dbWidget->updateFilePath(dbStruct.fileInfo.absoluteFilePath());
             updateLastDatabases(dbStruct.fileInfo.absoluteFilePath());
@@ -834,11 +836,14 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
 
     connect(newDb, SIGNAL(nameTextChanged()), SLOT(updateTabNameFromDbSender()));
     connect(newDb, SIGNAL(modified()), SLOT(modified()));
-    // TODO CK: the messages are database -local - therefor it is needed to display the messages in the database tab
-    connect(newDb->sharing(), SIGNAL(sharingChanged(QString,MessageWidget::MessageType)), SIGNAL(messageTab(QString,MessageWidget::MessageType)));
-    // connect(newDb->sharing(), SIGNAL(sharingChanged(QString,MessageWidget::MessageType)), SIGNAL(messageGlobal(QString,MessageWidget::MessageType)));
+    // TODO HNH: the messages are database -local - therefor it is needed to display the messages in the database tab
+    connect(newDb->sharing(),
+            SIGNAL(sharingChanged(QString, MessageWidget::MessageType)),
+            SIGNAL(messageTab(QString, MessageWidget::MessageType)));
+    // connect(newDb->sharing(), SIGNAL(sharingChanged(QString,MessageWidget::MessageType)),
+    // SIGNAL(messageGlobal(QString,MessageWidget::MessageType)));
     newDb->setEmitModified(true);
-    // TODO CK: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
+    // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
     newDb->sharing()->handleChanged();
 }
 

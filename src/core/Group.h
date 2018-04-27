@@ -24,9 +24,9 @@
 #include <QPixmapCache>
 #include <QPointer>
 
+#include "core/CustomData.h"
 #include "core/Database.h"
 #include "core/Entry.h"
-#include "core/CustomData.h"
 #include "core/TimeInfo.h"
 #include "core/Uuid.h"
 
