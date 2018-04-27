@@ -148,7 +148,6 @@ public:
     bool equals(const Entry& other) const;
     bool equals(const Entry* other) const;
 
-
     enum CloneFlag
     {
         CloneNoFlags = 0,

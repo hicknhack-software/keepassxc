@@ -27,8 +27,8 @@
 #include <QItemSelectionModel>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QStandardItemModel>
 #include <QStandardItem>
+#include <QStandardItemModel>
 #include <QThread>
 
 #include "FileDialog.h"
@@ -43,7 +43,6 @@
 #include "core/Metadata.h"
 #include "crypto/SymmetricCipher.h"
 #include "crypto/kdf/Argon2Kdf.h"
-
 
 DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
     : DialogyWidget(parent)
@@ -344,4 +343,3 @@ void DatabaseSettingsWidget::parallelismChanged(int value)
     m_uiEncryption->parallelismSpinBox->setSuffix(
         tr(" thread(s)", "Threads for parallel execution (KDF settings)", value));
 }
-

@@ -41,8 +41,7 @@ struct DeletedObject
     QDateTime deletionTime;
     bool operator==(const DeletedObject& other) const
     {
-        return uuid == other.uuid
-                && deletionTime == other.deletionTime;
+        return uuid == other.uuid && deletionTime == other.deletionTime;
     }
 };
 

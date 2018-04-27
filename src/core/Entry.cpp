@@ -21,9 +21,9 @@
 
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
+#include "core/DatabaseSharing.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
-#include "core/DatabaseSharing.h"
 #include "totp/totp.h"
 
 #include <QRegularExpression>
@@ -164,8 +164,7 @@ QPixmap Entry::iconScaledPixmap() const
     if (m_data.customIcon.isNull()) {
         // built-in icons are 16x16 so don't need to be scaled
         return databaseIcons()->iconPixmap(m_data.iconNumber);
-    }
-    else {
+    } else {
         Q_ASSERT(database());
 
         return database()->metadata()->customIconScaledPixmap(m_data.customIcon);
@@ -202,7 +201,7 @@ QString Entry::tags() const
     return m_data.tags;
 }
 
-const TimeInfo &Entry::timeInfo() const
+const TimeInfo& Entry::timeInfo() const
 {
     return m_data.timeInfo;
 }
@@ -638,13 +637,10 @@ void Entry::truncateHistory()
 
 bool Entry::equals(const Entry& other) const
 {
-    bool equal = m_uuid == other.uuid()
-            && m_data == other.m_data
-            && *m_customData == *other.m_customData
-            && *m_attributes == *other.m_attributes
-            && *m_attachments == *other.m_attachments
-            && *m_autoTypeAssociations == *other.m_autoTypeAssociations
-            && m_history.count() == other.m_history.count();
+    bool equal = m_uuid == other.uuid() && m_data == other.m_data && *m_customData == *other.m_customData
+                 && *m_attributes == *other.m_attributes && *m_attachments == *other.m_attachments
+                 && *m_autoTypeAssociations == *other.m_autoTypeAssociations
+                 && m_history.count() == other.m_history.count();
     if (!equal) {
         return false;
     }
@@ -656,7 +652,7 @@ bool Entry::equals(const Entry& other) const
     return true;
 }
 
-bool Entry::equals(const Entry *other) const
+bool Entry::equals(const Entry* other) const
 {
     return other && equals(*other);
 }
@@ -706,8 +702,7 @@ Entry* Entry::clone(CloneFlags flags) const
         entry->m_data.timeInfo.setLastModificationTime(now);
         entry->m_data.timeInfo.setLastAccessTime(now);
         entry->m_data.timeInfo.setLocationChanged(now);
-    }
-    else {
+    } else {
         entry->m_data.timeInfo = m_data.timeInfo;
     }
 
@@ -1001,7 +996,7 @@ QString Entry::maskPasswordPlaceholders(const QString& str) const
     return result;
 }
 
-Entry *Entry::resolveReference(const QString &str) const
+Entry* Entry::resolveReference(const QString& str) const
 {
     QRegularExpressionMatch match = EntryAttributes::matchReference(str);
     if (!match.hasMatch()) {
@@ -1013,7 +1008,6 @@ Entry *Entry::resolveReference(const QString &str) const
 
     const EntryReferenceType searchInType = Entry::referenceType(searchIn);
     return m_group->database()->resolveEntry(searchText, searchInType);
-
 }
 
 QString Entry::resolveMultiplePlaceholders(const QString& str) const
@@ -1126,18 +1120,11 @@ QString Entry::resolveUrl(const QString& url) const
     return QString("");
 }
 
-bool EntryData::operator==(const EntryData &other) const
+bool EntryData::operator==(const EntryData& other) const
 {
-    return iconNumber == other.iconNumber
-            && customIcon == other.customIcon
-            && foregroundColor == other.foregroundColor
-            && backgroundColor == other.backgroundColor
-            && overrideUrl == other.overrideUrl
-            && tags == other.tags
-            && autoTypeEnabled == other.autoTypeEnabled
-            && autoTypeObfuscation == other.autoTypeObfuscation
-            && defaultAutoTypeSequence == other.defaultAutoTypeSequence
-            && timeInfo.equals(other.timeInfo)
-            && totpDigits == other.totpDigits
-            && totpStep == other.totpStep;
+    return iconNumber == other.iconNumber && customIcon == other.customIcon && foregroundColor == other.foregroundColor
+           && backgroundColor == other.backgroundColor && overrideUrl == other.overrideUrl && tags == other.tags
+           && autoTypeEnabled == other.autoTypeEnabled && autoTypeObfuscation == other.autoTypeObfuscation
+           && defaultAutoTypeSequence == other.defaultAutoTypeSequence && timeInfo.equals(other.timeInfo)
+           && totpDigits == other.totpDigits && totpStep == other.totpStep;
 }

@@ -116,7 +116,7 @@ void AutoTypeAssociations::clear()
     m_associations.clear();
 }
 
-bool AutoTypeAssociations::operator==(const AutoTypeAssociations &other) const
+bool AutoTypeAssociations::operator==(const AutoTypeAssociations& other) const
 {
     if (m_associations.count() != other.m_associations.count()) {
         return false;

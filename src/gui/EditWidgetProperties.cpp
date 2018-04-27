@@ -19,7 +19,6 @@
 #include "MessageBox.h"
 #include "ui_EditWidgetProperties.h"
 
-
 #include "core/CustomData.h"
 #include "core/TimeInfo.h"
 #include "core/Uuid.h"

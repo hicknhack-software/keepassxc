@@ -85,7 +85,7 @@ bool Uuid::operator!=(const Uuid& other) const
     return !operator==(other);
 }
 
-bool Uuid::operator<(const Uuid &other) const
+bool Uuid::operator<(const Uuid& other) const
 {
     return m_data < other.m_data;
 }

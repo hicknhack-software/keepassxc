@@ -19,8 +19,8 @@
 #define KEEPASSXC_MERGER_H
 
 #include "core/Group.h"
-#include <QPointer>
 #include <QCoreApplication>
+#include <QPointer>
 
 class Database;
 class Entry;
@@ -39,7 +39,8 @@ private:
     typedef QString Change;
     typedef QStringList ChangeList;
 
-    struct MergeContext {
+    struct MergeContext
+    {
         QPointer<const Database> m_sourceDb;
         QPointer<Database> m_targetDb;
         QPointer<const Group> m_sourceRootGroup;

@@ -26,7 +26,6 @@
 #include "crypto/kdf/Kdf.h"
 #include "gui/DialogyWidget.h"
 
-
 class Database;
 
 namespace Ui

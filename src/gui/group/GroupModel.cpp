@@ -128,7 +128,7 @@ QVariant GroupModel::data(const QModelIndex& index, int role) const
     if (role == Qt::DisplayRole) {
         QString nameTemplate = tr("%1", "Template for name without annotation");
         nameTemplate = DatabaseSharing::sharingIndicatorSuffix(group, nameTemplate);
-        return nameTemplate.arg( group->name() );
+        return nameTemplate.arg(group->name());
     } else if (role == Qt::DecorationRole) {
         if (group->isExpired()) {
             return databaseIcons()->iconPixmap(DatabaseIcons::ExpiredIconIndex);

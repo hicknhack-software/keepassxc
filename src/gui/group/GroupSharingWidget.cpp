@@ -18,16 +18,16 @@
 #include "GroupSharingWidget.h"
 #include "ui_GroupSharingWidget.h"
 
-#include "core/FilePath.h"
-#include "core/Metadata.h"
-#include "core/DatabaseSharing.h"
-#include "core/CustomData.h"
 #include "core/Config.h"
+#include "core/CustomData.h"
+#include "core/DatabaseSharing.h"
+#include "core/FilePath.h"
 #include "core/Group.h"
+#include "core/Metadata.h"
 #include "gui/FileDialog.h"
 
-#include <QStandardPaths>
 #include <QDir>
+#include <QStandardPaths>
 
 GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     : QWidget(parent)
@@ -49,24 +49,25 @@ GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     connect(m_ui->pathEdit, SIGNAL(textChanged(QString)), SLOT(setPath(QString)));
     connect(m_ui->pathSelectionButton, SIGNAL(pressed()), SLOT(selectPath()));
     connect(m_ui->typeComboBox, SIGNAL(currentIndexChanged(int)), SLOT(selectType()));
-    const auto types = QList<DatabaseSharing::Type>() << DatabaseSharing::Inactive << DatabaseSharing::ImportFrom << DatabaseSharing::ExportTo << DatabaseSharing::SynchronizeWith;
-    for (const DatabaseSharing::Type &type : types) {
-    QString name;
-    switch (type) {
-    case DatabaseSharing::Inactive:
-        name = tr("Inactive");
-        break;
-    case DatabaseSharing::ImportFrom:
-        name = tr("Import from path");
-        break;
-    case DatabaseSharing::ExportTo:
-        name = tr("Export to path");
-        break;
-    case DatabaseSharing::SynchronizeWith:
-        name = tr("Synchronize with path");
-        break;
-    }
-    m_ui->typeComboBox->insertItem(type, name, static_cast<int>(type));
+    const auto types = QList<DatabaseSharing::Type>() << DatabaseSharing::Inactive << DatabaseSharing::ImportFrom
+                                                      << DatabaseSharing::ExportTo << DatabaseSharing::SynchronizeWith;
+    for (const DatabaseSharing::Type& type : types) {
+        QString name;
+        switch (type) {
+        case DatabaseSharing::Inactive:
+            name = tr("Inactive");
+            break;
+        case DatabaseSharing::ImportFrom:
+            name = tr("Import from path");
+            break;
+        case DatabaseSharing::ExportTo:
+            name = tr("Export to path");
+            break;
+        case DatabaseSharing::SynchronizeWith:
+            name = tr("Synchronize with path");
+            break;
+        }
+        m_ui->typeComboBox->insertItem(type, name, static_cast<int>(type));
     }
 
     connect(m_customData, SIGNAL(modified()), this, SLOT(update()));
@@ -76,12 +77,12 @@ GroupSharingWidget::~GroupSharingWidget()
 {
 }
 
-void GroupSharingWidget::setGroup(const Group *group)
+void GroupSharingWidget::setGroup(const Group* group)
 {
     m_currentGroup = group;
 }
 
-void GroupSharingWidget::setCustomData(const CustomData *customData)
+void GroupSharingWidget::setCustomData(const CustomData* customData)
 {
     Q_ASSERT(customData);
     m_customData->copyDataFrom(customData);
@@ -104,13 +105,13 @@ void GroupSharingWidget::update()
 
     const bool importEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ImportFrom);
     const bool exportEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ExportTo);
-    if( ! importEnabled && ! exportEnabled ) {
+    if (!importEnabled && !exportEnabled) {
         m_ui->messageWidget->showMessage(tr("Sharing is disabled"), MessageWidget::Information);
     }
-    if( importEnabled && ! exportEnabled ) {
+    if (importEnabled && !exportEnabled) {
         m_ui->messageWidget->showMessage(tr("Export is disabled"), MessageWidget::Information);
     }
-    if( ! importEnabled && exportEnabled ) {
+    if (!importEnabled && exportEnabled) {
         m_ui->messageWidget->showMessage(tr("Import is disabled"), MessageWidget::Information);
     }
 }
@@ -145,13 +146,13 @@ void GroupSharingWidget::selectPath()
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     QString filetype = tr("kdbx", "Filetype for sharing container");
-    QString filters = QString("%1 (*."+filetype+");;%2 (*)").arg(tr("KeePass2 Sharing Container"), tr("All files"));
+    QString filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeePass2 Sharing Container"), tr("All files"));
     QString filename = reference.path;
-    if( filename.isEmpty() ){
+    if (filename.isEmpty()) {
         filename = tr("%1.share.%2", "Template for sharing container").arg(m_currentGroup->name()).arg(filetype);
     }
     QString title;
-    switch( reference.type){
+    switch (reference.type) {
     case DatabaseSharing::ImportFrom:
         title = tr("Select import source");
         break;
@@ -166,14 +167,7 @@ void GroupSharingWidget::selectPath()
         break;
     }
 
-    filename = fileDialog()->getSaveFileName(this,
-                                            title,
-                                            defaultDirPath,
-                                            filters,
-                                            nullptr,
-                                            0,
-                                            filetype,
-                                            filename);
+    filename = fileDialog()->getSaveFileName(this, title, defaultDirPath, filters, nullptr, 0, filetype, filename);
     if (filename.isEmpty()) {
         return;
     }
@@ -185,7 +179,7 @@ void GroupSharingWidget::selectPath()
 void GroupSharingWidget::selectPassword()
 {
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
-    reference.password =  m_ui->passwordEdit->text();
+    reference.password = m_ui->passwordEdit->text();
     DatabaseSharing::setReferenceTo(m_customData, reference);
 }
 

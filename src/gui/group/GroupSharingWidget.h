@@ -7,8 +7,9 @@
 class Group;
 class CustomData;
 
-namespace Ui {
-class GroupSharingWidget;
+namespace Ui
+{
+    class GroupSharingWidget;
 }
 
 class GroupSharingWidget : public QWidget
@@ -19,16 +20,16 @@ public:
     ~GroupSharingWidget();
 
     void setGroup(const Group* group);
-    void setCustomData(const CustomData *customData);
-    const CustomData *customData() const;
+    void setCustomData(const CustomData* customData);
+    const CustomData* customData() const;
 
 private slots:
     void update();
     void selectType();
     void selectPassword();
     void selectPath();
-    void setPath(const QString &path);
-    void setGeneratedPassword(const QString &password);
+    void setPath(const QString& path);
+    void setGeneratedPassword(const QString& password);
     void togglePasswordGeneratorButton(bool checked);
 
 private:

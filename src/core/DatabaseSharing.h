@@ -18,11 +18,11 @@
 #ifndef KEEPASSXC_DATABASESHARING_H
 #define KEEPASSXC_DATABASESHARING_H
 
+#include <QFileSystemWatcher>
 #include <QMap>
 #include <QObject>
 #include <QSet>
 #include <QStringList>
-#include <QFileSystemWatcher>
 #include <QTimer>
 
 #include "core/Uuid.h"
@@ -38,26 +38,31 @@ class DatabaseSharing : public QObject
     Q_OBJECT
 
 public:
-    static QString sharingIndicatorSuffix(const Group *group, const QString& text);
+    static QString sharingIndicatorSuffix(const Group* group, const QString& text);
     static bool isShared(const Group* group);
-
 
     explicit DatabaseSharing(Database* db, QObject* parent = nullptr);
 
-    enum Type  {
-        Inactive        = 0,
-        ImportFrom      = 1 << 0,
-        ExportTo        = 1 << 1,
+    enum Type
+    {
+        Inactive = 0,
+        ImportFrom = 1 << 0,
+        ExportTo = 1 << 1,
         SynchronizeWith = ImportFrom | ExportTo
     };
 
-    struct Reference {
+    struct Reference
+    {
         Type type;
         Uuid uuid;
         QString path;
         QString password;
 
-        Reference() : type(Type::Inactive), uuid(Uuid::random()) { }
+        Reference()
+            : type(Type::Inactive)
+            , uuid(Uuid::random())
+        {
+        }
         Reference(Type type, const Uuid& uuid, const QString& path, const QString& password);
         bool isNull() const;
         bool isActive() const;
@@ -67,17 +72,17 @@ public:
         bool operator==(const Reference& other) const;
     };
 
-    static Reference referenceOf(const CustomData *customData);
-    static void setReferenceTo(CustomData* customData, const Reference &reference);
+    static Reference referenceOf(const CustomData* customData);
+    static void setReferenceTo(CustomData* customData, const Reference& reference);
     static void removeReferenceFrom(CustomData* customData);
 
     void exportSharedEntries();
-    static bool isEnabled(const Database *db);
-    static bool isEnabled(const Database *db, Type sharing);
+    static bool isEnabled(const Database* db);
+    static bool isEnabled(const Database* db, Type sharing);
     static void enable(Database* db, Type sharing);
 
 signals:
-    void sharingChanged(QString,MessageWidget::MessageType);
+    void sharingChanged(QString, MessageWidget::MessageType);
 
 public slots:
     void handleChanged();
@@ -85,10 +90,11 @@ public slots:
 private slots:
     void unblockAutoReload();
     void handleDirectoryChanged(const QString& path);
-    void handleFileChanged(const QString &path);
+    void handleFileChanged(const QString& path);
 
 private:
-    struct Result {
+    struct Result
+    {
         QString path;
         QString error;
 
@@ -96,13 +102,13 @@ private:
         bool isError() const;
     };
 
-    static bool isExporting(Database *database, const Group* group);
-    static QString serializeReference(const DatabaseSharing::Reference &reference);
-    static Reference deserializeReference(const QString &raw);
-    static void resolveReferenceAttributes(Entry *targetEntry, Database *sourceDb);
+    static bool isExporting(Database* database, const Group* group);
+    static QString serializeReference(const DatabaseSharing::Reference& reference);
+    static Reference deserializeReference(const QString& raw);
+    static void resolveReferenceAttributes(Entry* targetEntry, Database* sourceDb);
 
     Result handleReferenceChanged(const QString& path);
-    Result exportSharedFrom(Group *group);
+    Result exportSharedFrom(Group* group);
     void deinitialize();
     void reinitialize();
     void notifyAbout(const QStringList& success, const QStringList& failure);
@@ -110,15 +116,15 @@ private:
 private:
     Database* const m_db;
     QMap<Reference, QPointer<Group>> m_referenceToGroup;
-    QMap<QPointer<Group>,Reference> m_groupToReference;
-    QMap<QString,QPointer<Group>> m_shareToGroup;
+    QMap<QPointer<Group>, Reference> m_groupToReference;
+    QMap<QString, QPointer<Group>> m_shareToGroup;
 
     // Handling of filesystem changes - it would better to create a central
     // observer handling the filesystem which just notifies any client for changes
     QMap<QString, QDateTime> m_blockedPaths;
     QFileSystemWatcher m_fileWatcher;
     QMap<QString, bool> m_watched;
-    QMap<QString,QSet<QString>> m_sources;
+    QMap<QString, QSet<QString>> m_sources;
     QTimer m_fileWatchTimer;
     QTimer m_fileWatchUnblockTimer; // needed for Import/Export-References
 };
