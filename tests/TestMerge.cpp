@@ -17,6 +17,7 @@
 
 #include "TestMerge.h"
 #include "TestGlobal.h"
+#include "stub/TestClock.h"
 
 #include "core/Merger.h"
 #include "core/Metadata.h"
@@ -33,6 +34,15 @@ namespace
         timeInfo.setLocationChanged(time.addYears(iYears).addMonths(iMonths).addDays(iDays));
         return timeInfo;
     }
+
+    TimeInfo modificationTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
+    {
+        const QDateTime time = timeInfo.lastModificationTime();
+        timeInfo.setLastModificationTime(time.addYears(iYears).addMonths(iMonths).addDays(iDays));
+        return timeInfo;
+    }
+
+    Test::Clock* m_clock = nullptr;
 }
 
 void TestMerge::initTestCase()
@@ -40,6 +50,19 @@ void TestMerge::initTestCase()
     qRegisterMetaType<Entry*>("Entry*");
     qRegisterMetaType<Group*>("Group*");
     QVERIFY(Crypto::init());
+}
+
+void TestMerge::init()
+{
+    Q_ASSERT(m_clock == nullptr);
+    m_clock = new Test::Clock(2010, 5, 5, 10, 30, 10);
+    Test::Clock::setup(m_clock);
+}
+
+void TestMerge::cleanup()
+{
+    Test::Clock::teardown();
+    m_clock = nullptr;
 }
 
 /**
@@ -74,11 +97,15 @@ void TestMerge::testMergeNoChanges()
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
     QCOMPARE(dbSource->rootGroup()->entriesRecursive().size(), 2);
 
+    m_clock->advanceSecond( 1 );
+
     Merger merger1(dbSource.data(), dbDestination.data());
     merger1.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
     QCOMPARE(dbSource->rootGroup()->entriesRecursive().size(), 2);
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger2(dbSource.data(), dbDestination.data());
     merger2.merge();
@@ -102,15 +129,34 @@ void TestMerge::testResolveConflictNewer()
     QVERIFY(groupSourceInitial != nullptr);
     QCOMPARE(groupSourceInitial->entries().size(), 2);
 
+    QPointer<Group> groupDestinationInitial = dbSource->rootGroup()->findChildByName("group1");
+    QVERIFY(groupDestinationInitial != nullptr);
+    QCOMPARE(groupDestinationInitial->entries().size(), 2);
+
     QPointer<Entry> entrySourceInitial = dbSource->rootGroup()->findEntry("entry1");
     QVERIFY(entrySourceInitial != nullptr);
+    QVERIFY(entrySourceInitial->group() == groupSourceInitial);
+
+    const TimeInfo entrySourceInitialTimeInfo = entrySourceInitial->timeInfo();
+    const TimeInfo groupSourceInitialTimeInfo = groupSourceInitial->timeInfo();
+    const TimeInfo groupDestinationInitialTimeInfo = groupDestinationInitial->timeInfo();
 
     // Make sure the two changes have a different timestamp.
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
     // make this entry newer than in destination db
     entrySourceInitial->beginUpdate();
     entrySourceInitial->setPassword("password");
     entrySourceInitial->endUpdate();
+
+    const TimeInfo entrySourceUpdatedTimeInfo = entrySourceInitial->timeInfo();
+    const TimeInfo groupSourceUpdatedTimeInfo = groupSourceInitial->timeInfo();
+
+    QVERIFY(entrySourceInitialTimeInfo != entrySourceUpdatedTimeInfo);
+    QVERIFY(groupSourceInitialTimeInfo == groupSourceUpdatedTimeInfo);
+    QVERIFY(groupSourceInitialTimeInfo == groupDestinationInitialTimeInfo);
+
+    // Make sure the merge changes have a different timestamp.
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -119,11 +165,13 @@ void TestMerge::testResolveConflictNewer()
     QPointer<Group> groupDestinationMerged = dbDestination->rootGroup()->findChildByName("group1");
     QVERIFY(groupDestinationMerged != nullptr);
     QCOMPARE(groupDestinationMerged->entries().size(), 2);
+    QCOMPARE(groupDestinationMerged->timeInfo(), groupDestinationInitialTimeInfo);
 
     QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
     QVERIFY(entryDestinationMerged != nullptr);
     QVERIFY(entryDestinationMerged->group() != nullptr);
     QCOMPARE(entryDestinationMerged->password(), QString("password"));
+    QCOMPARE(entryDestinationMerged->timeInfo(), entrySourceUpdatedTimeInfo);
 
     // When updating an entry, it should not end up in the
     // deleted objects.
@@ -148,25 +196,52 @@ void TestMerge::testResolveConflictOlder()
     QVERIFY(groupSourceInitial != nullptr);
     QCOMPARE(groupSourceInitial->entries().size(), 2);
 
+    QPointer<Group> groupDestinationInitial = dbDestination->rootGroup()->findChildByName("group1");
+    QVERIFY(groupDestinationInitial != nullptr);
+    QCOMPARE(groupSourceInitial->entries().size(), 2);
+
     QPointer<Entry> entrySourceInitial = dbSource->rootGroup()->findEntry("entry1");
     QVERIFY(entrySourceInitial != nullptr);
+    QVERIFY(entrySourceInitial->group() == groupSourceInitial);
+
+    const TimeInfo entrySourceInitialTimeInfo = entrySourceInitial->timeInfo();
+    const TimeInfo groupSourceInitialTimeInfo = groupSourceInitial->timeInfo();
+    const TimeInfo groupDestinationInitialTimeInfo = groupDestinationInitial->timeInfo();
 
     // Make sure the two changes have a different timestamp.
-    QTest::qSleep(1);
-    // make this entry newer than in destination db
+    m_clock->advanceSecond( 1 );
+    // make this entry older than in destination db
     entrySourceInitial->beginUpdate();
     entrySourceInitial->setPassword("password1");
     entrySourceInitial->endUpdate();
 
-    QPointer<Entry> entryDestinationUpated = dbDestination->rootGroup()->findEntry("entry1");
-    QVERIFY(entryDestinationUpated != nullptr);
+    const TimeInfo entrySourceUpdatedOlderTimeInfo = entrySourceInitial->timeInfo();
+    const TimeInfo groupSourceUpdatedOlderTimeInfo = groupSourceInitial->timeInfo();
+
+    QPointer<Group> groupDestinationUpdated = dbDestination->rootGroup()->findChildByName("group1");
+    QVERIFY(groupDestinationUpdated != nullptr);
+    QCOMPARE(groupDestinationUpdated->entries().size(), 2);
+    QPointer<Entry> entryDestinationUpdated = dbDestination->rootGroup()->findEntry("entry1");
+    QVERIFY(entryDestinationUpdated != nullptr);
+    QVERIFY(entryDestinationUpdated->group() == groupDestinationUpdated);
 
     // Make sure the two changes have a different timestamp.
-    QTest::qSleep(1);
-    // make this entry newer than in destination db
-    entryDestinationUpated->beginUpdate();
-    entryDestinationUpated->setPassword("password2");
-    entryDestinationUpated->endUpdate();
+    m_clock->advanceSecond( 1 );
+    // make this entry newer than in source db
+    entryDestinationUpdated->beginUpdate();
+    entryDestinationUpdated->setPassword("password2");
+    entryDestinationUpdated->endUpdate();
+
+    const TimeInfo entryDestinationUpdatedNewerTimeInfo = entryDestinationUpdated->timeInfo();
+    const TimeInfo groupDestinationUpdatedNewerTimeInfo = groupDestinationUpdated->timeInfo();
+    QVERIFY(entrySourceUpdatedOlderTimeInfo != entrySourceInitialTimeInfo);
+    QVERIFY(entrySourceUpdatedOlderTimeInfo != entryDestinationUpdatedNewerTimeInfo);
+    QVERIFY(groupSourceInitialTimeInfo == groupSourceUpdatedOlderTimeInfo);
+    QVERIFY(groupDestinationInitialTimeInfo == groupDestinationUpdatedNewerTimeInfo);
+    QVERIFY(groupSourceInitialTimeInfo == groupDestinationInitialTimeInfo);
+
+    // Make sure the merge changes have a different timestamp.
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -175,10 +250,12 @@ void TestMerge::testResolveConflictOlder()
     QPointer<Group> groupDestinationMerged = dbDestination->rootGroup()->findChildByName("group1");
     QVERIFY(groupDestinationMerged != nullptr);
     QCOMPARE(groupDestinationMerged->entries().size(), 2);
+    QCOMPARE(groupDestinationMerged->timeInfo(), groupDestinationUpdatedNewerTimeInfo);
 
     QPointer<Entry> entryDestinationMerged = dbDestination->rootGroup()->findEntry("entry1");
     QVERIFY(entryDestinationMerged != nullptr);
     QCOMPARE(entryDestinationMerged->password(), QString("password2"));
+    QCOMPARE(entryDestinationMerged->timeInfo(), entryDestinationUpdatedNewerTimeInfo);
 
     // When updating an entry, it should not end up in the
     // deleted objects.
@@ -201,11 +278,15 @@ void TestMerge::testResolveConflictKeepBoth()
 
     // make this entry newer than in original db
     QPointer<Entry> updatedDestinationEntry = dbDestination->rootGroup()->children().at(0)->entries().at(0);
-    TimeInfo updatedTimeInfo = updatedDestinationEntry->timeInfo();
-    updatedTimeInfo.setLastModificationTime(updatedTimeInfo.lastModificationTime().addYears(1));
-    updatedDestinationEntry->setTimeInfo(updatedTimeInfo);
+    const TimeInfo initialEntryTimeInfo = updatedDestinationEntry->timeInfo();
+    const TimeInfo updatedEntryTimeInfo = modificationTime( initialEntryTimeInfo, 1, 0 ,0 );
+
+    updatedDestinationEntry->setTimeInfo(updatedEntryTimeInfo);
 
     dbDestination->rootGroup()->setMergeMode(Group::MergeMode::KeepBoth);
+
+    // Make sure the merge changes have a different timestamp.
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -214,10 +295,15 @@ void TestMerge::testResolveConflictKeepBoth()
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 3);
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().isEmpty(), false);
     // the older entry was merged from the other db as last in the group
+    QPointer<Entry> newerEntry = dbDestination->rootGroup()->children().at(0)->entries().at(0);
     QPointer<Entry> olderEntry = dbDestination->rootGroup()->children().at(0)->entries().at(2);
+    QVERIFY(newerEntry->title() == olderEntry->title());
+    QVERIFY2(!newerEntry->attributes()->hasKey("merged"), "newer entry is not marked with an attribute \"merged\"");
     QVERIFY2(olderEntry->attributes()->hasKey("merged"), "older entry is marked with an attribute \"merged\"");
     QCOMPARE(olderEntry->historyItems().isEmpty(), false);
-
+    QCOMPARE(newerEntry->timeInfo(), updatedEntryTimeInfo);
+    // TODO HNH: this may be subject to discussions since the entry itself is newer but represents an older one
+    // QCOMPARE(olderEntry->timeInfo(), initialEntryTimeInfo);
     QVERIFY2(olderEntry->uuid().toHex() != updatedDestinationEntry->uuid().toHex(),
              "KeepBoth should not reuse the UUIDs when cloning.");
 }
@@ -312,6 +398,9 @@ void TestMerge::testResolveConflictSynchronized()
 
     dbDestination->rootGroup()->setMergeMode(Group::MergeMode::Synchronize);
 
+    // Make sure the merge changes have a different timestamp.
+    m_clock->advanceSecond( 1 );
+
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
 
@@ -333,9 +422,8 @@ void TestMerge::testResolveConflictSynchronized()
                  .at(0)
                  ->historyItems()
                  .at(0)
-                 ->timeInfo()
-                 .lastModificationTime(),
-             commonHistoryRootTimeInfo.lastModificationTime());
+                 ->timeInfo(),
+             commonHistoryRootTimeInfo);
     QCOMPARE(dbDestination->rootGroup()
                  ->children()
                  .at(0)
@@ -343,9 +431,8 @@ void TestMerge::testResolveConflictSynchronized()
                  .at(0)
                  ->historyItems()
                  .at(1)
-                 ->timeInfo()
-                 .lastModificationTime(),
-             commonHistoryChangeTimeInfo.lastModificationTime());
+                 ->timeInfo(),
+             commonHistoryChangeTimeInfo);
     QCOMPARE(dbDestination->rootGroup()
                  ->children()
                  .at(0)
@@ -353,9 +440,8 @@ void TestMerge::testResolveConflictSynchronized()
                  .at(0)
                  ->historyItems()
                  .at(2)
-                 ->timeInfo()
-                 .lastModificationTime(),
-             differentEarlieTimeInfo.lastModificationTime());
+                 ->timeInfo(),
+             differentEarlieTimeInfo);
     QVERIFY(dbDestination->rootGroup()->children().at(0)->entries().at(0)->timeInfo().lastModificationTime()
             >= differentLaterTimeInfo.lastModificationTime());
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 3);
@@ -366,9 +452,8 @@ void TestMerge::testResolveConflictSynchronized()
                  .at(1)
                  ->historyItems()
                  .at(0)
-                 ->timeInfo()
-                 .lastModificationTime(),
-             commonHistoryRootTimeInfo.lastModificationTime());
+                 ->timeInfo(),
+             commonHistoryRootTimeInfo);
     QCOMPARE(dbDestination->rootGroup()
                  ->children()
                  .at(0)
@@ -376,9 +461,8 @@ void TestMerge::testResolveConflictSynchronized()
                  .at(1)
                  ->historyItems()
                  .at(1)
-                 ->timeInfo()
-                 .lastModificationTime(),
-             commonHistoryChangeTimeInfo.lastModificationTime());
+                 ->timeInfo(),
+             commonHistoryChangeTimeInfo);
     QCOMPARE(dbDestination->rootGroup()
                  ->children()
                  .at(0)
@@ -386,9 +470,8 @@ void TestMerge::testResolveConflictSynchronized()
                  .at(1)
                  ->historyItems()
                  .at(2)
-                 ->timeInfo()
-                 .lastModificationTime(),
-             differentEarlieTimeInfo.lastModificationTime());
+                 ->timeInfo(),
+             differentEarlieTimeInfo);
     QVERIFY(dbDestination->rootGroup()->children().at(0)->entries().at(1)->timeInfo().lastModificationTime()
             >= differentLaterTimeInfo.lastModificationTime());
     QVERIFY(dbDestination->rootGroup()->findEntry("entryDestination"));
@@ -412,9 +495,12 @@ void TestMerge::testMoveEntry()
     QVERIFY(groupSourceInitial != nullptr);
 
     // Make sure the two changes have a different timestamp.
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
+
     entrySourceInitial->setGroup(groupSourceInitial);
     QCOMPARE(entrySourceInitial->group()->name(), QString("group2"));
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -442,17 +528,21 @@ void TestMerge::testMoveEntryPreserveChanges()
     QPointer<Group> group2Source = dbSource->rootGroup()->findChildByName("group2");
     QVERIFY(group2Source != nullptr);
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
+
     entrySourceInitial->setGroup(group2Source);
     QCOMPARE(entrySourceInitial->group()->name(), QString("group2"));
 
     QPointer<Entry> entryDestinationInitial = dbDestination->rootGroup()->findEntry("entry1");
     QVERIFY(entryDestinationInitial != nullptr);
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
+
     entryDestinationInitial->beginUpdate();
     entryDestinationInitial->setPassword("password");
     entryDestinationInitial->endUpdate();
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -470,11 +560,14 @@ void TestMerge::testCreateNewGroups()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
+
     Group* groupSourceCreated = new Group();
     groupSourceCreated->setName("group3");
     groupSourceCreated->setUuid(Uuid::random());
     groupSourceCreated->setParent(dbSource->rootGroup());
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -490,7 +583,8 @@ void TestMerge::testMoveEntryIntoNewGroup()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
+
     Group* groupSourceCreated = new Group();
     groupSourceCreated->setName("group3");
     groupSourceCreated->setUuid(Uuid::random());
@@ -498,6 +592,8 @@ void TestMerge::testMoveEntryIntoNewGroup()
 
     QPointer<Entry> entrySourceMoved = dbSource->rootGroup()->findEntry("entry1");
     entrySourceMoved->setGroup(groupSourceCreated);
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -529,7 +625,7 @@ void TestMerge::testUpdateEntryDifferentLocation()
     groupDestinationCreated->setUuid(Uuid::random());
     groupDestinationCreated->setParent(dbDestination->rootGroup());
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Entry> entryDestinationMoved = dbDestination->rootGroup()->findEntry("entry1");
     QVERIFY(entryDestinationMoved != nullptr);
@@ -538,7 +634,7 @@ void TestMerge::testUpdateEntryDifferentLocation()
     QDateTime destinationLocationChanged = entryDestinationMoved->timeInfo().locationChanged();
 
     // Change the entry in the source db.
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Entry> entrySourceMoved = dbSource->rootGroup()->findEntry("entry1");
     QVERIFY(entrySourceMoved != nullptr);
@@ -548,6 +644,8 @@ void TestMerge::testUpdateEntryDifferentLocation()
     QDateTime sourceLocationChanged = entrySourceMoved->timeInfo().locationChanged();
 
     QVERIFY(destinationLocationChanged > sourceLocationChanged);
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -573,7 +671,7 @@ void TestMerge::testUpdateGroup()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Group> groupSourceInitial = dbSource->rootGroup()->findChildByName("group2");
     groupSourceInitial->setName("group2 renamed");
@@ -588,6 +686,8 @@ void TestMerge::testUpdateGroup()
     entrySourceInitial->setGroup(groupSourceInitial);
     entrySourceInitial->setTitle("entry1 renamed");
     Uuid uuidBeforeSyncing = entrySourceInitial->uuid();
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -623,7 +723,7 @@ void TestMerge::testUpdateGroupLocation()
 
     QDateTime initialLocationChanged = group3SourceInitial->timeInfo().locationChanged();
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Group> group3SourceMoved = dbSource->rootGroup()->findGroupByUuid(group3Uuid);
     QVERIFY(group3SourceMoved != nullptr);
@@ -632,6 +732,8 @@ void TestMerge::testUpdateGroupLocation()
     QDateTime movedLocaltionChanged = group3SourceMoved->timeInfo().locationChanged();
     QVERIFY(initialLocationChanged < movedLocaltionChanged);
 
+    m_clock->advanceSecond( 1 );
+
     Merger merger1(dbSource.data(), dbDestination.data());
     merger1.merge();
 
@@ -639,6 +741,8 @@ void TestMerge::testUpdateGroupLocation()
     QVERIFY(group3DestinationMerged1 != nullptr);
     QCOMPARE(group3DestinationMerged1->parent(), dbDestination->rootGroup()->findChildByName("group2"));
     QCOMPARE(group3DestinationMerged1->timeInfo().locationChanged(), movedLocaltionChanged);
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger2(dbSource.data(), dbDestination.data());
     merger2.merge();
@@ -661,10 +765,14 @@ void TestMerge::testMergeAndSync()
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 0);
 
+    m_clock->advanceSecond( 1 );
+
     Merger merger1(dbSource.data(), dbDestination.data());
     merger1.merge();
 
     QCOMPARE(dbDestination->rootGroup()->entriesRecursive().size(), 2);
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger2(dbSource.data(), dbDestination.data());
     merger2.merge();
@@ -681,12 +789,16 @@ void TestMerge::testMergeCustomIcons()
     QScopedPointer<Database> dbDestination(new Database());
     QScopedPointer<Database> dbSource(createTestDatabase());
 
+    m_clock->advanceSecond( 1 );
+
     Uuid customIconId = Uuid::random();
     QImage customIcon;
 
     dbSource->metadata()->addCustomIcon(customIconId, customIcon);
     // Sanity check.
     QVERIFY(dbSource->metadata()->containsCustomIcon(customIconId));
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -709,17 +821,23 @@ void TestMerge::testDeletedEntry()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
+    m_clock->advanceSecond( 1 );
+
     QPointer<Entry> entry1SourceInitial = dbSource->rootGroup()->findEntry("entry1");
     QVERIFY(entry1SourceInitial != nullptr);
     Uuid entry1Uuid = entry1SourceInitial->uuid();
     delete entry1SourceInitial;
     QVERIFY(dbSource->containsDeletedObject(entry1Uuid));
 
+    m_clock->advanceSecond( 1 );
+
     QPointer<Entry> entry2DestinationInitial = dbDestination->rootGroup()->findEntry("entry2");
     QVERIFY(entry2DestinationInitial != nullptr);
     Uuid entry2Uuid = entry2DestinationInitial->uuid();
     delete entry2DestinationInitial;
     QVERIFY(dbDestination->containsDeletedObject(entry2Uuid));
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -740,6 +858,8 @@ void TestMerge::testDeletedGroup()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
+    m_clock->advanceSecond( 1 );
+
     QPointer<Group> group2DestinationInitial = dbDestination->rootGroup()->findChildByName("group2");
     QVERIFY(group2DestinationInitial != nullptr);
     Entry* entry3DestinationCreated = new Entry();
@@ -749,7 +869,7 @@ void TestMerge::testDeletedGroup()
     entry3DestinationCreated->setTitle("entry3");
     entry3DestinationCreated->endUpdate();
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Group> group1SourceInitial = dbSource->rootGroup()->findChildByName("group1");
     QVERIFY(group1SourceInitial != nullptr);
@@ -765,7 +885,7 @@ void TestMerge::testDeletedGroup()
     QVERIFY(dbSource->containsDeletedObject(entry1Uuid));
     QVERIFY(dbSource->containsDeletedObject(entry2Uuid));
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Group> group2SourceInitial = dbSource->rootGroup()->findChildByName("group2");
     QVERIFY(group2SourceInitial != nullptr);
@@ -773,7 +893,7 @@ void TestMerge::testDeletedGroup()
     delete group2SourceInitial;
     QVERIFY(dbSource->containsDeletedObject(group2Uuid));
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -803,11 +923,15 @@ void TestMerge::testDeletedRevertedEntry()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
+    m_clock->advanceSecond( 1 );
+
     QPointer<Entry> entry1DestinationInitial = dbDestination->rootGroup()->findEntry("entry1");
     QVERIFY(entry1DestinationInitial != nullptr);
     Uuid entry1Uuid = entry1DestinationInitial->uuid();
     delete entry1DestinationInitial;
     QVERIFY(dbDestination->containsDeletedObject(entry1Uuid));
+
+    m_clock->advanceSecond( 1 );
 
     QPointer<Entry> entry2SourceInitial = dbSource->rootGroup()->findEntry("entry2");
     QVERIFY(entry2SourceInitial != nullptr);
@@ -815,7 +939,7 @@ void TestMerge::testDeletedRevertedEntry()
     delete entry2SourceInitial;
     QVERIFY(dbSource->containsDeletedObject(entry2Uuid));
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Entry> entry1SourceInitial = dbSource->rootGroup()->findEntry("entry1");
     QVERIFY(entry1SourceInitial != nullptr);
@@ -845,11 +969,15 @@ void TestMerge::testDeletedRevertedGroup()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
+    m_clock->advanceSecond( 1 );
+
     QPointer<Group> group2SourceInitial = dbSource->rootGroup()->findChildByName("group2");
     QVERIFY(group2SourceInitial != nullptr);
     Uuid group2Uuid = group2SourceInitial->uuid();
     delete group2SourceInitial;
     QVERIFY(dbSource->containsDeletedObject(group2Uuid));
+
+    m_clock->advanceSecond( 1 );
 
     QPointer<Group> group1DestinationInitial = dbDestination->rootGroup()->findChildByName("group1");
     QVERIFY(group1DestinationInitial != nullptr);
@@ -857,15 +985,19 @@ void TestMerge::testDeletedRevertedGroup()
     delete group1DestinationInitial;
     QVERIFY(dbDestination->containsDeletedObject(group1Uuid));
 
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Group> group1SourceInitial = dbSource->rootGroup()->findChildByName("group1");
     QVERIFY(group1SourceInitial != nullptr);
     group1SourceInitial->setNotes("Updated");
 
+    m_clock->advanceSecond( 1 );
+
     QPointer<Group> group2DestinationInitial = dbDestination->rootGroup()->findChildByName("group2");
     QVERIFY(group2DestinationInitial != nullptr);
     group2DestinationInitial->setNotes("Updated");
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
@@ -897,14 +1029,17 @@ void TestMerge::testResolveGroupConflictOlder()
     QVERIFY(groupSourceInitial != nullptr);
 
     // Make sure the two changes have a different timestamp.
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
+
     groupSourceInitial->setName("group1 updated in source");
 
     // Make sure the two changes have a different timestamp.
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QPointer<Group> groupDestinationUpdated = dbDestination->rootGroup()->findChildByName("group1");
     groupDestinationUpdated->setName("group1 updated in destination");
+
+    m_clock->advanceSecond( 1 );
 
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();

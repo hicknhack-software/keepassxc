@@ -18,6 +18,7 @@
 
 #include "Group.h"
 
+#include "core/Clock.h"
 #include "core/Config.h"
 #include "core/DatabaseIcons.h"
 #include "core/Global.h"
@@ -48,6 +49,7 @@ Group::Group()
 
 Group::~Group()
 {
+    setUpdateTimeinfo(false);
     // Destroy entries and children manually so DeletedObjects can be added
     // to database.
     const QList<Entry*> entries = m_entries;
@@ -62,7 +64,7 @@ Group::~Group()
 
     if (m_db && m_parent) {
         DeletedObject delGroup;
-        delGroup.deletionTime = QDateTime::currentDateTimeUtc();
+        delGroup.deletionTime = Clock::currentDateTimeUtc();
         delGroup.uuid = m_uuid;
         m_db->addDeletedObject(delGroup);
     }
@@ -100,8 +102,8 @@ bool Group::canUpdateTimeinfo() const
 void Group::updateTimeinfo()
 {
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLastModificationTime(QDateTime::currentDateTimeUtc());
-        m_data.timeInfo.setLastAccessTime(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLastModificationTime(Clock::currentDateTimeUtc());
+        m_data.timeInfo.setLastAccessTime(Clock::currentDateTimeUtc());
     }
 }
 
@@ -251,7 +253,7 @@ Entry* Group::lastTopVisibleEntry() const
 
 bool Group::isExpired() const
 {
-    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < QDateTime::currentDateTimeUtc();
+    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < Clock::currentDateTimeUtc();
 }
 
 CustomData* Group::customData()
@@ -457,7 +459,7 @@ void Group::setParent(Group* parent, int index)
     }
 
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLocationChanged(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLocationChanged(Clock::currentDateTimeUtc());
     }
 
     emit modified();
@@ -770,7 +772,7 @@ Group* Group::clone(Entry::CloneFlags entryFlags, Group::CloneFlags groupFlags) 
     clonedGroup->setUpdateTimeinfo(true);
     if (groupFlags & Group::CloneResetTimeInfo) {
 
-        QDateTime now = QDateTime::currentDateTimeUtc();
+        QDateTime now = Clock::currentDateTimeUtc();
         clonedGroup->m_data.timeInfo.setCreationTime(now);
         clonedGroup->m_data.timeInfo.setLastModificationTime(now);
         clonedGroup->m_data.timeInfo.setLastAccessTime(now);

@@ -17,13 +17,14 @@
 
 #include "TimeInfo.h"
 
+#include "core/Clock.h"
 #include "core/Tools.h"
 
 TimeInfo::TimeInfo()
     : m_expires(false)
     , m_usageCount(0)
 {
-    QDateTime now = QDateTime::currentDateTimeUtc();
+    QDateTime now = Clock::currentDateTimeUtc();
     m_lastModificationTime = now;
     m_creationTime = now;
     m_lastAccessTime = now;
@@ -112,4 +113,12 @@ bool TimeInfo::equals(const TimeInfo& other, bool ignoreStatistics) const
            && (ignoreStatistics || m_lastAccessTime == other.m_lastAccessTime) && m_expires == other.m_expires
            && (!m_expires || !other.m_expires || m_expiryTime == other.m_expiryTime)
            && (ignoreStatistics || m_usageCount == other.m_usageCount) && m_locationChanged == other.m_locationChanged;
+}
+
+bool TimeInfo::operator==(const TimeInfo& other) const
+{
+    return m_lastModificationTime == other.m_lastModificationTime && m_creationTime == other.m_creationTime
+           && m_lastAccessTime == other.m_lastAccessTime
+           && m_expires == other.m_expires && m_expiryTime == other.m_expiryTime
+           && m_usageCount == other.m_usageCount && m_locationChanged == other.m_locationChanged;
 }

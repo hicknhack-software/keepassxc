@@ -19,6 +19,7 @@
 
 #include "config-keepassx.h"
 
+#include "core/Clock.h"
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
 #include "core/DatabaseSharing.h"
@@ -61,6 +62,7 @@ Entry::Entry()
 
 Entry::~Entry()
 {
+    setUpdateTimeinfo(false);
     if (m_group) {
         m_group->removeEntry(this);
 
@@ -86,8 +88,8 @@ template <class T> inline bool Entry::set(T& property, const T& value)
 void Entry::updateTimeinfo()
 {
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLastModificationTime(QDateTime::currentDateTimeUtc());
-        m_data.timeInfo.setLastAccessTime(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLastModificationTime(Clock::currentDateTimeUtc());
+        m_data.timeInfo.setLastAccessTime(Clock::currentDateTimeUtc());
     }
 }
 
@@ -307,7 +309,7 @@ QString Entry::notes() const
 
 bool Entry::isExpired() const
 {
-    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < QDateTime::currentDateTimeUtc();
+    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < Clock::currentDateTimeUtc();
 }
 
 bool Entry::hasReferences() const
@@ -360,7 +362,7 @@ QString Entry::totp() const
 {
     if (hasTotp()) {
         QString seed = totpSeed();
-        quint64 time = QDateTime::currentDateTime().toTime_t();
+        quint64 time = Clock::currentSecondsSinceEpoch();
         QString output = Totp::generateTotp(seed.toLatin1(), time, m_data.totpDigits, m_data.totpStep);
 
         return QString(output);
@@ -697,7 +699,7 @@ Entry* Entry::clone(CloneFlags flags) const
     entry->setUpdateTimeinfo(true);
 
     if (flags & CloneResetTimeInfo) {
-        QDateTime now = QDateTime::currentDateTimeUtc();
+        QDateTime now = Clock::currentDateTimeUtc();
         entry->m_data.timeInfo.setCreationTime(now);
         entry->m_data.timeInfo.setLastModificationTime(now);
         entry->m_data.timeInfo.setLastAccessTime(now);
@@ -971,7 +973,7 @@ void Entry::setGroup(Group* group)
     QObject::setParent(group);
 
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLocationChanged(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLocationChanged(Clock::currentDateTimeUtc());
     }
 }
 
@@ -981,6 +983,15 @@ void Entry::emitDataChanged()
 }
 
 const Database* Entry::database() const
+{
+    if (m_group) {
+        return m_group->database();
+    } else {
+        return nullptr;
+    }
+}
+
+Database *Entry::database()
 {
     if (m_group) {
         return m_group->database();

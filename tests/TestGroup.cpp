@@ -18,6 +18,7 @@
 
 #include "TestGroup.h"
 #include "TestGlobal.h"
+#include "stub/TestClock.h"
 
 #include <QSignalSpy>
 
@@ -26,11 +27,29 @@
 
 QTEST_GUILESS_MAIN(TestGroup)
 
+namespace
+{
+    Test::Clock* m_clock = nullptr;
+}
+
 void TestGroup::initTestCase()
 {
     qRegisterMetaType<Entry*>("Entry*");
     qRegisterMetaType<Group*>("Group*");
     QVERIFY(Crypto::init());
+}
+
+void TestGroup::init()
+{
+    Q_ASSERT(m_clock == nullptr);
+    m_clock = new Test::Clock(2010, 5, 5, 10, 30, 10);
+    Test::Clock::setup(m_clock);
+}
+
+void TestGroup::cleanup()
+{
+    Test::Clock::teardown();
+    m_clock = nullptr;
 }
 
 void TestGroup::testParenting()
@@ -389,7 +408,7 @@ void TestGroup::testClone()
     QVERIFY(clonedGroupNewUuid->uuid() != originalGroup->uuid());
 
     // Making sure the new modification date is not the same.
-    QTest::qSleep(1);
+    m_clock->advanceSecond( 1 );
 
     QScopedPointer<Group> clonedGroupResetTimeInfo(
         originalGroup->clone(Entry::CloneNoFlags, Group::CloneNewUuid | Group::CloneResetTimeInfo));

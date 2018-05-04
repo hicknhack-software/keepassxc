@@ -20,6 +20,7 @@
 
 #include "TestEntry.h"
 #include "TestGlobal.h"
+#include "core/Clock.h"
 #include "crypto/Crypto.h"
 
 QTEST_GUILESS_MAIN(TestEntry)
@@ -88,9 +89,7 @@ void TestEntry::testClone()
     entryOrg->setTitle("New Title");
     entryOrg->endUpdate();
     TimeInfo entryOrgTime = entryOrg->timeInfo();
-    QDateTime dateTime;
-    dateTime.setTimeSpec(Qt::UTC);
-    dateTime.setTime_t(60);
+    QDateTime dateTime = Clock::datetimeUtc(60);
     entryOrgTime.setCreationTime(dateTime);
     entryOrg->setTimeInfo(entryOrgTime);
 

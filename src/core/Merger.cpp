@@ -89,19 +89,14 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
                    qPrintable(sourceEntry->title()),
                    qPrintable(sourceEntry->uuid().toHex()));
             targetEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
-            const bool updateTimeinfo = targetEntry->canUpdateTimeinfo();
-            targetEntry->setUpdateTimeinfo(false);
-            targetEntry->setGroup(context.m_targetGroup);
-            targetEntry->setUpdateTimeinfo(updateTimeinfo);
+            moveEntry(targetEntry, context.m_targetGroup);
         } else {
             // Entry is already present in the database. Update it.
             bool locationChanged =
                 targetEntry->timeInfo().locationChanged() < sourceEntry->timeInfo().locationChanged();
             if (locationChanged && targetEntry->group() != context.m_targetGroup) {
                 changes << tr("Relocating %1 [%2]").arg(sourceEntry->title()).arg(sourceEntry->uuid().toHex());
-                const bool updateTimeinfo = targetEntry->canUpdateTimeinfo();
-                targetEntry->setGroup(context.m_targetGroup);
-                targetEntry->setUpdateTimeinfo(updateTimeinfo);
+                moveEntry(targetEntry, context.m_targetGroup);
                 qDebug("Location changed for entry %s [%s]. Updating it",
                        qPrintable(targetEntry->title()),
                        qPrintable(targetEntry->uuid().toHex()));
@@ -125,8 +120,8 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
                    qPrintable(sourceChildGroup->name()),
                    qPrintable(sourceChildGroup->uuid().toHex()));
             targetChildGroup = sourceChildGroup->clone(Entry::CloneNoFlags, Group::CloneNoFlags);
+            moveGroup(targetChildGroup, context.m_targetGroup);
             TimeInfo timeinfo = targetChildGroup->timeInfo();
-            targetChildGroup->setParent(context.m_targetGroup);
             timeinfo.setLocationChanged(sourceChildGroup->timeInfo().locationChanged());
             targetChildGroup->setTimeInfo(timeinfo);
         } else {
@@ -134,8 +129,8 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
                 targetChildGroup->timeInfo().locationChanged() < sourceChildGroup->timeInfo().locationChanged();
             if (locationChanged && targetChildGroup->parent() != context.m_targetGroup) {
                 changes << tr("Relocating %1 [%2]").arg(sourceChildGroup->name()).arg(sourceChildGroup->uuid().toHex());
+                moveGroup(targetChildGroup, context.m_targetGroup);
                 TimeInfo timeinfo = targetChildGroup->timeInfo();
-                targetChildGroup->setParent(context.m_targetGroup);
                 timeinfo.setLocationChanged(sourceChildGroup->timeInfo().locationChanged());
                 targetChildGroup->setTimeInfo(timeinfo);
                 qDebug("Location changed for group %s [%s]. Updating it",
@@ -192,6 +187,98 @@ bool Merger::markOlderEntry(Entry* entry)
     return true;
 }
 
+void Merger::moveEntry(Entry* entry, Group* targetGroup)
+{
+    Q_ASSERT(entry);
+    Group* sourceGroup = entry->group();
+    if (sourceGroup == targetGroup) {
+        return;
+    }
+    const bool sourceGroupUpdateTimeInfo = sourceGroup ? sourceGroup->canUpdateTimeinfo() : false;
+    if (sourceGroup) {
+        sourceGroup->setUpdateTimeinfo(false);
+    }
+    const bool targetGroupUpdateTimeInfo = targetGroup ? targetGroup->canUpdateTimeinfo() : false;
+    if (targetGroup) {
+        targetGroup->setUpdateTimeinfo(false);
+    }
+    const bool entryUpdateTimeInfo = entry->canUpdateTimeinfo();
+    entry->setUpdateTimeinfo(false);
+
+    entry->setGroup(targetGroup);
+
+    entry->setUpdateTimeinfo(entryUpdateTimeInfo);
+    if (targetGroup) {
+        targetGroup->setUpdateTimeinfo(targetGroupUpdateTimeInfo);
+    }
+    if (sourceGroup) {
+        sourceGroup->setUpdateTimeinfo(sourceGroupUpdateTimeInfo);
+    }
+}
+
+void Merger::moveGroup(Group* group, Group* targetGroup)
+{
+    Q_ASSERT(group);
+    Group* sourceGroup = group->parentGroup();
+    if (sourceGroup == targetGroup) {
+        return;
+    }
+    const bool sourceGroupUpdateTimeInfo = sourceGroup ? sourceGroup->canUpdateTimeinfo() : false;
+    if (sourceGroup) {
+        sourceGroup->setUpdateTimeinfo(false);
+    }
+    const bool targetGroupUpdateTimeInfo = targetGroup ? targetGroup->canUpdateTimeinfo() : false;
+    if (targetGroup) {
+        targetGroup->setUpdateTimeinfo(false);
+    }
+    const bool groupUpdateTimeInfo = group->canUpdateTimeinfo();
+    group->setUpdateTimeinfo(false);
+
+    group->setParent(targetGroup);
+
+    group->setUpdateTimeinfo(groupUpdateTimeInfo);
+    if (targetGroup) {
+        targetGroup->setUpdateTimeinfo(targetGroupUpdateTimeInfo);
+    }
+    if (sourceGroup) {
+        sourceGroup->setUpdateTimeinfo(sourceGroupUpdateTimeInfo);
+    }
+}
+
+void Merger::eraseEntry(Entry* entry)
+{
+    Database* database = entry->database();
+    // most simple method to remove an item from DeletedObjects :(
+    const QList<DeletedObject> deletions = database->deletedObjects();
+    Group* parentGroup = entry->group();
+    const bool groupUpdateTimeInfo = parentGroup ? parentGroup->canUpdateTimeinfo() : false;
+    if (parentGroup) {
+        parentGroup->setUpdateTimeinfo(false);
+    }
+    delete entry;
+    if (parentGroup) {
+        parentGroup->setUpdateTimeinfo(groupUpdateTimeInfo);
+    }
+    database->setDeletedObjects(deletions);
+}
+
+void Merger::eraseGroup(Group* group)
+{
+    Database* database = group->database();
+    // most simple method to remove an item from DeletedObjects :(
+    const QList<DeletedObject> deletions = database->deletedObjects();
+    Group* parentGroup = group->parentGroup();
+    const bool groupUpdateTimeInfo = parentGroup ? parentGroup->canUpdateTimeinfo() : false;
+    if (parentGroup) {
+        parentGroup->setUpdateTimeinfo(false);
+    }
+    delete group;
+    if (parentGroup) {
+        parentGroup->setUpdateTimeinfo(groupUpdateTimeInfo);
+    }
+    database->setDeletedObjects(deletions);
+}
+
 Merger::ChangeList
 Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
@@ -206,20 +293,14 @@ Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEnt
         // if one entry is newer, create a clone and add it to the group
         if (timeTarget > timeSource) {
             Entry* clonedEntry = sourceEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
-            bool updateTimeinfo = clonedEntry->canUpdateTimeinfo();
-            clonedEntry->setUpdateTimeinfo(false);
-            clonedEntry->setGroup(context.m_targetGroup);
-            clonedEntry->setUpdateTimeinfo(updateTimeinfo);
+            moveEntry(clonedEntry, context.m_targetGroup);
             markOlderEntry(clonedEntry);
             changes << tr("Adding backup for older source %1 [%2]")
                            .arg(sourceEntry->title())
                            .arg(sourceEntry->uuid().toHex());
         } else if (timeTarget < timeSource) {
             Entry* clonedEntry = sourceEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
-            const bool updateTimeinfo = clonedEntry->canUpdateTimeinfo();
-            clonedEntry->setUpdateTimeinfo(false);
-            clonedEntry->setGroup(context.m_targetGroup);
-            clonedEntry->setUpdateTimeinfo(updateTimeinfo);
+            moveEntry(clonedEntry, context.m_targetGroup);
             markOlderEntry(targetEntry);
             changes << tr("Adding backup for older target %1 [%2]")
                            .arg(targetEntry->title())
@@ -233,17 +314,8 @@ Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEnt
             Entry* clonedEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
             Group* currentGroup = targetEntry->group();
             qDebug("Updating entry %s.", qPrintable(targetEntry->title()));
-            const bool entryUpdateTimeinfo = clonedEntry->canUpdateTimeinfo();
-            const bool groupUpdateTimeinfo = currentGroup->canUpdateTimeinfo();
-            currentGroup->setUpdateTimeinfo(false);
-            clonedEntry->setUpdateTimeinfo(false);
-            clonedEntry->setGroup(currentGroup);
-            // most simple method to remove an item from DeletedObjects :(
-            const QList<DeletedObject> deletions = currentGroup->database()->deletedObjects();
-            delete targetEntry;
-            currentGroup->database()->setDeletedObjects(deletions);
-            clonedEntry->setUpdateTimeinfo(entryUpdateTimeinfo);
-            currentGroup->setUpdateTimeinfo(groupUpdateTimeinfo);
+            moveEntry(clonedEntry, currentGroup);
+            eraseEntry(targetEntry);
             changes << tr("Overwriting %1 [%2]").arg(clonedEntry->title()).arg(clonedEntry->uuid().toHex());
         }
         break;
@@ -259,30 +331,18 @@ Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEnt
                    qPrintable(targetEntry->title()),
                    qPrintable(sourceEntry->title()),
                    qPrintable(currentGroup->name()));
-            const bool entryUpdateTimeinfo = clonedEntry->canUpdateTimeinfo();
-            const bool groupUpdateTimeinfo = currentGroup->canUpdateTimeinfo();
-            clonedEntry->setUpdateTimeinfo(false);
-            currentGroup->setUpdateTimeinfo(false);
-            clonedEntry->setGroup(currentGroup);
-            mergeHistory(targetEntry, clonedEntry);
             changes << tr("Synchronizing from newer source %1 [%2]")
                            .arg(targetEntry->title())
                            .arg(targetEntry->uuid().toHex());
-            // most simple method to remove an item from DeletedObjects :(
-            const QList<DeletedObject> deletions = currentGroup->database()->deletedObjects();
-            delete targetEntry;
-            clonedEntry->setUpdateTimeinfo(entryUpdateTimeinfo);
-            currentGroup->setUpdateTimeinfo(groupUpdateTimeinfo);
-            currentGroup->database()->setDeletedObjects(deletions);
+            moveEntry(clonedEntry, currentGroup);
+            mergeHistory(targetEntry, clonedEntry);
+            eraseEntry(targetEntry);
         } else {
             qDebug("Merge %s/%s with local on top/under %s",
                    qPrintable(targetEntry->title()),
                    qPrintable(sourceEntry->title()),
                    qPrintable(targetEntry->group()->name()));
-            const bool entryUpdateTimeinfo = targetEntry->canUpdateTimeinfo();
-            targetEntry->setUpdateTimeinfo(false);
             const bool changed = mergeHistory(sourceEntry, targetEntry);
-            targetEntry->setUpdateTimeinfo(entryUpdateTimeinfo);
             if (changed) {
                 changes << tr("Synchronizing from older source %1 [%2]")
                                .arg(targetEntry->title())
@@ -346,6 +406,7 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
     }
     // We need to prevent any modification to the database since every change should be tracked either
     // in a clone history item or in the Entry itself
+    const TimeInfo timeInfo = targetEntry->timeInfo();
     const bool blockedSignals = targetEntry->blockSignals(true);
     targetEntry->removeHistoryItems(targetHistoryItems);
     for (Entry* historyItem : merged.values()) {
@@ -354,6 +415,8 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
     }
     targetEntry->truncateHistory();
     targetEntry->blockSignals(blockedSignals);
+    Q_ASSERT(timeInfo == targetEntry->timeInfo());
+    Q_UNUSED(timeInfo);
     return true;
 }
 
@@ -409,17 +472,13 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
                qPrintable(entry->title()),
                qPrintable(entry->uuid().toHex()));
         deletions << object;
-        Group* parentGroup = entry->group();
-        if (parentGroup) {
+        if (entry->group()) {
             changes << tr("Deleting child %1 [%2]").arg(entry->title()).arg(entry->uuid().toHex());
-            bool updateTimeinfo = parentGroup->canUpdateTimeinfo();
-            parentGroup->setUpdateTimeinfo(false);
-            delete entry;
-            parentGroup->setUpdateTimeinfo(updateTimeinfo);
         } else {
             changes << tr("Deleting orphan %1 [%2]").arg(entry->title()).arg(entry->uuid().toHex());
-            delete entry;
         }
+        // Entry is inserted into deletedObjects after deletions are processed
+        eraseEntry(entry);
     }
 
     while (!groups.isEmpty()) {
@@ -446,17 +505,12 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
                qPrintable(group->name()),
                qPrintable(group->uuid().toHex()));
         deletions << object;
-        Group* parentGroup = group->parentGroup();
-        if (parentGroup) {
+        if (group->parentGroup()) {
             changes << tr("Deleting child %1 [%2]").arg(group->name()).arg(group->uuid().toHex());
-            bool updateTimeinfo = parentGroup->canUpdateTimeinfo();
-            parentGroup->setUpdateTimeinfo(false);
-            delete group;
-            parentGroup->setUpdateTimeinfo(updateTimeinfo);
         } else {
             changes << tr("Deleting orphan %1 [%2]").arg(group->name()).arg(group->uuid().toHex());
-            delete group;
         }
+        eraseGroup(group);
     }
     // Put every deletion to the earliest date of deletion
     if (deletions != context.m_targetDb->deletedObjects()) {

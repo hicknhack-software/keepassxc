@@ -16,12 +16,14 @@
  */
 
 #include "DatabaseSharing.h"
-#include "CustomData.h"
-#include "Database.h"
-#include "Entry.h"
-#include "Group.h"
-#include "Merger.h"
-#include "Metadata.h"
+
+#include "core/Clock.h"
+#include "core/CustomData.h"
+#include "core/Database.h"
+#include "core/Entry.h"
+#include "core/Group.h"
+#include "core/Merger.h"
+#include "core/Metadata.h"
 #include "format/KeePass2Reader.h"
 #include "keys/PasswordKey.h"
 
@@ -216,7 +218,7 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
     }
     const Reference reference = referenceOf(shareGroup->customData());
     QFileInfo info(reference.path);
-    if (m_blockedPaths[info.canonicalFilePath()] > QDateTime::currentDateTime()) {
+    if (m_blockedPaths[info.canonicalFilePath()] > Clock::currentDateTimeUtc()) {
         qDebug("Ignore blocked change of reference %s", qPrintable(reference.path));
         return {};
     }
@@ -295,7 +297,7 @@ void DatabaseSharing::handleDirectoryChanged(const QString& path)
 
 void DatabaseSharing::unblockAutoReload()
 {
-    const QDateTime current = QDateTime::currentDateTime();
+    const QDateTime current = Clock::currentDateTimeUtc();
     int timeout = 0;
     for (QString key : m_blockedPaths.keys()) {
         if (m_blockedPaths[key] < current) {
@@ -369,7 +371,7 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
     }
     QFileInfo info(reference.path);
     qDebug("Export blocking %s to %s", qPrintable(sourceRoot->name()), qPrintable(reference.path));
-    m_blockedPaths[info.canonicalFilePath()] = QDateTime::currentDateTime().addMSecs(500);
+    m_blockedPaths[info.canonicalFilePath()] = Clock::currentDateTimeUtc().addMSecs(500);
     if (!m_fileWatchUnblockTimer.isActive()) {
         m_fileWatchUnblockTimer.start(500);
     }

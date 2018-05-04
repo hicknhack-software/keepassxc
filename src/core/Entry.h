@@ -211,6 +211,7 @@ public:
     const Group* group() const;
     void setGroup(Group* group);
     const Database* database() const;
+    Database* database();
 
     bool canUpdateTimeinfo() const;
     void setUpdateTimeinfo(bool value);
