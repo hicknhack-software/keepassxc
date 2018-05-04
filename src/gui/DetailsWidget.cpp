@@ -283,20 +283,7 @@ void DetailsWidget::updateGroupSharingTab()
     Q_ASSERT(m_currentGroup);
     setTabEnabled(m_ui->groupTabWidget, m_ui->groupShareTab, DatabaseSharing::isShared(m_currentGroup));
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_currentGroup->customData());
-    switch (reference.type) {
-    case DatabaseSharing::Inactive:
-        m_ui->groupShareTypeLabel->setText(tr("Disabled:"));
-        break;
-    case DatabaseSharing::ImportFrom:
-        m_ui->groupShareTypeLabel->setText(tr("Import from:"));
-        break;
-    case DatabaseSharing::ExportTo:
-        m_ui->groupShareTypeLabel->setText(tr("Export to:"));
-        break;
-    case DatabaseSharing::SynchronizeWith:
-        m_ui->groupShareTypeLabel->setText(tr("Synchronize with:"));
-        break;
-    }
+    m_ui->groupShareTypeLabel->setText(DatabaseSharing::referenceTypeLabel(reference));
     m_ui->groupSharePathLabel->setText(reference.path);
 }
 

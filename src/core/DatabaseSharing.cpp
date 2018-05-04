@@ -20,7 +20,9 @@
 #include "core/Clock.h"
 #include "core/CustomData.h"
 #include "core/Database.h"
+#include "core/DatabaseIcons.h"
 #include "core/Entry.h"
+#include "core/FilePath.h"
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
@@ -29,6 +31,8 @@
 
 #include <QDebug>
 #include <QFileInfo>
+#include <QIcon>
+#include <QPainter>
 #include <QStringBuilder>
 
 static const QString KeeShareExt_ExportEnabled("Export");
@@ -149,6 +153,15 @@ bool DatabaseSharing::isExporting(Database* database, const Group* group)
     return reference.isExporting();
 }
 
+bool DatabaseSharing::isImporting(Database* database, const Group* group)
+{
+    if (!isEnabled(database, ImportFrom)) {
+        return false;
+    }
+    const Reference reference = referenceOf(group->customData());
+    return reference.isImporting();
+}
+
 bool DatabaseSharing::isShared(const Group* group)
 {
     return group->customData()->contains(KeeShareExt);
@@ -177,15 +190,50 @@ void DatabaseSharing::removeReferenceFrom(CustomData* customData)
     setReferenceTo(customData, Reference());
 }
 
-QString DatabaseSharing::sharingIndicatorSuffix(const Group* group, const QString& text)
+QPixmap DatabaseSharing::sharingIndicatorBadge(const Group* group, QPixmap pixmap)
 {
-    if (!group->customData()->contains(KeeShareExt)) {
-        return text;
+    if (!isShared(group)) {
+        return pixmap;
     }
     const Reference reference = referenceOf(group->customData());
-    return reference.isActive()
-               ? tr("%1 [share active]", "Template for name with active sharing annotation").arg(text)
-               : tr("%1 [share inactive]", "Template for name with inactive sharing annotation").arg(text);
+    const QPixmap badge = isEnabled(group->database(), reference.type)
+            ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
+            : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
+    QImage canvas = pixmap.toImage();
+    const QRectF target( canvas.width() * 0.4, canvas.height() * 0.4, canvas.width() * 0.6, canvas.height() * 0.6);
+    QPainter painter(&canvas);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    painter.drawPixmap(target, badge, badge.rect());
+    pixmap.convertFromImage(canvas);
+    return pixmap;
+}
+
+QString DatabaseSharing::referenceTypeLabel(const Reference &reference)
+{
+    switch (reference.type) {
+    case DatabaseSharing::Inactive:
+        return tr("Disabled share");
+    case DatabaseSharing::ImportFrom:
+        return tr("Import from");
+    case DatabaseSharing::ExportTo:
+        return tr("Export to");
+    case DatabaseSharing::SynchronizeWith:
+        return tr("Synchronize with");
+    }
+    return "";
+}
+
+QString DatabaseSharing::sharingIndicatorSuffix(const Group* group, const QString& text)
+{
+    Q_UNUSED(group);
+    return text;
+    //    if (!isShared(group)) {
+    //        return text;
+    //    }
+    //    const Reference reference = referenceOf(group->customData());
+    //    return reference.isActive()
+    //               ? tr("%1 [share active]", "Template for name with active sharing annotation").arg(text)
+    //               : tr("%1 [share inactive]", "Template for name with inactive sharing annotation").arg(text);
 }
 
 void DatabaseSharing::handleFileChanged(const QString& path)
@@ -461,6 +509,17 @@ void DatabaseSharing::enable(Database* db, DatabaseSharing::Type sharing)
     } else {
         customData->set(KeeShareExt, options.join("|"));
     }
+}
+
+QList<Group *> DatabaseSharing::shares() const
+{
+    QList<Group*> groups;
+    for (const QPointer<Group>& group : m_groupToReference.keys()) {
+        if (group) {
+            groups << group;
+        }
+    }
+    return groups;
 }
 
 void DatabaseSharing::exportSharedEntries()

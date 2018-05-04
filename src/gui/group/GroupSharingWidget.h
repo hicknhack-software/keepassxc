@@ -20,8 +20,7 @@ public:
     ~GroupSharingWidget();
 
     void setGroup(const Group* group);
-    void setCustomData(const CustomData* customData);
-    const CustomData* customData() const;
+    void setCustomData(CustomData* customData);
 
 private slots:
     void update();

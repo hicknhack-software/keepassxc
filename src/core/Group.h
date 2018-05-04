@@ -80,7 +80,7 @@ public:
 
     static Group* createRecycleBin();
 
-    Uuid uuid() const;
+    const Uuid &uuid() const;
     QString name() const;
     QString notes() const;
     QImage icon() const;

@@ -397,11 +397,12 @@ bool DatabaseTabWidget::saveDatabaseAs(Database* db)
                 // Failed to save, try again
                 continue;
             }
+            // Since we change to the saved database we should also export
+            // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
+            db->sharing()->exportSharedEntries();
 
-            // TODO HNH: SaveAs as trigger for sharing? Don't think it would be appropiate since one may dismiss the
             // changes of the current database
             //           SaveAs for non-existing datbase doesn't matter since one has to set the path while creation
-
             dbStruct.dbWidget->updateFilePath(dbStruct.fileInfo.absoluteFilePath());
             updateLastDatabases(dbStruct.fileInfo.absoluteFilePath());
             return true;

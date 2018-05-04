@@ -32,7 +32,6 @@
 GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     : QWidget(parent)
     , m_ui(new Ui::GroupSharingWidget())
-    , m_customData(new CustomData(this))
 {
     m_ui->setupUi(this);
 
@@ -69,8 +68,6 @@ GroupSharingWidget::GroupSharingWidget(QWidget* parent)
         }
         m_ui->typeComboBox->insertItem(type, name, static_cast<int>(type));
     }
-
-    connect(m_customData, SIGNAL(modified()), this, SLOT(update()));
 }
 
 GroupSharingWidget::~GroupSharingWidget()
@@ -80,39 +77,50 @@ GroupSharingWidget::~GroupSharingWidget()
 void GroupSharingWidget::setGroup(const Group* group)
 {
     m_currentGroup = group;
+
+    update();
 }
 
-void GroupSharingWidget::setCustomData(const CustomData* customData)
+void GroupSharingWidget::setCustomData(CustomData* customData)
 {
-    Q_ASSERT(customData);
-    m_customData->copyDataFrom(customData);
+    if (m_customData) {
+        m_customData->disconnect(this);
+    }
 
-    this->update();
-}
+    m_customData = customData;
 
-const CustomData* GroupSharingWidget::customData() const
-{
-    return m_customData;
+    if (m_customData) {
+        connect(m_customData, SIGNAL(modified()), SLOT(update()));
+    }
+
+    update();
 }
 
 void GroupSharingWidget::update()
 {
-    const DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    if (!m_customData || !m_currentGroup) {
+        m_ui->passwordEdit->clear();
+        m_ui->pathEdit->clear();
+        m_ui->passwordGenerator->hide();
+        m_ui->togglePasswordGeneratorButton->setChecked(false);
+    } else {
+        const DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
 
-    m_ui->typeComboBox->setCurrentIndex(reference.type);
-    m_ui->passwordEdit->setText(reference.password);
-    m_ui->pathEdit->setText(reference.path);
+        m_ui->typeComboBox->setCurrentIndex(reference.type);
+        m_ui->passwordEdit->setText(reference.password);
+        m_ui->pathEdit->setText(reference.path);
 
-    const bool importEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ImportFrom);
-    const bool exportEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ExportTo);
-    if (!importEnabled && !exportEnabled) {
-        m_ui->messageWidget->showMessage(tr("Sharing is disabled"), MessageWidget::Information);
-    }
-    if (importEnabled && !exportEnabled) {
-        m_ui->messageWidget->showMessage(tr("Export is disabled"), MessageWidget::Information);
-    }
-    if (!importEnabled && exportEnabled) {
-        m_ui->messageWidget->showMessage(tr("Import is disabled"), MessageWidget::Information);
+        const bool importEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ImportFrom);
+        const bool exportEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ExportTo);
+        if (!importEnabled && !exportEnabled) {
+            m_ui->messageWidget->showMessage(tr("Sharing is disabled"), MessageWidget::Information);
+        }
+        if (importEnabled && !exportEnabled) {
+            m_ui->messageWidget->showMessage(tr("Export is disabled"), MessageWidget::Information);
+        }
+        if (!importEnabled && exportEnabled) {
+            m_ui->messageWidget->showMessage(tr("Import is disabled"), MessageWidget::Information);
+        }
     }
 }
 
@@ -124,6 +132,9 @@ void GroupSharingWidget::togglePasswordGeneratorButton(bool checked)
 
 void GroupSharingWidget::setGeneratedPassword(const QString& password)
 {
+    if (!m_customData) {
+        return;
+    }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     reference.password = password;
     DatabaseSharing::setReferenceTo(m_customData, reference);
@@ -132,6 +143,9 @@ void GroupSharingWidget::setGeneratedPassword(const QString& password)
 
 void GroupSharingWidget::setPath(const QString& path)
 {
+    if (!m_customData) {
+        return;
+    }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     reference.path = path;
     DatabaseSharing::setReferenceTo(m_customData, reference);
@@ -139,6 +153,9 @@ void GroupSharingWidget::setPath(const QString& path)
 
 void GroupSharingWidget::selectPath()
 {
+    if (!m_customData) {
+        return;
+    }
     QString defaultDirPath = config()->get("Sharing/LastSharingDir").toString();
     const bool dirExists = !defaultDirPath.isEmpty() && QDir(defaultDirPath).exists();
     if (!dirExists) {
@@ -178,6 +195,9 @@ void GroupSharingWidget::selectPath()
 
 void GroupSharingWidget::selectPassword()
 {
+    if (!m_customData) {
+        return;
+    }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     reference.password = m_ui->passwordEdit->text();
     DatabaseSharing::setReferenceTo(m_customData, reference);
@@ -185,6 +205,9 @@ void GroupSharingWidget::selectPassword()
 
 void GroupSharingWidget::selectType()
 {
+    if (!m_customData) {
+        return;
+    }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     reference.type = static_cast<DatabaseSharing::Type>(m_ui->typeComboBox->currentData().toInt());
     DatabaseSharing::setReferenceTo(m_customData, reference);

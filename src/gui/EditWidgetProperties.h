@@ -41,21 +41,20 @@ public:
     ~EditWidgetProperties();
 
     void setFields(const TimeInfo& timeInfo, const Uuid& uuid);
-    void setCustomData(const CustomData* customData);
-
-    const CustomData* customData() const;
+    void setCustomData(CustomData* customData);
 
 private slots:
+    void update();
     void removeSelectedPluginData();
     void toggleRemoveButton(const QItemSelection& selected);
 
 private:
-    void updateModel();
 
     const QScopedPointer<Ui::EditWidgetProperties> m_ui;
 
     QPointer<CustomData> m_customData;
     QPointer<QStandardItemModel> m_customDataModel;
+
     Q_DISABLE_COPY(EditWidgetProperties)
 };
 

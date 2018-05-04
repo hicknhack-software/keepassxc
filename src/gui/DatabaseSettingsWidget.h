@@ -20,6 +20,7 @@
 
 #include <QLayout>
 #include <QScopedPointer>
+#include <QStandardItemModel>
 #include <QSpinBox>
 #include <QWidget>
 
@@ -65,6 +66,7 @@ private:
     const QScopedPointer<Ui::DatabaseSettingsWidgetGeneral> m_uiGeneral;
     const QScopedPointer<Ui::DatabaseSettingsWidgetEncryption> m_uiEncryption;
     const QScopedPointer<Ui::DatabaseSettingsWidgetSharing> m_uiSharing;
+    QScopedPointer<QStandardItemModel> m_sharedGroupsModel;
     QWidget* m_uiGeneralPage;
     QWidget* m_uiEncryptionPage;
     QWidget* m_uiSharingPage;
