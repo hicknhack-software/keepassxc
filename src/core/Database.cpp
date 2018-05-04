@@ -26,6 +26,7 @@
 #include <QXmlStreamReader>
 
 #include "cli/Utils.h"
+#include "core/Clock.h"
 #include "core/DatabaseSharing.h"
 #include "core/Group.h"
 #include "core/Merger.h"
@@ -261,7 +262,7 @@ void Database::addDeletedObject(const DeletedObject& delObj)
 void Database::addDeletedObject(const Uuid& uuid)
 {
     DeletedObject delObj;
-    delObj.deletionTime = QDateTime::currentDateTimeUtc();
+    delObj.deletionTime = Clock::currentDateTimeUtc();
     delObj.uuid = uuid;
 
     addDeletedObject(delObj);
@@ -332,7 +333,7 @@ bool Database::setKey(const CompositeKey& key, bool updateChangedTime, bool upda
     m_data.transformedMasterKey = transformedMasterKey;
     m_data.hasKey = true;
     if (updateChangedTime) {
-        m_metadata->setMasterKeyChanged(QDateTime::currentDateTimeUtc());
+        m_metadata->setMasterKeyChanged(Clock::currentDateTimeUtc());
     }
 
     if (oldTransformedMasterKey != m_data.transformedMasterKey) {

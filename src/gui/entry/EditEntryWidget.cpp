@@ -34,6 +34,7 @@
 #include <QTemporaryFile>
 
 #include "autotype/AutoType.h"
+#include "core/Clock.h"
 #include "core/Config.h"
 #include "core/Database.h"
 #include "core/Entry.h"
@@ -611,7 +612,7 @@ void EditEntryWidget::useExpiryPreset(QAction* action)
 {
     m_mainUi->expireCheck->setChecked(true);
     TimeDelta delta = action->data().value<TimeDelta>();
-    QDateTime now = QDateTime::currentDateTime();
+    QDateTime now = Clock::currentDateTime();
     QDateTime expiryDateTime = now + delta;
     m_mainUi->expireDatePicker->setDateTime(expiryDateTime);
 }
