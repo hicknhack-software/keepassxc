@@ -51,6 +51,7 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
     , m_uiGeneral(new Ui::DatabaseSettingsWidgetGeneral())
     , m_uiEncryption(new Ui::DatabaseSettingsWidgetEncryption())
     , m_uiSharing(new Ui::DatabaseSettingsWidgetSharing())
+    , m_sharedGroupsModel(new QStandardItemModel())
     , m_uiGeneralPage(new QWidget())
     , m_uiEncryptionPage(new QWidget())
     , m_uiSharingPage(new QWidget())
@@ -79,7 +80,7 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
 
     m_ui->categoryList->addCategory(tr("General"), FilePath::instance()->icon("categories", "preferences-other"));
     m_ui->categoryList->addCategory(tr("Encryption"), FilePath::instance()->icon("actions", "document-encrypt"));
-    m_ui->categoryList->addCategory(tr("Sharing"), FilePath::instance()->icon("sharing", "preference-sharing"));
+    m_ui->categoryList->addCategory(tr("Sharing"), FilePath::instance()->icon("apps", "preferences-system-network-sharing"));
     m_ui->stackedWidget->addWidget(m_uiGeneralPage);
     m_ui->stackedWidget->addWidget(m_uiEncryptionPage);
     m_ui->stackedWidget->addWidget(m_uiSharingPage);
@@ -160,6 +161,27 @@ void DatabaseSettingsWidget::load(Database* db)
     m_uiSharing->enableExportCheckBox->setChecked(DatabaseSharing::isEnabled(m_db, DatabaseSharing::ExportTo));
     m_uiSharing->enableImportCheckBox->setChecked(DatabaseSharing::isEnabled(m_db, DatabaseSharing::ImportFrom));
 
+    m_sharedGroupsModel.reset(new QStandardItemModel());
+
+    m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrump") << tr("Type") << tr("Path"));
+    const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
+    for (const Group* group : groups) {
+        if (!DatabaseSharing::isShared(group)) {
+            continue;
+        }
+        const DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(group->customData());
+
+        QStringList hierarchy = group->hierarchy();
+        hierarchy.removeFirst();
+        QList<QStandardItem*> row = QList<QStandardItem*>()
+                << new QStandardItem(hierarchy.join(" / "))
+                << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference))
+                << new QStandardItem(reference.path);
+        m_sharedGroupsModel->appendRow( row );
+    }
+
+    m_uiSharing->sharedGroupsView->setModel(m_sharedGroupsModel.data());
+
     m_uiGeneral->dbNameEdit->setFocus();
     m_ui->categoryList->setCurrentCategory(0);
 }
@@ -236,9 +258,16 @@ void DatabaseSettingsWidget::save()
         truncateHistories();
     }
 
-    // TODO save reference settings to db and trigger enable/disable
-
     m_db->setCipher(Uuid(m_uiEncryption->algorithmComboBox->currentData().toByteArray()));
+
+    int sharing = DatabaseSharing::Inactive;
+    if (m_uiSharing->enableExportCheckBox->isChecked()) {
+        sharing |= DatabaseSharing::ExportTo;
+    }
+    if (m_uiSharing->enableImportCheckBox->isChecked()) {
+        sharing |= DatabaseSharing::ImportFrom;
+    }
+    DatabaseSharing::enable(m_db, static_cast<DatabaseSharing::Type>(sharing));
 
     // Save kdf parameters
     kdf->setRounds(m_uiEncryption->transformRoundsSpinBox->value());
@@ -253,15 +282,6 @@ void DatabaseSettingsWidget::save()
     //       but not without making Database thread-safe
     bool ok = m_db->changeKdf(kdf);
     QApplication::restoreOverrideCursor();
-
-    int sharing = DatabaseSharing::Inactive;
-    if (m_uiSharing->enableExportCheckBox->isChecked()) {
-        sharing |= DatabaseSharing::ExportTo;
-    }
-    if (m_uiSharing->enableImportCheckBox->isChecked()) {
-        sharing |= DatabaseSharing::ImportFrom;
-    }
-    DatabaseSharing::enable(m_db, static_cast<DatabaseSharing::Type>(sharing));
 
     if (!ok) {
         MessageBox::warning(this,

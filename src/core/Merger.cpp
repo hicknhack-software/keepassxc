@@ -454,10 +454,6 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
             mergedDeletions[object.uuid] = object;
         }
     }
-    // TODO HNH: I'm quite sure, that every merge operation and every deletion because of the
-    //           merge leads to an update of the modification time, which it should not!
-    //           normally, a merge should result in the most youngest modification time of
-    //           both entries - possible exception is the synchronized merge - needs testing!!!!
 
     while (!entries.isEmpty()) {
         auto* entry = entries.takeFirst();

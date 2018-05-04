@@ -66,6 +66,7 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     , m_autoTypeUi(new Ui::EditEntryWidgetAutoType())
     , m_sshAgentUi(new Ui::EditEntryWidgetSSHAgent())
     , m_historyUi(new Ui::EditEntryWidgetHistory())
+    , m_customData(new CustomData())
     , m_mainWidget(new QWidget())
     , m_advancedWidget(new QWidget())
     , m_iconsWidget(new EditWidgetIcons())
@@ -107,6 +108,8 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     connect(m_iconsWidget, SIGNAL(messageEditEntryDismiss()), SLOT(hideMessage()));
 
     m_mainUi->passwordGenerator->layout()->setContentsMargins(0, 0, 0, 0);
+
+    m_editWidgetProperties->setCustomData(m_customData.data());
 }
 
 EditEntryWidget::~EditEntryWidget()
@@ -661,6 +664,8 @@ void EditEntryWidget::loadEntry(Entry* entry, bool create, bool history, const Q
 
 void EditEntryWidget::setForms(const Entry* entry, bool restore)
 {
+    m_customData->copyDataFrom(entry->customData());
+
     m_mainUi->titleEdit->setReadOnly(m_history);
     m_mainUi->usernameEdit->setReadOnly(m_history);
     m_mainUi->urlEdit->setReadOnly(m_history);
@@ -756,7 +761,6 @@ void EditEntryWidget::setForms(const Entry* entry, bool restore)
 #endif
 
     m_editWidgetProperties->setFields(entry->timeInfo(), entry->uuid());
-    m_editWidgetProperties->setCustomData(entry->customData());
 
     if (!m_history && !restore) {
         m_historyModel->setEntries(entry->historyItems());
@@ -866,7 +870,7 @@ void EditEntryWidget::updateEntryData(Entry* entry) const
 
     entry->attributes()->copyCustomKeysFrom(m_entryAttributes);
     entry->attachments()->copyDataFrom(m_advancedUi->attachmentsWidget->entryAttachments());
-    entry->customData()->copyDataFrom(m_editWidgetProperties->customData());
+    entry->customData()->copyDataFrom(m_customData.data());
     entry->setTitle(m_mainUi->titleEdit->text().replace(newLineRegex, " "));
     entry->setUsername(m_mainUi->usernameEdit->text().replace(newLineRegex, " "));
     entry->setUrl(m_mainUi->urlEdit->text().replace(newLineRegex, " "));

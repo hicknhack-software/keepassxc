@@ -39,6 +39,7 @@ class DatabaseSharing : public QObject
 
 public:
     static QString sharingIndicatorSuffix(const Group* group, const QString& text);
+    static QPixmap sharingIndicatorBadge(const Group *group, QPixmap pixmap);
     static bool isShared(const Group* group);
 
     explicit DatabaseSharing(Database* db, QObject* parent = nullptr);
@@ -75,11 +76,14 @@ public:
     static Reference referenceOf(const CustomData* customData);
     static void setReferenceTo(CustomData* customData, const Reference& reference);
     static void removeReferenceFrom(CustomData* customData);
+    static QString referenceTypeLabel(const Reference &reference);
 
     void exportSharedEntries();
     static bool isEnabled(const Database* db);
     static bool isEnabled(const Database* db, Type sharing);
     static void enable(Database* db, Type sharing);
+
+    QList<Group*> shares() const;
 
 signals:
     void sharingChanged(QString, MessageWidget::MessageType);
@@ -103,6 +107,7 @@ private:
     };
 
     static bool isExporting(Database* database, const Group* group);
+    static bool isImporting(Database *database, const Group *group);
     static QString serializeReference(const DatabaseSharing::Reference& reference);
     static Reference deserializeReference(const QString& raw);
     static void resolveReferenceAttributes(Entry* targetEntry, Database* sourceDb);

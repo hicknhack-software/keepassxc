@@ -130,11 +130,11 @@ QVariant GroupModel::data(const QModelIndex& index, int role) const
         nameTemplate = DatabaseSharing::sharingIndicatorSuffix(group, nameTemplate);
         return nameTemplate.arg(group->name());
     } else if (role == Qt::DecorationRole) {
-        if (group->isExpired()) {
-            return databaseIcons()->iconPixmap(DatabaseIcons::ExpiredIconIndex);
-        } else {
-            return group->iconScaledPixmap();
-        }
+        QPixmap pixmap = group->isExpired()
+                ? databaseIcons()->iconPixmap(DatabaseIcons::ExpiredIconIndex)
+                : group->iconScaledPixmap();
+        pixmap = DatabaseSharing::sharingIndicatorBadge(group, pixmap);
+        return pixmap;
     } else if (role == Qt::FontRole) {
         QFont font;
         if (group->isExpired()) {

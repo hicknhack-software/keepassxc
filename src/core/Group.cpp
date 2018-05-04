@@ -112,7 +112,7 @@ void Group::setUpdateTimeinfo(bool value)
     m_updateTimeinfo = value;
 }
 
-Uuid Group::uuid() const
+const Uuid& Group::uuid() const
 {
     return m_uuid;
 }

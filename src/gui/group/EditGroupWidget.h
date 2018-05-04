@@ -24,6 +24,7 @@
 #include "core/Group.h"
 #include "gui/EditWidget.h"
 
+class CustomData;
 class EditWidgetIcons;
 class EditWidgetProperties;
 class GroupSharingWidget;
@@ -61,12 +62,15 @@ private:
     Group::TriState triStateFromIndex(int index);
 
     const QScopedPointer<Ui::EditGroupWidgetMain> m_mainUi;
-    QWidget* const m_editGroupWidgetMain;
-    EditWidgetIcons* const m_editGroupWidgetIcons;
-    EditWidgetProperties* const m_editWidgetProperties;
-    GroupSharingWidget* const m_editWidgetSharing;
-    Group* m_group;
-    Database* m_database;
+    const QScopedPointer<CustomData> m_customData;
+
+    QPointer<QWidget> m_editGroupWidgetMain;
+    QPointer<EditWidgetIcons> m_editGroupWidgetIcons;
+    QPointer<EditWidgetProperties> m_editWidgetProperties;
+    QPointer<GroupSharingWidget> m_editWidgetSharing;
+
+    QPointer<Group> m_group;
+    QPointer<Database> m_database;
 
     Q_DISABLE_COPY(EditGroupWidget)
 };
