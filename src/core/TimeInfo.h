@@ -36,7 +36,10 @@ public:
     bool equals(const TimeInfo& other, bool ignoreStatistics = true) const;
 
     bool operator==(const TimeInfo& other) const;
-    bool operator!=(const TimeInfo& other) const { return ! this->operator==( other ); }
+    bool operator!=(const TimeInfo& other) const
+    {
+        return !this->operator==(other);
+    }
 
     void setLastModificationTime(const QDateTime& dateTime);
     void setCreationTime(const QDateTime& dateTime);

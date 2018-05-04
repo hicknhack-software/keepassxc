@@ -320,7 +320,7 @@ void TestModified::testHistoryItems()
     QCOMPARE(entry->historyItems().size(), historyItemsSize);
 
     QDateTime modified = entry->timeInfo().lastModificationTime();
-    m_clock->advanceSecond( 10 );
+    m_clock->advanceSecond(10);
     entry->beginUpdate();
     entry->setTitle("b");
     entry->endUpdate();

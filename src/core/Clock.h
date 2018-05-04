@@ -37,7 +37,6 @@ public:
     static QDateTime parse(const QString& text, Qt::DateFormat format = Qt::TextDate);
     static QDateTime parse(const QString& text, const QString& format);
 
-
     virtual ~Clock();
 
 protected:
@@ -47,7 +46,7 @@ protected:
 
     static void resetInstance();
     static void setInstance(Clock* clock);
-    static const Clock &instance();
+    static const Clock& instance();
 };
 
 #endif // KEEPASSX_ENTRY_H

@@ -197,10 +197,10 @@ QPixmap DatabaseSharing::sharingIndicatorBadge(const Group* group, QPixmap pixma
     }
     const Reference reference = referenceOf(group->customData());
     const QPixmap badge = isEnabled(group->database(), reference.type)
-            ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
-            : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
+                              ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
+                              : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
     QImage canvas = pixmap.toImage();
-    const QRectF target( canvas.width() * 0.4, canvas.height() * 0.4, canvas.width() * 0.6, canvas.height() * 0.6);
+    const QRectF target(canvas.width() * 0.4, canvas.height() * 0.4, canvas.width() * 0.6, canvas.height() * 0.6);
     QPainter painter(&canvas);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.drawPixmap(target, badge, badge.rect());
@@ -208,7 +208,7 @@ QPixmap DatabaseSharing::sharingIndicatorBadge(const Group* group, QPixmap pixma
     return pixmap;
 }
 
-QString DatabaseSharing::referenceTypeLabel(const Reference &reference)
+QString DatabaseSharing::referenceTypeLabel(const Reference& reference)
 {
     switch (reference.type) {
     case DatabaseSharing::Inactive:
@@ -511,7 +511,7 @@ void DatabaseSharing::enable(Database* db, DatabaseSharing::Type sharing)
     }
 }
 
-QList<Group *> DatabaseSharing::shares() const
+QList<Group*> DatabaseSharing::shares() const
 {
     QList<Group*> groups;
     for (const QPointer<Group>& group : m_groupToReference.keys()) {

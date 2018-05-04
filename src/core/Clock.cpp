@@ -53,24 +53,22 @@ QDateTime Clock::datetime(qint64 msecSinceEpoch)
     return QDateTime::fromMSecsSinceEpoch(msecSinceEpoch, Qt::LocalTime);
 }
 
-QDateTime Clock::parse(const QString &text, Qt::DateFormat format)
+QDateTime Clock::parse(const QString& text, Qt::DateFormat format)
 {
     return QDateTime::fromString(text, format);
 }
 
-QDateTime Clock::parse(const QString &text, const QString &format)
+QDateTime Clock::parse(const QString& text, const QString& format)
 {
     return QDateTime::fromString(text, format);
 }
 
 Clock::~Clock()
 {
-
 }
 
 Clock::Clock()
 {
-
 }
 
 QDateTime Clock::currentDateTimeUtcImpl() const

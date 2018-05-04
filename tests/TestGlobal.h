@@ -52,5 +52,4 @@ namespace QTest
 
 } // namespace QTest
 
-
 #endif // KEEPASSXC_TESTGLOBAL_H

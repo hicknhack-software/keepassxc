@@ -408,7 +408,7 @@ void TestGroup::testClone()
     QVERIFY(clonedGroupNewUuid->uuid() != originalGroup->uuid());
 
     // Making sure the new modification date is not the same.
-    m_clock->advanceSecond( 1 );
+    m_clock->advanceSecond(1);
 
     QScopedPointer<Group> clonedGroupResetTimeInfo(
         originalGroup->clone(Entry::CloneNoFlags, Group::CloneNewUuid | Group::CloneResetTimeInfo));
