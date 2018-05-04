@@ -51,7 +51,7 @@ void EditWidgetProperties::setFields(const TimeInfo& timeInfo, const Uuid& uuid)
     m_ui->uuidEdit->setText(uuid.toHex());
 }
 
-void EditWidgetProperties::setCustomData(CustomData *customData)
+void EditWidgetProperties::setCustomData(CustomData* customData)
 {
     if (m_customData) {
         m_customData->disconnect(this);
@@ -65,7 +65,6 @@ void EditWidgetProperties::setCustomData(CustomData *customData)
 
     update();
 }
-
 
 void EditWidgetProperties::removeSelectedPluginData()
 {

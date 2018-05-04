@@ -80,7 +80,8 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
 
     m_ui->categoryList->addCategory(tr("General"), FilePath::instance()->icon("categories", "preferences-other"));
     m_ui->categoryList->addCategory(tr("Encryption"), FilePath::instance()->icon("actions", "document-encrypt"));
-    m_ui->categoryList->addCategory(tr("Sharing"), FilePath::instance()->icon("apps", "preferences-system-network-sharing"));
+    m_ui->categoryList->addCategory(tr("Sharing"),
+                                    FilePath::instance()->icon("apps", "preferences-system-network-sharing"));
     m_ui->stackedWidget->addWidget(m_uiGeneralPage);
     m_ui->stackedWidget->addWidget(m_uiEncryptionPage);
     m_ui->stackedWidget->addWidget(m_uiSharingPage);
@@ -174,10 +175,10 @@ void DatabaseSettingsWidget::load(Database* db)
         QStringList hierarchy = group->hierarchy();
         hierarchy.removeFirst();
         QList<QStandardItem*> row = QList<QStandardItem*>()
-                << new QStandardItem(hierarchy.join(" / "))
-                << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference))
-                << new QStandardItem(reference.path);
-        m_sharedGroupsModel->appendRow( row );
+                                    << new QStandardItem(hierarchy.join(" / "))
+                                    << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference))
+                                    << new QStandardItem(reference.path);
+        m_sharedGroupsModel->appendRow(row);
     }
 
     m_uiSharing->sharedGroupsView->setModel(m_sharedGroupsModel.data());

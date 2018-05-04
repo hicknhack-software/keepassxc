@@ -49,7 +49,6 @@ private slots:
     void toggleRemoveButton(const QItemSelection& selected);
 
 private:
-
     const QScopedPointer<Ui::EditWidgetProperties> m_ui;
 
     QPointer<CustomData> m_customData;

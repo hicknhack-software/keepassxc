@@ -991,7 +991,7 @@ const Database* Entry::database() const
     }
 }
 
-Database *Entry::database()
+Database* Entry::database()
 {
     if (m_group) {
         return m_group->database();

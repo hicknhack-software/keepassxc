@@ -20,8 +20,8 @@
 
 #include <QLayout>
 #include <QScopedPointer>
-#include <QStandardItemModel>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QWidget>
 
 #include "crypto/kdf/Kdf.h"

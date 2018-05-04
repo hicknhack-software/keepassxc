@@ -55,8 +55,10 @@ private:
     bool mergeHistory(const Entry* sourceEntry, Entry* targetEntry);
     void moveEntry(Entry* entry, Group* targetGroup);
     void moveGroup(Group* group, Group* targetGroup);
-    void eraseEntry(Entry* entry); // remove an entry without a trace in the deletedObjects - needed for elemination cloned entries
-    void eraseGroup(Group* group); // remove an entry without a trace in the deletedObjects - needed for elemination cloned entries
+    void eraseEntry(
+        Entry* entry); // remove an entry without a trace in the deletedObjects - needed for elemination cloned entries
+    void eraseGroup(
+        Group* group); // remove an entry without a trace in the deletedObjects - needed for elemination cloned entries
     ChangeList resolveEntryConflict(const MergeContext& context, const Entry* existingEntry, Entry* otherEntry);
     ChangeList resolveGroupConflict(const MergeContext& context, const Group* existingGroup, Group* otherGroup);
 

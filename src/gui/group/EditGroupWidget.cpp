@@ -40,7 +40,8 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
     addPage(tr("Group"), FilePath::instance()->icon("actions", "document-edit"), m_editGroupWidgetMain);
     addPage(tr("Icon"), FilePath::instance()->icon("apps", "preferences-desktop-icons"), m_editGroupWidgetIcons);
     addPage(tr("Properties"), FilePath::instance()->icon("actions", "document-properties"), m_editWidgetProperties);
-    addPage(tr("Sharing"), FilePath::instance()->icon("apps", "preferences-system-network-sharing"), m_editWidgetSharing);
+    addPage(
+        tr("Sharing"), FilePath::instance()->icon("apps", "preferences-system-network-sharing"), m_editWidgetSharing);
 
     connect(m_mainUi->expireCheck, SIGNAL(toggled(bool)), m_mainUi->expireDatePicker, SLOT(setEnabled(bool)));
     connect(m_mainUi->autoTypeSequenceCustomRadio,

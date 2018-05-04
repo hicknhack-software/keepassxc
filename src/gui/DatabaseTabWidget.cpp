@@ -398,7 +398,8 @@ bool DatabaseTabWidget::saveDatabaseAs(Database* db)
                 continue;
             }
             // Since we change to the saved database we should also export
-            // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
+            // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
+            // architecture
             db->sharing()->exportSharedEntries();
 
             // changes of the current database

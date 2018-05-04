@@ -118,7 +118,7 @@ bool TimeInfo::equals(const TimeInfo& other, bool ignoreStatistics) const
 bool TimeInfo::operator==(const TimeInfo& other) const
 {
     return m_lastModificationTime == other.m_lastModificationTime && m_creationTime == other.m_creationTime
-           && m_lastAccessTime == other.m_lastAccessTime
-           && m_expires == other.m_expires && m_expiryTime == other.m_expiryTime
-           && m_usageCount == other.m_usageCount && m_locationChanged == other.m_locationChanged;
+           && m_lastAccessTime == other.m_lastAccessTime && m_expires == other.m_expires
+           && m_expiryTime == other.m_expiryTime && m_usageCount == other.m_usageCount
+           && m_locationChanged == other.m_locationChanged;
 }
