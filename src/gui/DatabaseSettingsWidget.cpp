@@ -266,6 +266,22 @@ void DatabaseSettingsWidget::save()
         sharing |= DatabaseSharing::ExportTo;
     }
     if (m_uiSharing->enableImportCheckBox->isChecked()) {
+        if (!m_uiGeneral->historyMaxItemsCheckBox->isChecked() || m_uiGeneral->historyMaxItemsSpinBox->value() < 2) {
+            QMessageBox warning;
+            warning.setIcon(QMessageBox::Warning);
+            warning.setWindowTitle(tr("Synchronization without history", "Title for warning about missing synchronization history"));
+            warning.setText(tr("You are trying to import remote changes to your database without a sufficent history size.\n\n"
+                               "If you do not increase the history size to at least 2 you may suffer data loss!"));
+            auto ok = warning.addButton(tr("Understood, import remote changes"), QMessageBox::ButtonRole::AcceptRole);
+            auto cancel = warning.addButton(tr("Cancel"), QMessageBox::ButtonRole::RejectRole);
+            warning.setDefaultButton(cancel);
+            warning.exec();
+            if (warning.clickedButton() != ok) {
+                return;
+            }
+        }
+    }
+    if (m_uiSharing->enableImportCheckBox->isChecked()) {
         sharing |= DatabaseSharing::ImportFrom;
     }
     DatabaseSharing::enable(m_db, static_cast<DatabaseSharing::Type>(sharing));
