@@ -71,13 +71,13 @@ If you checked _Allow export_ in the Sharing settings you now are good to go to 
 1. Choose a path to store the shared credentials to
 1. Generate a password for this share database
 
-The export file will not be generated automatically. Instead, each time the database is saved, the file get's written. If an old file is present, the old file will be overwritten! The file should be written to a location that is accessable by others. An easy setup is a network share or storing the file inside the cloud.
+The export file will not be generated automatically. Instead, each time the database is saved, the file gets written. If an old file is present, the old file will be overwritten! The file should be written to a location that is accessible by others. An easy setup is a network share or storing the file inside the cloud.
 
 <img src="./KeeShare/Share-Group.png" height="600" width="800" alt="KeePassXC Group Sharing Settings">
 
 ### Using Shared Credentials
 
-Checking _Allow import_ in the Sharing settings of the database enables you to receive credentials from others. KeePass will watch sharing sources and import any changes immideatly into your database using the synchronization feature.
+Checking _Allow import_ in the Sharing settings of the database enables you to receive credentials from others. KeePass will watch sharing sources and import any changes immoderately into your database using the synchronization feature.
 
 1. Create a group for import
 1. Open the edit sheet on that group
@@ -90,7 +90,7 @@ Checking _Allow import_ in the Sharing settings of the database enables you to r
 
 ### Using Synchronized Credentials
 
-Instead of using different groups for sharing and importing you can use a single group that acts as both. This way you can synchronize a number of credentials easily accross many users without a lot of hassle.
+Instead of using different groups for sharing and importing you can use a single group that acts as both. This way you can synchronize a number of credentials easily across many users without a lot of hassle.
 
 1. Open the edit sheet on a group you want to synchronize
 1. Select the sharing section
@@ -101,4 +101,4 @@ Instead of using different groups for sharing and importing you can use a single
 <img src="./KeeShare/Synchronize-Group.png" height="600" width="800" alt="KeePassXC Group Synchronization Settings">
 
 ## Technical Details of Sharing
-Sharing relies on the combination of file exports and imports as well as the synchronization mechnism provided by KeePassXC
+Sharing relies on the combination of file exports and imports as well as the synchronization mechanism provided by KeePassXC
