@@ -1,6 +1,9 @@
 # <img src="https://keepassxc.org/logo.png" width="40" height="40"/> KeePassXC
 [![TeamCity Build Status](https://ci.keepassxc.org/app/rest/builds/buildType:\(id:KeepassXC_TeamCityCi\)/statusIcon?guest=1)](https://ci.keepassxc.org/viewType.html?buildTypeId=KeepassXC_TeamCityCi&guest=1)  [![Coverage Status](https://coveralls.io/repos/github/keepassxreboot/keepassxc/badge.svg)](https://coveralls.io/github/keepassxreboot/keepassxc)
 
+## Note
+This is a feature fork to introduce the concept of Sharing to KeepPassXC. See [Using Sharing](./docs/QUICKSTART.md#using-sharing) for more details.
+
 ## About KeePassXC
 [KeePassXC](https://keepassxc.org) is a cross-platform community fork of
 [KeePassX](https://www.keepassx.org/).

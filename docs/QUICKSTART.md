@@ -46,3 +46,59 @@ or select it and type Ctrl+U (Cmd+U on macOS).
 Click *Allow* to confirm that KeePassXC may access the credentials to auto-fill the fields. 
 * Check *Remember this decision* to allow this each time you visit the page.
 <img src="./KeePassHTTP/KeePassXC-Confirm.png" height="200" alt="KeePassCX Confirm Access dialog">
+
+## Using Sharing
+
+Sharing allows you to share a subset of your credentials with others and vice versa.
+
+### Enable Sharing
+
+To use sharing, you need to enable it on a database.
+
+1. Go to Database &rarr; Database Settings
+1. Check _Allow import_ if you want to import shared credentials
+1. Check _Allow export_ if you want to share credentials
+
+<img src="./KeeShare/Database-Settings.png" height="600" width="800" alt="KeePassXC Databse Sharing Settings">
+
+### Sharing Credentials
+
+If you checked _Allow export_ in the Sharing settings you now are good to go to share some passwords with others. Sharing always is defined on a group. If you enable sharing on a group, every entry under this group or it's children is shared. If you enable sharing on the root node, **every password** inside your database gets shared!
+
+1. Open the edit sheet on a group you want to share
+1. Select the sharing section
+1. Choose _Export to path_ as the sharing method
+1. Choose a path to store the shared credentials to
+1. Generate a password for this share database
+
+The export file will not be generated automatically. Instead, each time the database is saved, the file get's written. If an old file is present, the old file will be overwritten! The file should be written to a location that is accessable by others. An easy setup is a network share or storing the file inside the cloud.
+
+<img src="./KeeShare/Share-Group.png" height="600" width="800" alt="KeePassXC Group Sharing Settings">
+
+### Using Shared Credentials
+
+Checking _Allow import_ in the Sharing settings of the database enables you to receive credentials from others. KeePass will watch sharing sources and import any changes immideatly into your database using the synchronization feature.
+
+1. Create a group for import
+1. Open the edit sheet on that group
+1. Select the sharing section
+1. Choose _Import from path_ as the sharing method
+1. Choose a database that is shared with you
+1. Enter the password for the shared database
+
+<img src="./KeeShare/Import-Group.png" height="600" width="800" alt="KeePassXC Group Import Settings">
+
+### Using Synchronized Credentials
+
+Instead of using different groups for sharing and importing you can use a single group that acts as both. This way you can synchronize a number of credentials easily accross many users without a lot of hassle.
+
+1. Open the edit sheet on a group you want to synchronize
+1. Select the sharing section
+1. Choose _Synchronize with path_ as the sharing method
+1. Choose a database that you want to use a synchronization file
+1. Enter the password for the database
+
+<img src="./KeeShare/Synchronize-Group.png" height="600" width="800" alt="KeePassXC Group Synchronization Settings">
+
+## Technical Details of Sharing
+Sharing relies on the combination of file exports and imports as well as the synchronization mechnism provided by KeePassXC
