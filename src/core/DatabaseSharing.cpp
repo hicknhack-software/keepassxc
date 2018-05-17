@@ -90,18 +90,21 @@ void DatabaseSharing::reinitialize()
         updated << couple;
     }
 
-    QStringList worked;
-    QStringList failed;
+    QStringList success;
+    QStringList warning;
+    QStringList error;
     for (Update couple : updated) {
         if (!couple.oldReference.path.isEmpty()) {
             const QFileInfo info(couple.oldReference.path);
             m_fileWatcher.removePath(info.absoluteFilePath());
+            m_fileWatcher.removePath(info.absolutePath());
             m_watched.remove(info.absoluteFilePath());
             m_sources[info.absolutePath()].remove(info.fileName());
         }
         if (!couple.newReference.path.isEmpty()) {
             const QFileInfo info(couple.newReference.path);
             m_fileWatcher.addPath(info.absoluteFilePath());
+            m_fileWatcher.addPath(info.absolutePath());
             m_watched[info.absoluteFilePath()] = info.exists();
             m_sources[info.absolutePath()].insert(info.fileName());
         }
@@ -112,23 +115,35 @@ void DatabaseSharing::reinitialize()
                 // tolerable result - blocked import or missing source
                 continue;
             }
+
             if (result.isError()) {
-                failed << tr("Import from %1 failed (%2)").arg(result.path).arg(result.error);
+                error << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+            } else if(result.isWarning() ) {
+                warning << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+            } else if(result.isInfo()) {
+                success << tr("Import from %1 successful (%2)").arg(result.path).arg(result.message);
             } else {
-                worked << tr("Imported from %1").arg(result.path);
+                success << tr("Imported from %1").arg(result.path);
             }
         }
     }
-    notifyAbout(worked, failed);
+    notifyAbout(success, warning , error);
 }
 
-void DatabaseSharing::notifyAbout(const QStringList& sucess, const QStringList& failure)
+void DatabaseSharing::notifyAbout(const QStringList& success, const QStringList& warning, const QStringList& error)
 {
-    if (failure.isEmpty() && sucess.isEmpty()) {
+    if (error.isEmpty() && warning.isEmpty() && success.isEmpty()) {
         return;
     }
-    MessageWidget::MessageType type = failure.isEmpty() ? MessageWidget::Positive : MessageWidget::Warning;
-    emit sharingChanged((sucess + failure).join("\n"), type);
+
+    MessageWidget::MessageType type = MessageWidget::Positive;
+    if( !warning.isEmpty() ) {
+        type = MessageWidget::Warning;
+    }
+    if( !error.isEmpty() ) {
+        type = MessageWidget::Error;
+    }
+    emit sharingChanged((success + warning + error).join("\n"), type);
 }
 
 void DatabaseSharing::handleChanged()
@@ -144,7 +159,7 @@ void DatabaseSharing::handleChanged()
     }
 }
 
-bool DatabaseSharing::isExporting(Database* database, const Group* group)
+bool DatabaseSharing::isExporting(const Database* database, const Group* group)
 {
     if (!isEnabled(database, ExportTo)) {
         return false;
@@ -153,7 +168,7 @@ bool DatabaseSharing::isExporting(Database* database, const Group* group)
     return reference.isExporting();
 }
 
-bool DatabaseSharing::isImporting(Database* database, const Group* group)
+bool DatabaseSharing::isImporting(const Database* database, const Group* group)
 {
     if (!isEnabled(database, ImportFrom)) {
         return false;
@@ -196,7 +211,8 @@ QPixmap DatabaseSharing::sharingIndicatorBadge(const Group* group, QPixmap pixma
         return pixmap;
     }
     const Reference reference = referenceOf(group->customData());
-    const QPixmap badge = isEnabled(group->database(), reference.type)
+    const bool enabled = isEnabled(group->database(), reference.type) && (isImporting(group->database(), group) || isExporting(group->database(), group));
+    const QPixmap badge = enabled
                               ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
                               : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
     QImage canvas = pixmap.toImage();
@@ -246,11 +262,19 @@ void DatabaseSharing::handleFileChanged(const QString& path)
     if (!result.isValid()) {
         return;
     }
-    QStringList worked;
-    QStringList failed;
-    result.isError() ? failed << tr("Import from %1 failed (%2)").arg(result.path).arg(result.error)
-                     : worked << tr("Imported from %1").arg(result.path);
-    notifyAbout(worked, failed);
+    QStringList success;
+    QStringList warning;
+    QStringList error;
+    if (result.isError()) {
+        error << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+    } else if(result.isWarning() ) {
+        warning << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+    } else if(result.isInfo()) {
+        success << tr("Import from %1 successful (%2)").arg(result.path).arg(result.message);
+    } else {
+        success << tr("Imported from %1").arg(result.path);
+    }
+    notifyAbout(success, warning, error);
 }
 
 DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& path)
@@ -282,11 +306,11 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
     QFile dbFile(info.absoluteFilePath());
     if (!dbFile.exists()) {
         qCritical("File %s does not exist.", qPrintable(info.absoluteFilePath()));
-        return {reference.path, tr("File does not exist")};
+        return {reference.path, Result::Warning, tr("File does not exist")};
     }
     if (!dbFile.open(QIODevice::ReadOnly)) {
         qCritical("Unable to open file %s.", qPrintable(info.absoluteFilePath()));
-        return {reference.path, tr("File is not readable")};
+        return { reference.path, Result::Error, tr("File is not readable")};
     }
 
     KeePass2Reader reader;
@@ -295,7 +319,7 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
     Database* sourceDb = reader.readDatabase(&dbFile, key);
     if (reader.hasError()) {
         qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));
-        return {reference.path, reader.errorString()};
+        return { reference.path, Result::Error, reader.errorString() };
     }
 
     Database* targetDb = m_db;
@@ -308,28 +332,37 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
     Merger merger(sourceDb->rootGroup(), targetGroup);
     merger.setForcedMergeMode(Group::Synchronize);
     const bool changed = merger.merge();
-    return changed ? Result{reference.path, QString()} : Result{};
+    if(changed){
+        return { reference.path };
+    }
+    return {};
 }
 
 void DatabaseSharing::handleDirectoryChanged(const QString& path)
 {
-    QStringList worked;
-    QStringList failed;
+    QStringList success;
+    QStringList warning;
+    QStringList error;
     qDebug("Directory changed %s", qPrintable(path));
     for (QString file : m_sources[path]) {
         QFileInfo info(path + "/" + file);
         if (!info.exists()) {
             qDebug("Remove watch file %s", qPrintable(info.absoluteFilePath()));
             m_fileWatcher.removePath(info.absolutePath());
+            warning << tr("Import file %1 removed").arg(info.absoluteFilePath());
         }
         if (!m_watched[info.absoluteFilePath()]) {
             qDebug("Add watch file %s", qPrintable(info.absoluteFilePath()));
             m_fileWatcher.addPath(info.absolutePath());
             const Result message = this->handleReferenceChanged(info.absoluteFilePath());
             if (message.isError()) {
-                failed << tr("Import from %1 failed (%2)").arg(message.path).arg(message.error);
+                error << tr("Import from %1 failed (%2)").arg(message.path).arg(message.message);
+            } else if(message.isWarning()) {
+                warning << tr("Import from %1 failed (%2)").arg(message.path).arg(message.message);
+            } else if(message.isInfo()) {
+                success << tr("Imported from %1 successful (%2").arg(message.path).arg(message.message);
             } else {
-                worked << tr("Imported from %1").arg(message.path);
+                success << tr("Imported from %1").arg(message.path);
             }
         }
         if (m_watched[info.absoluteFilePath()] && info.exists()) {
@@ -340,7 +373,7 @@ void DatabaseSharing::handleDirectoryChanged(const QString& path)
         }
         m_watched[info.absoluteFilePath()] = info.exists();
     }
-    notifyAbout(worked, failed);
+    notifyAbout(success, warning, error);
 }
 
 void DatabaseSharing::unblockAutoReload()
@@ -415,7 +448,7 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
     if (reference.path.isEmpty()) {
         qWarning(
             "Invalid export path in %s (%s)", qPrintable(sourceRoot->name()), qPrintable(sourceRoot->uuid().toHex()));
-        return {reference.path, tr("Export failed with invalid path for %1").arg(sourceRoot->name())};
+        return {reference.path, Result::Warning, tr("Export without path for %1 impossible").arg(sourceRoot->name())};
     }
     QFileInfo info(reference.path);
     qDebug("Export blocking %s to %s", qPrintable(sourceRoot->name()), qPrintable(reference.path));
@@ -431,6 +464,10 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
 
     // Copy the source root as the root of the export database, memory manage the old root node
     Group* targetRoot = sourceRoot->clone(Entry::CloneNoFlags, Group::CloneNoFlags);
+    const bool updateTimeinfo = targetRoot->canUpdateTimeinfo();
+    targetRoot->setUpdateTimeinfo(false);
+    targetRoot->customData()->remove(KeeShareExt);
+    targetRoot->setUpdateTimeinfo(updateTimeinfo);
     const QList<Entry*> sourceEntries = sourceRoot->entriesRecursive(false);
     for (const Entry* sourceEntry : sourceEntries) {
         Entry* targetEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
@@ -466,9 +503,9 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
     if (!errorMessage.isEmpty()) {
         //  emit messageTab(tr("Writing the database failed.").append("\n").append(errorMessage), MessageWidget::Error);
         qWarning("Writing export dabase failed: %s.", errorMessage.toLatin1().data());
-        return {reference.path, errorMessage};
+        return {reference.path, Result::Error, errorMessage};
     }
-    return {reference.path, QString()};
+    return {reference.path };
 }
 
 bool DatabaseSharing::isEnabled(const Database* db)
@@ -527,28 +564,33 @@ void DatabaseSharing::exportSharedEntries()
     if (!isEnabled(m_db, ExportTo)) {
         return;
     }
-    QList<Result> messaged;
+    QList<Result> results;
     QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
     for (Group* group : groups) {
         const Reference reference = referenceOf(group->customData());
         if (reference.isExporting()) {
-            messaged << exportSharedFrom(group);
+            results << exportSharedFrom(group);
         }
     }
-    QStringList failed;
-    QStringList worked;
-    for (const Result& message : messaged) {
-        if (!message.isValid()) {
-            Q_ASSERT(message.isValid());
+    QStringList error;
+    QStringList warning;
+    QStringList success;
+    for (const Result& result : results) {
+        if (!result.isValid()) {
+            Q_ASSERT(result.isValid());
             continue;
         }
-        if (message.isError()) {
-            failed << tr("Export to %1 failed (%2)").arg(message.path).arg(message.error);
+        if (result.isError()) {
+            error << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+        } else if(result.isWarning() ) {
+            warning << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+        } else if(result.isInfo()) {
+            success << tr("Import from %1 successful (%2)").arg(result.path).arg(result.message);
         } else {
-            worked << tr("Exported to %1").arg(message.path);
+            success << tr("Imported from %1").arg(result.path);
         }
     }
-    notifyAbout(worked, failed);
+    notifyAbout(success, warning, error);
 }
 
 DatabaseSharing::Reference::Reference(DatabaseSharing::Type type,
@@ -597,10 +639,20 @@ bool DatabaseSharing::Reference::operator==(const DatabaseSharing::Reference& ot
 
 bool DatabaseSharing::Result::isValid() const
 {
-    return !path.isEmpty() || !error.isEmpty();
+    return !path.isEmpty() || !message.isEmpty() || !message.isEmpty() || !message.isEmpty();
 }
 
 bool DatabaseSharing::Result::isError() const
 {
-    return !error.isEmpty();
+    return !message.isEmpty() && type == Error;
+}
+
+bool DatabaseSharing::Result::isInfo() const
+{
+    return !message.isEmpty() && type == Info;
+}
+
+bool DatabaseSharing::Result::isWarning() const
+{
+    return !message.isEmpty() && type == Warning;
 }

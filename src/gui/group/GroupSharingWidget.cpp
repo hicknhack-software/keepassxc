@@ -41,6 +41,9 @@ GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     m_ui->passwordGenerator->layout()->setContentsMargins(0, 0, 0, 0);
     m_ui->passwordGenerator->hide();
     m_ui->passwordGenerator->reset();
+
+    m_ui->messageWidget->hide();
+
     connect(m_ui->togglePasswordButton, SIGNAL(toggled(bool)), m_ui->passwordEdit, SLOT(setShowPassword(bool)));
     connect(m_ui->togglePasswordGeneratorButton, SIGNAL(toggled(bool)), SLOT(togglePasswordGeneratorButton(bool)));
     connect(m_ui->passwordEdit, SIGNAL(textChanged(QString)), SLOT(selectPassword()));
@@ -96,6 +99,21 @@ void GroupSharingWidget::setCustomData(CustomData* customData)
     update();
 }
 
+void GroupSharingWidget::showSharingState()
+{
+    const bool importEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ImportFrom);
+    const bool exportEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ExportTo);
+    if (!importEnabled && !exportEnabled) {
+        m_ui->messageWidget->showMessage(tr("Database sharing is disabled"), MessageWidget::Information);
+    }
+    if (importEnabled && !exportEnabled) {
+        m_ui->messageWidget->showMessage(tr("Database export is disabled"), MessageWidget::Information);
+    }
+    if (!importEnabled && exportEnabled) {
+        m_ui->messageWidget->showMessage(tr("Database import is disabled"), MessageWidget::Information);
+    }
+}
+
 void GroupSharingWidget::update()
 {
     if (!m_customData || !m_currentGroup) {
@@ -110,17 +128,7 @@ void GroupSharingWidget::update()
         m_ui->passwordEdit->setText(reference.password);
         m_ui->pathEdit->setText(reference.path);
 
-        const bool importEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ImportFrom);
-        const bool exportEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ExportTo);
-        if (!importEnabled && !exportEnabled) {
-            m_ui->messageWidget->showMessage(tr("Sharing is disabled"), MessageWidget::Information);
-        }
-        if (importEnabled && !exportEnabled) {
-            m_ui->messageWidget->showMessage(tr("Export is disabled"), MessageWidget::Information);
-        }
-        if (!importEnabled && exportEnabled) {
-            m_ui->messageWidget->showMessage(tr("Import is disabled"), MessageWidget::Information);
-        }
+        showSharingState();
     }
 }
 
@@ -168,23 +176,19 @@ void GroupSharingWidget::selectPath()
     if (filename.isEmpty()) {
         filename = tr("%1.share.%2", "Template for sharing container").arg(m_currentGroup->name()).arg(filetype);
     }
-    QString title;
     switch (reference.type) {
     case DatabaseSharing::ImportFrom:
-        title = tr("Select import source");
+        filename = fileDialog()->getFileName(this, tr("Select import source"), defaultDirPath, filters, nullptr, QFileDialog::DontConfirmOverwrite, filetype, filename);
         break;
     case DatabaseSharing::ExportTo:
-        title = tr("Select export target");
+        filename = fileDialog()->getFileName(this, tr("Select export target"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
     case DatabaseSharing::SynchronizeWith:
-        title = tr("Select import/export file");
-        break;
-    default:
-        title = tr("Select sharing path");
+    case DatabaseSharing::Inactive:
+        filename = fileDialog()->getFileName(this, tr("Select import/export file"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
     }
 
-    filename = fileDialog()->getSaveFileName(this, title, defaultDirPath, filters, nullptr, 0, filetype, filename);
     if (filename.isEmpty()) {
         return;
     }

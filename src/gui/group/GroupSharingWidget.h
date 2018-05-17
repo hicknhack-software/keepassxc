@@ -22,6 +22,8 @@ public:
     void setGroup(const Group* group);
     void setCustomData(CustomData* customData);
 
+private:
+    void showSharingState();
 private slots:
     void update();
     void selectType();
