@@ -22,12 +22,13 @@
 #include <Winsock2.h>
 #endif
 
-NativeMessagingHost::NativeMessagingHost() : NativeMessagingBase(true)
+NativeMessagingHost::NativeMessagingHost()
+    : NativeMessagingBase(true)
 {
     m_localSocket = new QLocalSocket();
     m_localSocket->connectToServer(getLocalServerPath());
     m_localSocket->setReadBufferSize(NATIVE_MSG_MAX_LENGTH);
-  
+
     int socketDesc = m_localSocket->socketDescriptor();
     if (socketDesc) {
         int max = NATIVE_MSG_MAX_LENGTH;

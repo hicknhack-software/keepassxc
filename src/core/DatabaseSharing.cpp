@@ -118,16 +118,16 @@ void DatabaseSharing::reinitialize()
 
             if (result.isError()) {
                 error << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
-            } else if(result.isWarning() ) {
+            } else if (result.isWarning()) {
                 warning << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
-            } else if(result.isInfo()) {
+            } else if (result.isInfo()) {
                 success << tr("Import from %1 successful (%2)").arg(result.path).arg(result.message);
             } else {
                 success << tr("Imported from %1").arg(result.path);
             }
         }
     }
-    notifyAbout(success, warning , error);
+    notifyAbout(success, warning, error);
 }
 
 void DatabaseSharing::notifyAbout(const QStringList& success, const QStringList& warning, const QStringList& error)
@@ -137,10 +137,10 @@ void DatabaseSharing::notifyAbout(const QStringList& success, const QStringList&
     }
 
     MessageWidget::MessageType type = MessageWidget::Positive;
-    if( !warning.isEmpty() ) {
+    if (!warning.isEmpty()) {
         type = MessageWidget::Warning;
     }
-    if( !error.isEmpty() ) {
+    if (!error.isEmpty()) {
         type = MessageWidget::Error;
     }
     emit sharingChanged((success + warning + error).join("\n"), type);
@@ -211,10 +211,10 @@ QPixmap DatabaseSharing::sharingIndicatorBadge(const Group* group, QPixmap pixma
         return pixmap;
     }
     const Reference reference = referenceOf(group->customData());
-    const bool enabled = isEnabled(group->database(), reference.type) && (isImporting(group->database(), group) || isExporting(group->database(), group));
-    const QPixmap badge = enabled
-                              ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
-                              : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
+    const bool enabled = isEnabled(group->database(), reference.type)
+                         && (isImporting(group->database(), group) || isExporting(group->database(), group));
+    const QPixmap badge = enabled ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
+                                  : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
     QImage canvas = pixmap.toImage();
     const QRectF target(canvas.width() * 0.4, canvas.height() * 0.4, canvas.width() * 0.6, canvas.height() * 0.6);
     QPainter painter(&canvas);
@@ -267,9 +267,9 @@ void DatabaseSharing::handleFileChanged(const QString& path)
     QStringList error;
     if (result.isError()) {
         error << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
-    } else if(result.isWarning() ) {
+    } else if (result.isWarning()) {
         warning << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
-    } else if(result.isInfo()) {
+    } else if (result.isInfo()) {
         success << tr("Import from %1 successful (%2)").arg(result.path).arg(result.message);
     } else {
         success << tr("Imported from %1").arg(result.path);
@@ -310,7 +310,7 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
     }
     if (!dbFile.open(QIODevice::ReadOnly)) {
         qCritical("Unable to open file %s.", qPrintable(info.absoluteFilePath()));
-        return { reference.path, Result::Error, tr("File is not readable")};
+        return {reference.path, Result::Error, tr("File is not readable")};
     }
 
     KeePass2Reader reader;
@@ -319,7 +319,7 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
     Database* sourceDb = reader.readDatabase(&dbFile, key);
     if (reader.hasError()) {
         qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));
-        return { reference.path, Result::Error, reader.errorString() };
+        return {reference.path, Result::Error, reader.errorString()};
     }
 
     Database* targetDb = m_db;
@@ -332,8 +332,8 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
     Merger merger(sourceDb->rootGroup(), targetGroup);
     merger.setForcedMergeMode(Group::Synchronize);
     const bool changed = merger.merge();
-    if(changed){
-        return { reference.path };
+    if (changed) {
+        return {reference.path};
     }
     return {};
 }
@@ -357,9 +357,9 @@ void DatabaseSharing::handleDirectoryChanged(const QString& path)
             const Result message = this->handleReferenceChanged(info.absoluteFilePath());
             if (message.isError()) {
                 error << tr("Import from %1 failed (%2)").arg(message.path).arg(message.message);
-            } else if(message.isWarning()) {
+            } else if (message.isWarning()) {
                 warning << tr("Import from %1 failed (%2)").arg(message.path).arg(message.message);
-            } else if(message.isInfo()) {
+            } else if (message.isInfo()) {
                 success << tr("Imported from %1 successful (%2").arg(message.path).arg(message.message);
             } else {
                 success << tr("Imported from %1").arg(message.path);
@@ -505,7 +505,7 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
         qWarning("Writing export dabase failed: %s.", errorMessage.toLatin1().data());
         return {reference.path, Result::Error, errorMessage};
     }
-    return {reference.path };
+    return {reference.path};
 }
 
 bool DatabaseSharing::isEnabled(const Database* db)
@@ -582,9 +582,9 @@ void DatabaseSharing::exportSharedEntries()
         }
         if (result.isError()) {
             error << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
-        } else if(result.isWarning() ) {
+        } else if (result.isWarning()) {
             warning << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
-        } else if(result.isInfo()) {
+        } else if (result.isInfo()) {
             success << tr("Import from %1 successful (%2)").arg(result.path).arg(result.message);
         } else {
             success << tr("Imported from %1").arg(result.path);

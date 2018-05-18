@@ -80,13 +80,13 @@ QStringList FileDialog::getOpenFileNames(QWidget* parent,
 }
 
 QString FileDialog::getFileName(QWidget* parent,
-                                    const QString& caption,
-                                    QString dir,
-                                    const QString& filter,
-                                    QString* selectedFilter,
-                                    QFileDialog::Options options,
-                                    const QString& defaultExtension,
-                                    const QString& defaultName)
+                                const QString& caption,
+                                QString dir,
+                                const QString& filter,
+                                QString* selectedFilter,
+                                QFileDialog::Options options,
+                                const QString& defaultExtension,
+                                const QString& defaultName)
 {
     if (!m_nextFileName.isEmpty()) {
         QString result = m_nextFileName;

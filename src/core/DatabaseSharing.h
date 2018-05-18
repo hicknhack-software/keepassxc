@@ -99,7 +99,8 @@ private slots:
 private:
     struct Result
     {
-        enum Type {
+        enum Type
+        {
             Success,
             Info,
             Warning,
@@ -110,8 +111,12 @@ private:
         Type type;
         QString message;
 
-        Result(const QString &path = QString(), Type type = Success, const QString &message = QString())
-            : path(path), type(type), message(message) {}
+        Result(const QString& path = QString(), Type type = Success, const QString& message = QString())
+            : path(path)
+            , type(type)
+            , message(message)
+        {
+        }
 
         bool isValid() const;
         bool isError() const;
@@ -119,8 +124,8 @@ private:
         bool isInfo() const;
     };
 
-    static bool isExporting(const Database *database, const Group* group);
-    static bool isImporting(const Database *database, const Group* group);
+    static bool isExporting(const Database* database, const Group* group);
+    static bool isImporting(const Database* database, const Group* group);
     static QString serializeReference(const DatabaseSharing::Reference& reference);
     static Reference deserializeReference(const QString& raw);
     static void resolveReferenceAttributes(Entry* targetEntry, Database* sourceDb);
@@ -129,7 +134,7 @@ private:
     Result exportSharedFrom(Group* group);
     void deinitialize();
     void reinitialize();
-    void notifyAbout(const QStringList& success, const QStringList& warning, const QStringList &error);
+    void notifyAbout(const QStringList& success, const QStringList& warning, const QStringList& error);
 
 private:
     Database* const m_db;

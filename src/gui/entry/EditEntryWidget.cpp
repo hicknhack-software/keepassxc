@@ -23,6 +23,7 @@
 #include "ui_EditEntryWidgetMain.h"
 #include "ui_EditEntryWidgetSSHAgent.h"
 
+#include <QButtonGroup>
 #include <QColorDialog>
 #include <QDesktopServices>
 #include <QEvent>
@@ -32,7 +33,6 @@
 #include <QStackedLayout>
 #include <QStandardPaths>
 #include <QTemporaryFile>
-#include <QButtonGroup>
 
 #include "autotype/AutoType.h"
 #include "core/Clock.h"

@@ -178,14 +178,23 @@ void GroupSharingWidget::selectPath()
     }
     switch (reference.type) {
     case DatabaseSharing::ImportFrom:
-        filename = fileDialog()->getFileName(this, tr("Select import source"), defaultDirPath, filters, nullptr, QFileDialog::DontConfirmOverwrite, filetype, filename);
+        filename = fileDialog()->getFileName(this,
+                                             tr("Select import source"),
+                                             defaultDirPath,
+                                             filters,
+                                             nullptr,
+                                             QFileDialog::DontConfirmOverwrite,
+                                             filetype,
+                                             filename);
         break;
     case DatabaseSharing::ExportTo:
-        filename = fileDialog()->getFileName(this, tr("Select export target"), defaultDirPath, filters, nullptr, 0, filetype, filename);
+        filename = fileDialog()->getFileName(
+            this, tr("Select export target"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
     case DatabaseSharing::SynchronizeWith:
     case DatabaseSharing::Inactive:
-        filename = fileDialog()->getFileName(this, tr("Select import/export file"), defaultDirPath, filters, nullptr, 0, filetype, filename);
+        filename = fileDialog()->getFileName(
+            this, tr("Select import/export file"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
     }
 
