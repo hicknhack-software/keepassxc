@@ -52,6 +52,7 @@ set(keepassx_SOURCES
     core/EntryAttributes.cpp
     core/EntrySearcher.cpp
     core/FilePath.cpp
+    core/FileWatcher.cpp
     core/Global.h
     core/Group.cpp
     core/InactivityTimer.cpp

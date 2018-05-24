@@ -36,6 +36,7 @@
 #include "core/Config.h"
 #include "core/EntrySearcher.h"
 #include "core/FilePath.h"
+#include "core/FileWatcher.h"
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
@@ -72,6 +73,7 @@ DatabaseWidget::DatabaseWidget(Database* db, QWidget* parent)
     , m_newEntry(nullptr)
     , m_newParent(nullptr)
     , m_importingCsv(false)
+    , m_fileWatcher(new FileWatcher(this))
 {
     m_mainWidget = new QWidget(this);
 
@@ -206,9 +208,7 @@ DatabaseWidget::DatabaseWidget(Database* db, QWidget* parent)
     connect(m_csvImportWizard, SIGNAL(importFinished(bool)), SLOT(csvImportFinished(bool)));
     connect(m_unlockDatabaseWidget, SIGNAL(editFinished(bool)), SLOT(unlockDatabase(bool)));
     connect(m_unlockDatabaseDialog, SIGNAL(unlockDone(bool)), SLOT(unlockDatabase(bool)));
-    connect(&m_fileWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onWatchedFileChanged()));
-    connect(&m_fileWatchTimer, SIGNAL(timeout()), this, SLOT(reloadDatabaseFile()));
-    connect(&m_fileWatchUnblockTimer, SIGNAL(timeout()), this, SLOT(unblockAutoReload()));
+    connect(m_fileWatcher.data(), SIGNAL(fileChanged()), this, SLOT(reloadDatabaseFile()));
     connect(this, SIGNAL(currentChanged(int)), this, SLOT(emitCurrentModeChanged()));
 
     connect(m_groupView, SIGNAL(groupPressed(Group*)), SLOT(emitPressedGroup(Group*)));
@@ -218,10 +218,6 @@ DatabaseWidget::DatabaseWidget(Database* db, QWidget* parent)
     connect(m_editEntryWidget, SIGNAL(editFinished(bool)), SLOT(emitPressedEntry()));
 
     m_databaseModified = false;
-
-    m_fileWatchTimer.setSingleShot(true);
-    m_fileWatchUnblockTimer.setSingleShot(true);
-    m_ignoreAutoReload = false;
 
     m_searchCaseSensitive = false;
     m_searchLimitGroup = config()->get("SearchLimitGroup", false).toBool();
@@ -858,9 +854,11 @@ void DatabaseWidget::openDatabase(bool accepted)
         m_databaseOpenWidget = nullptr;
         delete m_keepass1OpenWidget;
         m_keepass1OpenWidget = nullptr;
-        m_fileWatcher.addPath(m_filePath);
+        // m_fileWatcher->addPath(m_filePath);
+        m_fileWatcher->restart();
     } else {
-        m_fileWatcher.removePath(m_filePath);
+        // m_fileWatcher->removePath(m_filePath);
+        m_fileWatcher->stop();
         if (m_databaseOpenWidget->database()) {
             delete m_databaseOpenWidget->database();
         }
@@ -1215,39 +1213,13 @@ void DatabaseWidget::lock()
 
 void DatabaseWidget::updateFilePath(const QString& filePath)
 {
-    if (!m_filePath.isEmpty()) {
-        m_fileWatcher.removePath(m_filePath);
-    }
-
-    m_fileWatcher.addPath(filePath);
+    m_fileWatcher->start(filePath);
     m_filePath = filePath;
 }
 
 void DatabaseWidget::blockAutoReload(bool block)
 {
-    if (block) {
-        m_ignoreAutoReload = true;
-        m_fileWatchTimer.stop();
-    } else {
-        m_fileWatchUnblockTimer.start(500);
-    }
-}
-
-void DatabaseWidget::unblockAutoReload()
-{
-    m_ignoreAutoReload = false;
-    updateFilePath(m_filePath);
-}
-
-void DatabaseWidget::onWatchedFileChanged()
-{
-    if (m_ignoreAutoReload) {
-        return;
-    }
-    if (m_fileWatchTimer.isActive())
-        return;
-
-    m_fileWatchTimer.start(500);
+    m_fileWatcher->blockAutoReload(block);
 }
 
 void DatabaseWidget::reloadDatabaseFile()
@@ -1273,7 +1245,8 @@ void DatabaseWidget::reloadDatabaseFile()
             m_db->markAsModified();
             m_databaseModified = true;
             // Rewatch the database file
-            m_fileWatcher.addPath(m_filePath);
+            // m_fileWatcher->addPath(m_filePath);
+            m_fileWatcher->restart();
             return;
         }
     }
@@ -1331,7 +1304,8 @@ void DatabaseWidget::reloadDatabaseFile()
     }
 
     // Rewatch the database file
-    m_fileWatcher.addPath(m_filePath);
+    // m_fileWatcher->addPath(m_filePath);
+    m_fileWatcher->restart();
 }
 
 int DatabaseWidget::numberOfSelectedEntries() const
