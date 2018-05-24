@@ -65,7 +65,8 @@ class BrowserPlugin : public ISettingsPage
 public:
     BrowserPlugin(DatabaseTabWidget* tabWidget)
     {
-        m_nativeMessagingHost = QSharedPointer<NativeMessagingHost>(new NativeMessagingHost(tabWidget, BrowserSettings::isEnabled()));
+        m_nativeMessagingHost =
+            QSharedPointer<NativeMessagingHost>(new NativeMessagingHost(tabWidget, BrowserSettings::isEnabled()));
     }
 
     ~BrowserPlugin()

@@ -360,7 +360,8 @@ void BrowserService::updateEntry(const QString& id,
         return;
     }
 
-    if (username.compare(login, Qt::CaseSensitive) != 0 || entry->password().compare(password, Qt::CaseSensitive) != 0) {
+    if (username.compare(login, Qt::CaseSensitive) != 0
+        || entry->password().compare(password, Qt::CaseSensitive) != 0) {
         int dialogResult = QMessageBox::No;
         if (!BrowserSettings::alwaysAllowUpdate()) {
             QMessageBox msgBox;
@@ -416,11 +417,12 @@ QList<Entry*> BrowserService::searchEntries(const QString& text, const StringPai
         for (int i = 0; i < count; ++i) {
             if (DatabaseWidget* dbWidget = qobject_cast<DatabaseWidget*>(m_dbTabWidget->widget(i))) {
                 if (Database* db = dbWidget->database()) {
-                     // Check if database is connected with KeePassXC-Browser
+                    // Check if database is connected with KeePassXC-Browser
                     for (const StringPair keyPair : keyList) {
                         Entry* entry = db->resolveEntry(KEEPASSXCBROWSER_UUID);
                         if (entry) {
-                            QString key = entry->attributes()->value(QLatin1String(ASSOCIATE_KEY_PREFIX) + keyPair.first);
+                            QString key =
+                                entry->attributes()->value(QLatin1String(ASSOCIATE_KEY_PREFIX) + keyPair.first);
                             if (!key.isEmpty() && keyPair.second == key) {
                                 databases << db;
                             }
@@ -567,7 +569,8 @@ QList<Entry*> BrowserService::sortEntries(QList<Entry*>& pwEntries, const QStrin
             // Sort same priority entries by Title or UserName
             auto entries = priorities.values(i);
             std::sort(entries.begin(), entries.end(), [&priorities, &field](Entry* left, Entry* right) {
-                return QString::localeAwareCompare(left->attributes()->value(field), right->attributes()->value(field)) < 0;
+                return QString::localeAwareCompare(left->attributes()->value(field), right->attributes()->value(field))
+                       < 0;
             });
             results << entries;
             if (BrowserSettings::bestMatchOnly() && !pwEntries.isEmpty()) {

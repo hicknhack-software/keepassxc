@@ -19,6 +19,7 @@
 #include "TotpDialog.h"
 #include "ui_TotpDialog.h"
 
+#include "core/Clock.h"
 #include "core/Config.h"
 #include "gui/Clipboard.h"
 
@@ -69,7 +70,7 @@ void TotpDialog::updateProgressBar()
 
 void TotpDialog::updateSeconds()
 {
-    uint epoch = QDateTime::currentDateTime().toTime_t() - 1;
+    uint epoch = Clock::currentSecondsSinceEpoch() - 1;
     m_ui->timerLabel->setText(tr("Expires in <b>%n</b> second(s)", "", m_step - (epoch % m_step)));
 }
 
@@ -83,7 +84,7 @@ void TotpDialog::updateTotp()
 
 double TotpDialog::resetCounter()
 {
-    uint epoch = QDateTime::currentDateTime().toTime_t();
+    uint epoch = Clock::currentSecondsSinceEpoch();
     double counter = qRound(static_cast<double>(epoch % m_step) / m_step * 100);
     return counter;
 }

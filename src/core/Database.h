@@ -38,6 +38,10 @@ struct DeletedObject
 {
     Uuid uuid;
     QDateTime deletionTime;
+    bool operator==(const DeletedObject& other) const
+    {
+        return uuid == other.uuid && deletionTime == other.deletionTime;
+    }
 };
 
 Q_DECLARE_TYPEINFO(DeletedObject, Q_MOVABLE_TYPE);
@@ -87,8 +91,12 @@ public:
     Entry* resolveEntry(const QString& text, EntryReferenceType referenceType);
     Group* resolveGroup(const Uuid& uuid);
     QList<DeletedObject> deletedObjects();
+    const QList<DeletedObject>& deletedObjects() const;
     void addDeletedObject(const DeletedObject& delObj);
     void addDeletedObject(const Uuid& uuid);
+    bool containsDeletedObject(const Uuid& uuid) const;
+    bool containsDeletedObject(const DeletedObject& uuid) const;
+    void setDeletedObjects(const QList<DeletedObject>& delObjs);
 
     Uuid cipher() const;
     Database::CompressionAlgorithm compressionAlgo() const;
@@ -111,7 +119,7 @@ public:
     void recycleGroup(Group* group);
     void emptyRecycleBin();
     void setEmitModified(bool value);
-    void merge(const Database* other);
+    void markAsModified();
     QString saveToFile(QString filePath, bool atomic = true, bool backup = false);
 
     /**

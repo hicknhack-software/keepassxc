@@ -24,15 +24,17 @@
 class TestMerge : public QObject
 {
     Q_OBJECT
-
 private slots:
     void initTestCase();
+    void init();
+    void cleanup();
     void testMergeIntoNew();
     void testMergeNoChanges();
     void testResolveConflictNewer();
     void testResolveConflictOlder();
     void testResolveGroupConflictOlder();
     void testResolveConflictKeepBoth();
+    void testResolveConflictSynchronized();
     void testMoveEntry();
     void testMoveEntryPreserveChanges();
     void testMoveEntryIntoNewGroup();
@@ -42,9 +44,15 @@ private slots:
     void testUpdateGroupLocation();
     void testMergeAndSync();
     void testMergeCustomIcons();
+    void testMetadata();
+    void testDeletedEntry();
+    void testDeletedGroup();
+    void testDeletedRevertedEntry();
+    void testDeletedRevertedGroup();
 
 private:
     Database* createTestDatabase();
+    Database* createTestDatabaseStructureClone(Database* source, int entryFlags, int groupFlags);
 };
 
 #endif // KEEPASSX_TESTMERGE_H

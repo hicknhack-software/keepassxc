@@ -18,6 +18,7 @@
 
 #include "Group.h"
 
+#include "core/Clock.h"
 #include "core/Config.h"
 #include "core/DatabaseIcons.h"
 #include "core/Global.h"
@@ -48,6 +49,7 @@ Group::Group()
 
 Group::~Group()
 {
+    setUpdateTimeinfo(false);
     // Destroy entries and children manually so DeletedObjects can be added
     // to database.
     const QList<Entry*> entries = m_entries;
@@ -62,7 +64,7 @@ Group::~Group()
 
     if (m_db && m_parent) {
         DeletedObject delGroup;
-        delGroup.deletionTime = QDateTime::currentDateTimeUtc();
+        delGroup.deletionTime = Clock::currentDateTimeUtc();
         delGroup.uuid = m_uuid;
         m_db->addDeletedObject(delGroup);
     }
@@ -92,11 +94,16 @@ template <class P, class V> inline bool Group::set(P& property, const V& value)
     }
 }
 
+bool Group::canUpdateTimeinfo() const
+{
+    return m_updateTimeinfo;
+}
+
 void Group::updateTimeinfo()
 {
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLastModificationTime(QDateTime::currentDateTimeUtc());
-        m_data.timeInfo.setLastAccessTime(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLastModificationTime(Clock::currentDateTimeUtc());
+        m_data.timeInfo.setLastAccessTime(Clock::currentDateTimeUtc());
     }
 }
 
@@ -105,7 +112,7 @@ void Group::setUpdateTimeinfo(bool value)
     m_updateTimeinfo = value;
 }
 
-Uuid Group::uuid() const
+const Uuid& Group::uuid() const
 {
     return m_uuid;
 }
@@ -176,7 +183,7 @@ Uuid Group::iconUuid() const
     return m_data.customIcon;
 }
 
-TimeInfo Group::timeInfo() const
+const TimeInfo& Group::timeInfo() const
 {
     return m_data.timeInfo;
 }
@@ -246,7 +253,7 @@ Entry* Group::lastTopVisibleEntry() const
 
 bool Group::isExpired() const
 {
-    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < QDateTime::currentDateTimeUtc();
+    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < Clock::currentDateTimeUtc();
 }
 
 CustomData* Group::customData()
@@ -257,6 +264,50 @@ CustomData* Group::customData()
 const CustomData* Group::customData() const
 {
     return m_customData;
+}
+
+bool Group::equals(const Group& other, CompareOptions options) const
+{
+    if (m_uuid != other.m_uuid) {
+        return false;
+    }
+    if (!m_data.equals(other.m_data, options)) {
+        return false;
+    }
+    if (m_customData != other.m_customData) {
+        return false;
+    }
+    if (m_children.count() != other.m_children.count()) {
+        return false;
+    }
+    if (m_entries.count() != other.m_entries.count()) {
+        return false;
+    }
+    QSet<Uuid> groupUuids;
+    QSet<Uuid> otherGroupUuids;
+    for (int i = 0; i < m_children.count(); ++i) {
+        groupUuids << m_children[i]->uuid();
+        otherGroupUuids << other.m_children[i]->uuid();
+    }
+    if (groupUuids != otherGroupUuids) {
+        return false;
+    }
+
+    QSet<Uuid> entryUuids;
+    QSet<Uuid> otherEntryUuids;
+    for (int i = 0; i < m_entries.count(); ++i) {
+        entryUuids << m_entries[i]->uuid();
+        otherEntryUuids << other.m_entries[i]->uuid();
+    }
+    if (entryUuids != otherEntryUuids) {
+        return false;
+    }
+    return true;
+}
+
+bool Group::equals(const Group* other, CompareOptions options) const
+{
+    return other && equals(*other, options);
 }
 
 void Group::setUuid(const Uuid& uuid)
@@ -418,7 +469,7 @@ void Group::setParent(Group* parent, int index)
     }
 
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLocationChanged(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLocationChanged(Clock::currentDateTimeUtc());
     }
 
     emit modified();
@@ -676,61 +727,7 @@ QSet<Uuid> Group::customIconsRecursive() const
     return result;
 }
 
-void Group::merge(const Group* other)
-{
-
-    Group* rootGroup = this;
-    while (rootGroup->parentGroup()) {
-        rootGroup = rootGroup->parentGroup();
-    }
-
-    // merge entries
-    const QList<Entry*> dbEntries = other->entries();
-    for (Entry* entry : dbEntries) {
-
-        Entry* existingEntry = rootGroup->findEntryByUuid(entry->uuid());
-
-        if (!existingEntry) {
-            // This entry does not exist at all. Create it.
-            qDebug("New entry %s detected. Creating it.", qPrintable(entry->title()));
-            entry->clone(Entry::CloneIncludeHistory)->setGroup(this);
-        } else {
-            // Entry is already present in the database. Update it.
-            bool locationChanged = existingEntry->timeInfo().locationChanged() < entry->timeInfo().locationChanged();
-            if (locationChanged && existingEntry->group() != this) {
-                existingEntry->setGroup(this);
-                qDebug("Location changed for entry %s. Updating it", qPrintable(existingEntry->title()));
-            }
-            resolveEntryConflict(existingEntry, entry);
-        }
-    }
-
-    // merge groups recursively
-    const QList<Group*> dbChildren = other->children();
-    for (Group* group : dbChildren) {
-
-        Group* existingGroup = rootGroup->findChildByUuid(group->uuid());
-
-        if (!existingGroup) {
-            qDebug("New group %s detected. Creating it.", qPrintable(group->name()));
-            Group* newGroup = group->clone(Entry::CloneNoFlags, Group::CloneNoFlags);
-            newGroup->setParent(this);
-            newGroup->merge(group);
-        } else {
-            bool locationChanged = existingGroup->timeInfo().locationChanged() < group->timeInfo().locationChanged();
-            if (locationChanged && existingGroup->parent() != this) {
-                existingGroup->setParent(this);
-                qDebug("Location changed for group %s. Updating it", qPrintable(existingGroup->name()));
-            }
-            resolveGroupConflict(existingGroup, group);
-            existingGroup->merge(group);
-        }
-    }
-
-    emit modified();
-}
-
-Group* Group::findChildByUuid(const Uuid& uuid)
+Group* Group::findGroupByUuid(const Uuid& uuid)
 {
     Q_ASSERT(!uuid.isNull());
     for (Group* group : groupsRecursive(true)) {
@@ -785,7 +782,7 @@ Group* Group::clone(Entry::CloneFlags entryFlags, Group::CloneFlags groupFlags) 
     clonedGroup->setUpdateTimeinfo(true);
     if (groupFlags & Group::CloneResetTimeInfo) {
 
-        QDateTime now = QDateTime::currentDateTimeUtc();
+        QDateTime now = Clock::currentDateTimeUtc();
         clonedGroup->m_data.timeInfo.setCreationTime(now);
         clonedGroup->m_data.timeInfo.setLastModificationTime(now);
         clonedGroup->m_data.timeInfo.setLastAccessTime(now);
@@ -821,7 +818,9 @@ void Group::addEntry(Entry* entry)
 
 void Group::removeEntry(Entry* entry)
 {
-    Q_ASSERT(m_entries.contains(entry));
+    Q_ASSERT_X(m_entries.contains(entry),
+               Q_FUNC_INFO,
+               QString("Group %1 does not contain %2").arg(this->name()).arg(entry->title()).toLatin1());
 
     emit entryAboutToRemove(entry);
 
@@ -898,12 +897,6 @@ void Group::recCreateDelObjects()
     }
 }
 
-void Group::markOlderEntry(Entry* entry)
-{
-    entry->attributes()->set(
-        "merged", tr("older entry merged from database \"%1\"").arg(entry->group()->database()->metadata()->name()));
-}
-
 bool Group::resolveSearchingEnabled() const
 {
     switch (m_data.searchingEnabled) {
@@ -939,63 +932,6 @@ bool Group::resolveAutoTypeEnabled() const
     default:
         Q_ASSERT(false);
         return false;
-    }
-}
-
-void Group::resolveEntryConflict(Entry* existingEntry, Entry* otherEntry)
-{
-    const QDateTime timeExisting = existingEntry->timeInfo().lastModificationTime();
-    const QDateTime timeOther = otherEntry->timeInfo().lastModificationTime();
-
-    Entry* clonedEntry;
-
-    switch (mergeMode()) {
-    case KeepBoth:
-        // if one entry is newer, create a clone and add it to the group
-        if (timeExisting > timeOther) {
-            clonedEntry = otherEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
-            clonedEntry->setGroup(this);
-            markOlderEntry(clonedEntry);
-        } else if (timeExisting < timeOther) {
-            clonedEntry = otherEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
-            clonedEntry->setGroup(this);
-            markOlderEntry(existingEntry);
-        }
-        break;
-    case KeepNewer:
-        if (timeExisting < timeOther) {
-            qDebug("Updating entry %s.", qPrintable(existingEntry->title()));
-            // only if other entry is newer, replace existing one
-            Group* currentGroup = existingEntry->group();
-            currentGroup->removeEntry(existingEntry);
-            otherEntry->clone(Entry::CloneIncludeHistory)->setGroup(currentGroup);
-        }
-
-        break;
-    case KeepExisting:
-        break;
-    default:
-        // do nothing
-        break;
-    }
-}
-
-void Group::resolveGroupConflict(Group* existingGroup, Group* otherGroup)
-{
-    const QDateTime timeExisting = existingGroup->timeInfo().lastModificationTime();
-    const QDateTime timeOther = otherGroup->timeInfo().lastModificationTime();
-
-    // only if the other group is newer, update the existing one.
-    if (timeExisting < timeOther) {
-        qDebug("Updating group %s.", qPrintable(existingGroup->name()));
-        existingGroup->setName(otherGroup->name());
-        existingGroup->setNotes(otherGroup->notes());
-        if (otherGroup->iconNumber() == 0) {
-            existingGroup->setIcon(otherGroup->iconUuid());
-        } else {
-            existingGroup->setIcon(otherGroup->iconNumber());
-        }
-        existingGroup->setExpiryTime(otherGroup->timeInfo().expiryTime());
     }
 }
 
@@ -1046,4 +982,45 @@ Entry* Group::addEntryWithPath(QString entryPath)
     entry->setGroup(group);
 
     return entry;
+}
+
+bool Group::GroupData::operator==(const Group::GroupData& other) const
+{
+    return equals(other, CompareDefault);
+}
+
+bool Group::GroupData::equals(const Group::GroupData& other, CompareOptions options) const
+{
+    if (::compare(name, other.name, options) != 0) {
+        return false;
+    }
+    if (::compare(notes, other.notes, options) != 0) {
+        return false;
+    }
+    if (::compare(iconNumber, other.iconNumber) != 0) {
+        return false;
+    }
+    if (::compare(customIcon, other.customIcon) != 0) {
+        return false;
+    }
+    if (timeInfo.equals(other.timeInfo, options) != 0) {
+        return false;
+    }
+    // TODO HNH: Some properties are configurable - should they be ignored?
+    if (::compare(isExpanded, other.isExpanded, options) != 0) {
+        return false;
+    }
+    if (::compare(defaultAutoTypeSequence, other.defaultAutoTypeSequence, options) != 0) {
+        return false;
+    }
+    if (::compare(autoTypeEnabled, other.autoTypeEnabled, options) != 0) {
+        return false;
+    }
+    if (::compare(searchingEnabled, other.searchingEnabled, options) != 0) {
+        return false;
+    }
+    if (::compare(mergeMode, other.mergeMode, options) != 0) {
+        return false;
+    }
+    return true;
 }

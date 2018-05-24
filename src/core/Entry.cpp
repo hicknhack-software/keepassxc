@@ -19,6 +19,7 @@
 
 #include "config-keepassx.h"
 
+#include "core/Clock.h"
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
 #include "core/Group.h"
@@ -60,6 +61,7 @@ Entry::Entry()
 
 Entry::~Entry()
 {
+    setUpdateTimeinfo(false);
     if (m_group) {
         m_group->removeEntry(this);
 
@@ -85,9 +87,14 @@ template <class T> inline bool Entry::set(T& property, const T& value)
 void Entry::updateTimeinfo()
 {
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLastModificationTime(QDateTime::currentDateTimeUtc());
-        m_data.timeInfo.setLastAccessTime(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLastModificationTime(Clock::currentDateTimeUtc());
+        m_data.timeInfo.setLastAccessTime(Clock::currentDateTimeUtc());
     }
+}
+
+bool Entry::canUpdateTimeinfo() const
+{
+    return m_updateTimeinfo;
 }
 
 void Entry::setUpdateTimeinfo(bool value)
@@ -195,7 +202,7 @@ QString Entry::tags() const
     return m_data.tags;
 }
 
-TimeInfo Entry::timeInfo() const
+const TimeInfo& Entry::timeInfo() const
 {
     return m_data.timeInfo;
 }
@@ -301,7 +308,7 @@ QString Entry::notes() const
 
 bool Entry::isExpired() const
 {
-    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < QDateTime::currentDateTimeUtc();
+    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < Clock::currentDateTimeUtc();
 }
 
 bool Entry::hasReferences() const
@@ -354,7 +361,7 @@ QString Entry::totp() const
 {
     if (hasTotp()) {
         QString seed = totpSeed();
-        quint64 time = QDateTime::currentDateTime().toTime_t();
+        quint64 time = Clock::currentSecondsSinceEpoch();
         QString output = Totp::generateTotp(seed.toLatin1(), time, m_data.totpDigits, m_data.totpStep);
 
         return QString(output);
@@ -562,7 +569,7 @@ void Entry::removeHistoryItems(const QList<Entry*>& historyEntries)
 
     for (Entry* entry : historyEntries) {
         Q_ASSERT(!entry->parent());
-        Q_ASSERT(entry->uuid() == uuid());
+        Q_ASSERT(entry->uuid().isNull() || entry->uuid() == uuid());
         Q_ASSERT(m_history.contains(entry));
 
         m_history.removeOne(entry);
@@ -627,6 +634,44 @@ void Entry::truncateHistory()
     }
 }
 
+bool Entry::equals(const Entry& other, CompareOptions options) const
+{
+    if (m_uuid != other.uuid()) {
+        return false;
+    }
+    if (!m_data.equals(other.m_data, options)) {
+        return false;
+    }
+    if (*m_customData != *other.m_customData) {
+        return false;
+    }
+    if (*m_attributes != *other.m_attributes) {
+        return false;
+    }
+    if (*m_attachments != *other.m_attachments) {
+        return false;
+    }
+    if (*m_autoTypeAssociations != *other.m_autoTypeAssociations) {
+        return false;
+    }
+    if (!options.testFlag(CompareIgnoreHistory)) {
+        if (m_history.count() != other.m_history.count()) {
+            return false;
+        }
+        for (int i = 0; i < m_history.count(); ++i) {
+            if (!m_history[i]->equals(*other.m_history[i], options)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool Entry::equals(const Entry* other, CompareOptions options) const
+{
+    return other && equals(*other, options);
+}
+
 Entry* Entry::clone(CloneFlags flags) const
 {
     Entry* entry = new Entry();
@@ -667,7 +712,7 @@ Entry* Entry::clone(CloneFlags flags) const
     entry->setUpdateTimeinfo(true);
 
     if (flags & CloneResetTimeInfo) {
-        QDateTime now = QDateTime::currentDateTimeUtc();
+        QDateTime now = Clock::currentDateTimeUtc();
         entry->m_data.timeInfo.setCreationTime(now);
         entry->m_data.timeInfo.setLastModificationTime(now);
         entry->m_data.timeInfo.setLastAccessTime(now);
@@ -939,7 +984,7 @@ void Entry::setGroup(Group* group)
     QObject::setParent(group);
 
     if (m_updateTimeinfo) {
-        m_data.timeInfo.setLocationChanged(QDateTime::currentDateTimeUtc());
+        m_data.timeInfo.setLocationChanged(Clock::currentDateTimeUtc());
     }
 }
 
@@ -949,6 +994,15 @@ void Entry::emitDataChanged()
 }
 
 const Database* Entry::database() const
+{
+    if (m_group) {
+        return m_group->database();
+    } else {
+        return nullptr;
+    }
+}
+
+Database* Entry::database()
 {
     if (m_group) {
         return m_group->database();
@@ -1072,4 +1126,50 @@ QString Entry::resolveUrl(const QString& url) const
 
     // No valid http URL's found
     return QString("");
+}
+
+bool EntryData::operator==(const EntryData& other) const
+{
+    return equals(other, CompareDefault);
+}
+
+bool EntryData::equals(const EntryData& other, CompareOptions options) const
+{
+    if (::compare(iconNumber, other.iconNumber, options) != 0) {
+        return false;
+    }
+    if (::compare(customIcon, other.customIcon, options) != 0) {
+        return false;
+    }
+    if (::compare(foregroundColor, other.foregroundColor, options) != 0) {
+        return false;
+    }
+    if (::compare(backgroundColor, other.backgroundColor, options) != 0) {
+        return false;
+    }
+    if (::compare(overrideUrl, other.overrideUrl, options) != 0) {
+        return false;
+    }
+    if (::compare(tags, other.tags, options) != 0) {
+        return false;
+    }
+    if (::compare(autoTypeEnabled, other.autoTypeEnabled, options) != 0) {
+        return false;
+    }
+    if (::compare(autoTypeObfuscation, other.autoTypeObfuscation, options) != 0) {
+        return false;
+    }
+    if (::compare(defaultAutoTypeSequence, other.defaultAutoTypeSequence, options) != 0) {
+        return false;
+    }
+    if (!timeInfo.equals(other.timeInfo, options)) {
+        return false;
+    }
+    if (::compare(totpDigits, other.totpDigits, options) != 0) {
+        return false;
+    }
+    if (::compare(totpStep, other.totpStep, options) != 0) {
+        return false;
+    }
+    return true;
 }

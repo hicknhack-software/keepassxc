@@ -27,6 +27,7 @@
 
 #include "MessageBox.h"
 #include "core/AsyncTask.h"
+#include "core/Clock.h"
 #include "core/Database.h"
 #include "core/FilePath.h"
 #include "core/Global.h"
@@ -188,7 +189,7 @@ void DatabaseSettingsWidget::save()
     meta->setDescription(m_uiGeneral->dbDescriptionEdit->text());
     meta->setDefaultUserName(m_uiGeneral->defaultUsernameEdit->text());
     meta->setRecycleBinEnabled(m_uiGeneral->recycleBinEnabledCheckBox->isChecked());
-    meta->setSettingsChanged(QDateTime::currentDateTimeUtc());
+    meta->setSettingsChanged(Clock::currentDateTimeUtc());
 
     bool truncate = false;
 
