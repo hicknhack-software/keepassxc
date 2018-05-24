@@ -69,7 +69,7 @@ bool Merger::merge()
     changes << mergeDeletions(m_context);
     changes << mergeMetadata(m_context);
 
-    qDebug("Merged %s", qPrintable(changes.join("\n\t")));
+    // qDebug("Merged %s", qPrintable(changes.join("\n\t")));
 
     // At this point we have a list of changes we may want to show the user
     if (!changes.isEmpty()) {
@@ -89,9 +89,6 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
         if (!targetEntry) {
             changes << tr("Creating missing %1 [%2]").arg(sourceEntry->title()).arg(sourceEntry->uuid().toHex());
             // This entry does not exist at all. Create it.
-            qDebug("New entry %s [%s] detected. Creating it.",
-                   qPrintable(sourceEntry->title()),
-                   qPrintable(sourceEntry->uuid().toHex()));
             targetEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
             moveEntry(targetEntry, context.m_targetGroup);
         } else {
@@ -101,13 +98,6 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
             if (locationChanged && targetEntry->group() != context.m_targetGroup) {
                 changes << tr("Relocating %1 [%2]").arg(sourceEntry->title()).arg(sourceEntry->uuid().toHex());
                 moveEntry(targetEntry, context.m_targetGroup);
-                qDebug("Location changed for entry %s [%s]. Updating it",
-                       qPrintable(targetEntry->title()),
-                       qPrintable(targetEntry->uuid().toHex()));
-            } else {
-                qDebug("Unifing entry %s [%s]. Updating it",
-                       qPrintable(targetEntry->title()),
-                       qPrintable(targetEntry->uuid().toHex()));
             }
             changes << resolveEntryConflict(context, sourceEntry, targetEntry);
         }
@@ -120,9 +110,6 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
         if (!targetChildGroup) {
             changes
                 << tr("Creating missing %1 [%2]").arg(sourceChildGroup->name()).arg(sourceChildGroup->uuid().toHex());
-            qDebug("New group %s [%s] detected. Creating it.",
-                   qPrintable(sourceChildGroup->name()),
-                   qPrintable(sourceChildGroup->uuid().toHex()));
             targetChildGroup = sourceChildGroup->clone(Entry::CloneNoFlags, Group::CloneNoFlags);
             moveGroup(targetChildGroup, context.m_targetGroup);
             TimeInfo timeinfo = targetChildGroup->timeInfo();
@@ -137,13 +124,6 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
                 TimeInfo timeinfo = targetChildGroup->timeInfo();
                 timeinfo.setLocationChanged(sourceChildGroup->timeInfo().locationChanged());
                 targetChildGroup->setTimeInfo(timeinfo);
-                qDebug("Location changed for group %s [%s]. Updating it",
-                       qPrintable(targetChildGroup->name()),
-                       qPrintable(targetChildGroup->uuid().toHex()));
-            } else {
-                qDebug("Unifing group %s [%s]. Updating it",
-                       qPrintable(targetChildGroup->name()),
-                       qPrintable(targetChildGroup->uuid().toHex()));
             }
             changes << resolveGroupConflict(context, sourceChildGroup, targetChildGroup);
         }
@@ -170,7 +150,6 @@ Merger::resolveGroupConflict(const MergeContext& context, const Group* sourceChi
     // only if the other group is newer, update the existing one.
     if (timeExisting < timeOther) {
         changes << tr("Overwriting %1 [%2]").arg(sourceChildGroup->name()).arg(sourceChildGroup->uuid().toHex());
-        qDebug("Updating group %s.", qPrintable(targetChildGroup->name()));
         targetChildGroup->setName(sourceChildGroup->name());
         targetChildGroup->setNotes(sourceChildGroup->notes());
         if (sourceChildGroup->iconNumber() == 0) {
@@ -290,8 +269,8 @@ Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEnt
     // We need to cut off the milliseconds since the persistent format only supports times down to seconds
     // so when we import data from a remote source, it may represent the (or even some msec newer) data
     // which may be discarded due to higher runtime precision
-    const auto timeTarget = targetEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
-    const auto timeSource = sourceEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
+    const auto timeTarget = Clock::serialized(targetEntry->timeInfo().lastModificationTime());
+    const auto timeSource = Clock::serialized(sourceEntry->timeInfo().lastModificationTime());
 
     Group::MergeMode mergeMode = m_mode == ModeDefault ? context.m_targetGroup->mergeMode() : m_mode;
 
@@ -372,24 +351,25 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
 
     QMap<QDateTime, Entry*> merged;
     for (Entry* historyItem : targetHistoryItems) {
-        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime(TimeInfo::Serialized);
+        const QDateTime modificationTime = Clock::serialized(historyItem->timeInfo().lastModificationTime());
         Q_ASSERT(!merged.contains(modificationTime)
-                 || merged[modificationTime]->equals(historyItem, CompareSerializedTimestamps));
+                 || merged[modificationTime]->equals(historyItem, CompareIgnoreMilliseconds));
         merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
     }
     for (Entry* historyItem : sourceHistoryItems) {
         // Items with same modification-time changes will be regarded as same (like KeePass2)
-        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime(TimeInfo::Serialized);
+        const QDateTime modificationTime = Clock::serialized(historyItem->timeInfo().lastModificationTime());
         Q_ASSERT(!merged.contains(modificationTime)
-                 || merged[modificationTime]->equals(historyItem, CompareSerializedTimestamps));
+                 || merged[modificationTime]->equals(historyItem, CompareIgnoreMilliseconds));
         if (!merged.contains(modificationTime)) {
             merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
         }
     }
-    const QDateTime targetModificationTime = targetEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
-    const QDateTime sourceModificationTime = sourceEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
-    Q_ASSERT(targetModificationTime != sourceModificationTime
-             || targetEntry->equals(sourceEntry, CompareSerializedTimestamps | CompareIgnoreHistory));
+    const QDateTime targetModificationTime = Clock::serialized(targetEntry->timeInfo().lastModificationTime());
+    const QDateTime sourceModificationTime = Clock::serialized(sourceEntry->timeInfo().lastModificationTime());
+    Q_ASSERT(
+        targetModificationTime != sourceModificationTime
+        || targetEntry->equals(sourceEntry, CompareIgnoreMilliseconds | CompareIgnoreHistory | CompareIgnoreLocation));
 
     if (targetModificationTime < sourceModificationTime && !merged.contains(targetModificationTime)) {
         merged[targetModificationTime] = targetEntry->clone(Entry::CloneNoFlags);
@@ -407,7 +387,7 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
         if (!oldEntry && !newEntry) {
             continue;
         }
-        if (oldEntry && newEntry && oldEntry->equals(newEntry, CompareSerializedTimestamps)) {
+        if (oldEntry && newEntry && oldEntry->equals(newEntry, CompareIgnoreMilliseconds)) {
             continue;
         }
         changed = true;
@@ -452,14 +432,11 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
 
             auto* entry = context.m_targetRootGroup->findEntryByUuid(object.uuid);
             if (entry) {
-                qDebug(
-                    "Check deletion of entry %s [%s]", qPrintable(entry->title()), qPrintable(entry->uuid().toHex()));
                 entries << entry;
                 continue;
             }
             auto* group = context.m_targetRootGroup->findGroupByUuid(object.uuid);
             if (group) {
-                qDebug("Check deletion of group %s [%s]", qPrintable(group->name()), qPrintable(group->uuid().toHex()));
                 groups << group;
                 continue;
             }
@@ -475,14 +452,9 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
         auto* entry = entries.takeFirst();
         const auto& object = mergedDeletions[entry->uuid()];
         if (entry->timeInfo().lastModificationTime() > object.deletionTime) {
-            qDebug("Keep deleted entry %s [%s] due to more recent modification.",
-                   qPrintable(entry->title()),
-                   qPrintable(entry->uuid().toHex()));
+            // keep deleted entry since it was changed after deletion date
             continue;
         }
-        qDebug("Deleted entry %s [%s] detected. Dropping it.",
-               qPrintable(entry->title()),
-               qPrintable(entry->uuid().toHex()));
         deletions << object;
         if (entry->group()) {
             changes << tr("Deleting child %1 [%2]").arg(entry->title()).arg(entry->uuid().toHex());
@@ -502,20 +474,13 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
         }
         const auto& object = mergedDeletions[group->uuid()];
         if (group->timeInfo().lastModificationTime() > object.deletionTime) {
-            qDebug("Keep deleted group %s [%s] due to more recent modification.",
-                   qPrintable(group->name()),
-                   qPrintable(group->uuid().toHex()));
+            // keep deleted group since it was changed after deletion date
             continue;
         }
         if (!group->entriesRecursive(false).isEmpty() || !group->groupsRecursive(false).isEmpty()) {
-            qDebug("Keep deleted group %s [%s] due to contained entries or groups.",
-                   qPrintable(group->name()),
-                   qPrintable(group->uuid().toHex()));
+            // keep deleted group since it contains undeleted content
             continue;
         }
-        qDebug("Deleted group %s [%s] detected. Dropping it.",
-               qPrintable(group->name()),
-               qPrintable(group->uuid().toHex()));
         deletions << object;
         if (group->parentGroup()) {
             changes << tr("Deleting child %1 [%2]").arg(group->name()).arg(group->uuid().toHex());
@@ -547,7 +512,6 @@ Merger::ChangeList Merger::mergeMetadata(const MergeContext& context)
     for (Uuid customIconId : sourceMetadata->customIcons().keys()) {
         QImage customIcon = sourceMetadata->customIcon(customIconId);
         if (!targetMetadata->containsCustomIcon(customIconId)) {
-            qDebug("Adding custom icon %s to database.", qPrintable(customIconId.toHex()));
             targetMetadata->addCustomIcon(customIconId, customIcon);
             changes << tr("Adding missing icon %1").arg(customIconId.toHex());
         }

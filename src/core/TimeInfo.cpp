@@ -32,24 +32,24 @@ TimeInfo::TimeInfo()
     m_locationChanged = now;
 }
 
-QDateTime TimeInfo::lastModificationTime(Precision precision) const
+QDateTime TimeInfo::lastModificationTime() const
 {
-    return precision == High ? m_lastModificationTime : Clock::normalize(m_lastModificationTime);
+    return m_lastModificationTime;
 }
 
-QDateTime TimeInfo::creationTime(Precision precision) const
+QDateTime TimeInfo::creationTime() const
 {
-    return precision == High ? m_creationTime : Clock::normalize(m_creationTime);
+    return m_creationTime;
 }
 
-QDateTime TimeInfo::lastAccessTime(Precision precision) const
+QDateTime TimeInfo::lastAccessTime() const
 {
-    return precision == High ? m_lastAccessTime : Clock::normalize(m_lastAccessTime);
+    return m_lastAccessTime;
 }
 
-QDateTime TimeInfo::expiryTime(Precision precision) const
+QDateTime TimeInfo::expiryTime() const
 {
-    return precision == High ? m_expiryTime : Clock::normalize(m_expiryTime);
+    return m_expiryTime;
 }
 
 bool TimeInfo::expires() const
@@ -62,9 +62,9 @@ int TimeInfo::usageCount() const
     return m_usageCount;
 }
 
-QDateTime TimeInfo::locationChanged(Precision precision) const
+QDateTime TimeInfo::locationChanged() const
 {
-    return precision == High ? m_locationChanged : Clock::normalize(m_locationChanged);
+    return m_locationChanged;
 }
 
 void TimeInfo::setLastModificationTime(const QDateTime& dateTime)
@@ -120,16 +120,16 @@ bool TimeInfo::equals(const TimeInfo& other, CompareOptions options) const
     if (::compare(m_creationTime, other.m_creationTime, options) != 0) {
         return false;
     }
-    if (::compare(m_lastAccessTime, other.m_lastAccessTime, options | CompareRepresentsStatistic) != 0) {
+    if (::compare(!options.testFlag(CompareIgnoreStatistics), m_lastAccessTime, other.m_lastAccessTime, options) != 0) {
         return false;
     }
     if (::compare(m_expires, m_expiryTime, other.m_expires, other.expiryTime(), options) != 0) {
         return false;
     }
-    if (::compare(m_usageCount, other.m_usageCount, options | CompareRepresentsStatistic) != 0) {
+    if (::compare(!options.testFlag(CompareIgnoreStatistics), m_usageCount, other.m_usageCount, options) != 0) {
         return false;
     }
-    if (::compare(m_locationChanged, other.m_locationChanged, options) != 0) {
+    if (::compare(!options.testFlag(CompareIgnoreLocation), m_locationChanged, other.m_locationChanged, options) != 0) {
         return false;
     }
     return true;

@@ -33,7 +33,7 @@ uint Clock::currentSecondsSinceEpoch()
     return instance().currentDateTimeImpl().toTime_t();
 }
 
-QDateTime Clock::normalize(const QDateTime& dateTime)
+QDateTime Clock::serialized(const QDateTime& dateTime)
 {
     auto time = dateTime.time();
     if (time.isValid() && time.msec() != 0) {

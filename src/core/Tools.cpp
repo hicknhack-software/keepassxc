@@ -320,15 +320,14 @@ namespace Tools
         }
 
         // Set discretionary access control list
-        bSuccess = ERROR_SUCCESS
-                   == SetSecurityInfo(GetCurrentProcess(), // object handle
-                                      SE_KERNEL_OBJECT, // type of object
-                                      DACL_SECURITY_INFORMATION, // change only the objects DACL
-                                      nullptr,
-                                      nullptr, // do not change owner or group
-                                      pACL, // DACL specified
-                                      nullptr // do not change SACL
-                      );
+        bSuccess = ERROR_SUCCESS == SetSecurityInfo(GetCurrentProcess(), // object handle
+                                                    SE_KERNEL_OBJECT, // type of object
+                                                    DACL_SECURITY_INFORMATION, // change only the objects DACL
+                                                    nullptr,
+                                                    nullptr, // do not change owner or group
+                                                    pACL, // DACL specified
+                                                    nullptr // do not change SACL
+                                                    );
 
     Cleanup:
 

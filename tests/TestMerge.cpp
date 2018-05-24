@@ -27,14 +27,6 @@ QTEST_GUILESS_MAIN(TestMerge)
 
 namespace
 {
-    TimeInfo moveTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
-    {
-        const QDateTime time = timeInfo.lastModificationTime();
-        timeInfo.setLastModificationTime(time.addYears(iYears).addMonths(iMonths).addDays(iDays));
-        timeInfo.setLocationChanged(time.addYears(iYears).addMonths(iMonths).addDays(iDays));
-        return timeInfo;
-    }
-
     TimeInfo modificationTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
     {
         const QDateTime time = timeInfo.lastModificationTime();
@@ -313,26 +305,29 @@ void TestMerge::testResolveConflictKeepBoth()
  */
 void TestMerge::testResolveConflictSynchronized()
 {
+    const QDateTime initialTime = m_clock->currentDateTimeUtc();
     QScopedPointer<Database> dbDestination(createTestDatabase());
 
-    const TimeInfo initialTimeInfo = moveTime(TimeInfo(), -1, -1, -1);
     Entry* deletedEntry1 = new Entry();
-    deletedEntry1->beginUpdate();
     deletedEntry1->setUuid(Uuid::random());
+
+    deletedEntry1->beginUpdate();
     deletedEntry1->setGroup(dbDestination->rootGroup());
     deletedEntry1->setTitle("deletedDestination");
-    deletedEntry1->setTimeInfo(initialTimeInfo);
     deletedEntry1->endUpdate();
+
     Entry* deletedEntry2 = new Entry();
-    deletedEntry2->beginUpdate();
     deletedEntry2->setUuid(Uuid::random());
+
+    deletedEntry2->beginUpdate();
     deletedEntry2->setGroup(dbDestination->rootGroup());
     deletedEntry2->setTitle("deletedSource");
-    deletedEntry2->setTimeInfo(initialTimeInfo);
     deletedEntry2->endUpdate();
 
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneIncludeHistory, Group::CloneIncludeEntries));
+
+    const QDateTime oldestCommonHistoryTime = m_clock->currentDateTimeUtc();
 
     // sanity check
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 2);
@@ -348,50 +343,72 @@ void TestMerge::testResolveConflictSynchronized()
     QPointer<Entry> sourceEntry0 = dbSource->rootGroup()->children().at(0)->entries().at(0);
     QPointer<Entry> sourceEntry1 = dbSource->rootGroup()->children().at(0)->entries().at(1);
 
-    const TimeInfo commonHistoryRootTimeInfo = initialTimeInfo;
+    m_clock->advanceMinute(1);
 
-    destinationEntry0->historyItems().first()->setTimeInfo(commonHistoryRootTimeInfo);
-    destinationEntry1->historyItems().first()->setTimeInfo(commonHistoryRootTimeInfo);
-    sourceEntry0->historyItems().at(0)->setTimeInfo(commonHistoryRootTimeInfo);
-    sourceEntry1->historyItems().at(0)->setTimeInfo(commonHistoryRootTimeInfo);
+    destinationEntry0->beginUpdate();
+    destinationEntry0->setNotes("1");
+    destinationEntry0->endUpdate();
+    destinationEntry1->beginUpdate();
+    destinationEntry1->setNotes("1");
+    destinationEntry1->endUpdate();
+    sourceEntry0->beginUpdate();
+    sourceEntry0->setNotes("1");
+    sourceEntry0->endUpdate();
+    sourceEntry1->beginUpdate();
+    sourceEntry1->setNotes("1");
+    sourceEntry1->endUpdate();
 
-    const TimeInfo commonHistoryChangeTimeInfo = moveTime(initialTimeInfo, 0, 0, 1);
-    destinationEntry0->addHistoryItem(destinationEntry0->clone(Entry::CloneNoFlags));
-    destinationEntry1->addHistoryItem(destinationEntry1->clone(Entry::CloneNoFlags));
-    sourceEntry0->addHistoryItem(sourceEntry0->clone(Entry::CloneNoFlags));
-    sourceEntry1->addHistoryItem(sourceEntry1->clone(Entry::CloneNoFlags));
+    const QDateTime newestCommonHistoryTime = m_clock->currentDateTimeUtc();
+
+    m_clock->advanceSecond(1);
+
+    destinationEntry1->beginUpdate();
+    destinationEntry1->setNotes("2");
+    destinationEntry1->endUpdate();
+    sourceEntry0->beginUpdate();
+    sourceEntry0->setNotes("2");
+    sourceEntry0->endUpdate();
+
+    const QDateTime oldestDivergingHistoryTime = m_clock->currentDateTimeUtc();
+
+    m_clock->advanceHour(1);
+
+    destinationEntry0->beginUpdate();
+    destinationEntry0->setNotes("3");
+    destinationEntry0->endUpdate();
+    sourceEntry1->beginUpdate();
+    sourceEntry1->setNotes("3");
+    sourceEntry1->endUpdate();
+
+    const QDateTime newestDivergingHistoryTime = m_clock->currentDateTimeUtc();
+
     // sanity check
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 2);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 2);
-    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 2);
-    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 2);
-    destinationEntry0->historyItems().at(1)->setTimeInfo(commonHistoryChangeTimeInfo);
-    destinationEntry1->historyItems().at(1)->setTimeInfo(commonHistoryChangeTimeInfo);
-    sourceEntry0->historyItems().at(1)->setTimeInfo(commonHistoryChangeTimeInfo);
-    sourceEntry1->historyItems().at(1)->setTimeInfo(commonHistoryChangeTimeInfo);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 3);
+    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 3);
+    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 3);
+    QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 3);
 
-    const TimeInfo differentEarlieTimeInfo = moveTime(initialTimeInfo, 0, 1, 1);
-    const TimeInfo differentLaterTimeInfo = moveTime(initialTimeInfo, 1, 0, 1);
-    destinationEntry0->setTimeInfo(differentLaterTimeInfo);
-    destinationEntry1->setTimeInfo(differentEarlieTimeInfo);
-    sourceEntry0->setTimeInfo(differentEarlieTimeInfo);
-    sourceEntry1->setTimeInfo(differentLaterTimeInfo);
+    m_clock->advanceMinute(1);
 
     QPointer<Entry> deletedEntryDestination = dbDestination->rootGroup()->findEntry("deletedDestination");
     dbDestination->recycleEntry(deletedEntryDestination);
     QPointer<Entry> deletedEntrySource = dbSource->rootGroup()->findEntry("deletedSource");
     dbSource->recycleEntry(deletedEntrySource);
 
+    m_clock->advanceMinute(1);
+
     Entry* destinationEntrySingle = new Entry();
-    destinationEntrySingle->beginUpdate();
     destinationEntrySingle->setUuid(Uuid::random());
+
+    destinationEntrySingle->beginUpdate();
     destinationEntrySingle->setGroup(dbDestination->rootGroup()->children().at(1));
     destinationEntrySingle->setTitle("entryDestination");
     destinationEntrySingle->endUpdate();
 
     Entry* sourceEntrySingle = new Entry();
-    sourceEntrySingle->beginUpdate();
     sourceEntrySingle->setUuid(Uuid::random());
+
+    sourceEntrySingle->beginUpdate();
     sourceEntrySingle->setGroup(dbSource->rootGroup()->children().at(1));
     sourceEntrySingle->setTitle("entrySource");
     sourceEntrySingle->endUpdate();
@@ -408,30 +425,33 @@ void TestMerge::testResolveConflictSynchronized()
     //   - entries are equal - do nothing
     //   - one entry is older than the other - create an history item for this entry - sort items for both entries by
     //   changetime and order them accordingly
-    QCOMPARE(dbDestination->rootGroup()->entries().size(), 0);
+    QPointer<Group> mergedRootGroup = dbDestination->rootGroup();
+    QCOMPARE(mergedRootGroup->entries().size(), 0);
     // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
-    // exists as normal group
+    // exists as normal group, therefore only one entry is considered deleted
     QCOMPARE(dbDestination->metadata()->recycleBin()->entries().size(), 1);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().size(), 2);
-    QCOMPARE(dbDestination->rootGroup()->children().at(1)->entries().size(), 2);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 3);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().at(0)->timeInfo(),
-             commonHistoryRootTimeInfo);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().at(1)->timeInfo(),
-             commonHistoryChangeTimeInfo);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().at(2)->timeInfo(),
-             differentEarlieTimeInfo);
-    QVERIFY(dbDestination->rootGroup()->children().at(0)->entries().at(0)->timeInfo().lastModificationTime()
-            >= differentLaterTimeInfo.lastModificationTime());
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 3);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().at(0)->timeInfo(),
-             commonHistoryRootTimeInfo);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().at(1)->timeInfo(),
-             commonHistoryChangeTimeInfo);
-    QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(1)->historyItems().at(2)->timeInfo(),
-             differentEarlieTimeInfo);
-    QVERIFY(dbDestination->rootGroup()->children().at(0)->entries().at(1)->timeInfo().lastModificationTime()
-            >= differentLaterTimeInfo.lastModificationTime());
+    QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
+    QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
+    QVERIFY(mergedGroup1);
+    QVERIFY(mergedGroup2);
+    QCOMPARE(mergedGroup1->entries().size(), 2);
+    QCOMPARE(mergedGroup2->entries().size(), 2);
+    QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
+    QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
+    QVERIFY(mergedEntry1);
+    QVERIFY(mergedEntry2);
+    QCOMPARE(mergedEntry1->historyItems().count(), 4);
+    QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), initialTime);
+    QCOMPARE(mergedEntry1->historyItems().at(1)->timeInfo().lastModificationTime(), oldestCommonHistoryTime);
+    QCOMPARE(mergedEntry1->historyItems().at(2)->timeInfo().lastModificationTime(), newestCommonHistoryTime);
+    QCOMPARE(mergedEntry1->historyItems().at(3)->timeInfo().lastModificationTime(), oldestDivergingHistoryTime);
+    QVERIFY(mergedEntry1->timeInfo().lastModificationTime() >= newestDivergingHistoryTime);
+    QCOMPARE(mergedEntry2->historyItems().count(), 4);
+    QCOMPARE(mergedEntry2->historyItems().at(0)->timeInfo().lastModificationTime(), initialTime);
+    QCOMPARE(mergedEntry2->historyItems().at(1)->timeInfo().lastModificationTime(), oldestCommonHistoryTime);
+    QCOMPARE(mergedEntry2->historyItems().at(2)->timeInfo().lastModificationTime(), newestCommonHistoryTime);
+    QCOMPARE(mergedEntry2->historyItems().at(3)->timeInfo().lastModificationTime(), oldestDivergingHistoryTime);
+    QVERIFY(mergedEntry2->timeInfo().lastModificationTime() >= newestDivergingHistoryTime);
     QVERIFY(dbDestination->rootGroup()->findEntry("entryDestination"));
     QVERIFY(dbDestination->rootGroup()->findEntry("entrySource"));
 }
@@ -1021,19 +1041,21 @@ Database* TestMerge::createTestDatabase()
     group2->setUuid(Uuid::random());
 
     Entry* entry1 = new Entry();
+    entry1->setUuid(Uuid::random());
     Entry* entry2 = new Entry();
+    entry2->setUuid(Uuid::random());
+
+    m_clock->advanceYear(1);
 
     // Give Entry 1 a history
     entry1->beginUpdate();
     entry1->setGroup(group1);
-    entry1->setUuid(Uuid::random());
     entry1->setTitle("entry1");
     entry1->endUpdate();
 
     // Give Entry 2 a history
     entry2->beginUpdate();
     entry2->setGroup(group1);
-    entry2->setUuid(Uuid::random());
     entry2->setTitle("entry2");
     entry2->endUpdate();
 

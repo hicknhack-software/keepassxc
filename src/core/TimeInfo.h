@@ -26,21 +26,15 @@
 class TimeInfo
 {
 public:
-    enum Precision
-    {
-        High,
-        Serialized
-    };
-
     TimeInfo();
 
-    QDateTime lastModificationTime(Precision precision = High) const;
-    QDateTime creationTime(Precision precision = High) const;
-    QDateTime lastAccessTime(Precision precision = High) const;
-    QDateTime expiryTime(Precision precision = High) const;
+    QDateTime lastModificationTime() const;
+    QDateTime creationTime() const;
+    QDateTime lastAccessTime() const;
+    QDateTime expiryTime() const;
     bool expires() const;
     int usageCount() const;
-    QDateTime locationChanged(Precision precision = High) const;
+    QDateTime locationChanged() const;
 
     bool operator==(const TimeInfo& other) const;
     bool operator!=(const TimeInfo& other) const

@@ -25,11 +25,11 @@
 enum CompareOption
 {
     CompareDefault = 0,
-    CompareRepresentsStatistic = 0x1,
-    CompareSerializedTimestamps = 0x2,
-    CompareIgnoreStatistics = 0x4,
-    CompareIgnoreDisabled = 0x8,
-    CompareIgnoreHistory = 0x10
+    CompareIgnoreMilliseconds = 0x4,
+    CompareIgnoreStatistics = 0x8,
+    CompareIgnoreDisabled = 0x10,
+    CompareIgnoreHistory = 0x20,
+    CompareIgnoreLocation = 0x40,
 };
 Q_DECLARE_FLAGS(CompareOptions, CompareOption)
 Q_DECLARE_OPERATORS_FOR_FLAGS(CompareOptions)
@@ -38,11 +38,8 @@ class QColor;
 
 bool operator<(const QColor& lhs, const QColor& rhs);
 
-template <typename Type> inline short compareGeneric(const Type& lhs, const Type& rhs, CompareOptions options)
+template <typename Type> inline short compareGeneric(const Type& lhs, const Type& rhs, CompareOptions)
 {
-    if (options.testFlag(CompareRepresentsStatistic) && options.testFlag(CompareIgnoreStatistics)) {
-        return 0;
-    }
     if (lhs != rhs) {
         return lhs < rhs ? -1 : +1;
     }
@@ -56,10 +53,19 @@ template <typename Type> inline short compare(const Type& lhs, const Type& rhs, 
 
 template <> inline short compare(const QDateTime& lhs, const QDateTime& rhs, CompareOptions options)
 {
-    if (!options.testFlag(CompareSerializedTimestamps)) {
+    if (!options.testFlag(CompareIgnoreMilliseconds)) {
         return compareGeneric(lhs, rhs, options);
     }
-    return compareGeneric(Clock::normalize(lhs), Clock::normalize(rhs), options);
+    return compareGeneric(Clock::serialized(lhs), Clock::serialized(rhs), options);
+}
+
+template <typename Type>
+inline short compare(bool enabled, const Type& lhs, const Type& rhs, CompareOptions options = CompareDefault)
+{
+    if (!enabled) {
+        return 0;
+    }
+    return compare(lhs, rhs, options);
 }
 
 template <typename Type>

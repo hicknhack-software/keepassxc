@@ -27,9 +27,8 @@ public:
     static QDateTime currentDateTime();
 
     static uint currentSecondsSinceEpoch();
-    // normalize the datetime to the same precision as in the seralized files - maybe we should consider using the less
-    // precise TimeStamp for all datetimes
-    static QDateTime normalize(const QDateTime& dateTime);
+
+    static QDateTime serialized(const QDateTime& dateTime);
 
     static QDateTime datetimeUtc(int year, int month, int day, int hour, int min, int second);
     static QDateTime datetime(int year, int month, int day, int hour, int min, int second);
