@@ -637,26 +637,43 @@ void Entry::truncateHistory()
     }
 }
 
-bool Entry::equals(const Entry& other) const
+bool Entry::equals(const Entry& other, CompareOptions options) const
 {
-    bool equal = m_uuid == other.uuid() && m_data == other.m_data && *m_customData == *other.m_customData
-                 && *m_attributes == *other.m_attributes && *m_attachments == *other.m_attachments
-                 && *m_autoTypeAssociations == *other.m_autoTypeAssociations
-                 && m_history.count() == other.m_history.count();
-    if (!equal) {
+    if (m_uuid != other.uuid()) {
         return false;
     }
-    for (int i = 0; i < m_history.count(); ++i) {
-        if (!m_history[i]->equals(*other.m_history[i])) {
+    if (!m_data.equals(other.m_data, options)) {
+        m_data.equals(other.m_data, options);
+        return false;
+    }
+    if (*m_customData != *other.m_customData) {
+        return false;
+    }
+    if (*m_attributes != *other.m_attributes) {
+        return false;
+    }
+    if (*m_attachments != *other.m_attachments) {
+        return false;
+    }
+    if (*m_autoTypeAssociations != *other.m_autoTypeAssociations) {
+        return false;
+    }
+    if (!options.testFlag(CompareIgnoreHistory)) {
+        if (m_history.count() != other.m_history.count()) {
             return false;
+        }
+        for (int i = 0; i < m_history.count(); ++i) {
+            if (!m_history[i]->equals(*other.m_history[i], options)) {
+                return false;
+            }
         }
     }
     return true;
 }
 
-bool Entry::equals(const Entry* other) const
+bool Entry::equals(const Entry* other, CompareOptions options) const
 {
-    return other && equals(*other);
+    return other && equals(*other, options);
 }
 
 Entry* Entry::clone(CloneFlags flags) const
@@ -704,8 +721,6 @@ Entry* Entry::clone(CloneFlags flags) const
         entry->m_data.timeInfo.setLastModificationTime(now);
         entry->m_data.timeInfo.setLastAccessTime(now);
         entry->m_data.timeInfo.setLocationChanged(now);
-    } else {
-        entry->m_data.timeInfo = m_data.timeInfo;
     }
 
     if (flags & CloneRenameTitle)
@@ -1133,9 +1148,46 @@ QString Entry::resolveUrl(const QString& url) const
 
 bool EntryData::operator==(const EntryData& other) const
 {
-    return iconNumber == other.iconNumber && customIcon == other.customIcon && foregroundColor == other.foregroundColor
-           && backgroundColor == other.backgroundColor && overrideUrl == other.overrideUrl && tags == other.tags
-           && autoTypeEnabled == other.autoTypeEnabled && autoTypeObfuscation == other.autoTypeObfuscation
-           && defaultAutoTypeSequence == other.defaultAutoTypeSequence && timeInfo.equals(other.timeInfo)
-           && totpDigits == other.totpDigits && totpStep == other.totpStep;
+    return equals(other, CompareDefault);
+}
+
+bool EntryData::equals(const EntryData& other, CompareOptions options) const
+{
+    if (::compare(iconNumber, other.iconNumber, options) != 0) {
+        return false;
+    }
+    if (::compare(customIcon, other.customIcon, options) != 0) {
+        return false;
+    }
+    if (::compare(foregroundColor, other.foregroundColor, options) != 0) {
+        return false;
+    }
+    if (::compare(backgroundColor, other.backgroundColor, options) != 0) {
+        return false;
+    }
+    if (::compare(overrideUrl, other.overrideUrl, options) != 0) {
+        return false;
+    }
+    if (::compare(tags, other.tags, options) != 0) {
+        return false;
+    }
+    if (::compare(autoTypeEnabled, other.autoTypeEnabled, options) != 0) {
+        return false;
+    }
+    if (::compare(autoTypeObfuscation, other.autoTypeObfuscation, options) != 0) {
+        return false;
+    }
+    if (::compare(defaultAutoTypeSequence, other.defaultAutoTypeSequence, options) != 0) {
+        return false;
+    }
+    if (!timeInfo.equals(other.timeInfo, options)) {
+        return false;
+    }
+    if (::compare(totpDigits, other.totpDigits, options) != 0) {
+        return false;
+    }
+    if (::compare(totpStep, other.totpStep, options) != 0) {
+        return false;
+    }
+    return true;
 }

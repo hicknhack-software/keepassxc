@@ -32,24 +32,24 @@ TimeInfo::TimeInfo()
     m_locationChanged = now;
 }
 
-QDateTime TimeInfo::lastModificationTime() const
+QDateTime TimeInfo::lastModificationTime(Precision precision) const
 {
-    return m_lastModificationTime;
+    return precision == High ? m_lastModificationTime : Clock::normalize(m_lastModificationTime);
 }
 
-QDateTime TimeInfo::creationTime() const
+QDateTime TimeInfo::creationTime(Precision precision) const
 {
-    return m_creationTime;
+    return precision == High ? m_creationTime : Clock::normalize(m_creationTime);
 }
 
-QDateTime TimeInfo::lastAccessTime() const
+QDateTime TimeInfo::lastAccessTime(Precision precision) const
 {
-    return m_lastAccessTime;
+    return precision == High ? m_lastAccessTime : Clock::normalize(m_lastAccessTime);
 }
 
-QDateTime TimeInfo::expiryTime() const
+QDateTime TimeInfo::expiryTime(Precision precision) const
 {
-    return m_expiryTime;
+    return precision == High ? m_expiryTime : Clock::normalize(m_expiryTime);
 }
 
 bool TimeInfo::expires() const
@@ -62,9 +62,9 @@ int TimeInfo::usageCount() const
     return m_usageCount;
 }
 
-QDateTime TimeInfo::locationChanged() const
+QDateTime TimeInfo::locationChanged(Precision precision) const
 {
-    return m_locationChanged;
+    return precision == High ? m_locationChanged : Clock::normalize(m_locationChanged);
 }
 
 void TimeInfo::setLastModificationTime(const QDateTime& dateTime)
@@ -107,18 +107,30 @@ void TimeInfo::setLocationChanged(const QDateTime& dateTime)
     m_locationChanged = dateTime;
 }
 
-bool TimeInfo::equals(const TimeInfo& other, bool ignoreStatistics) const
-{
-    return m_lastModificationTime == other.m_lastModificationTime && m_creationTime == other.m_creationTime
-           && (ignoreStatistics || m_lastAccessTime == other.m_lastAccessTime) && m_expires == other.m_expires
-           && (!m_expires || !other.m_expires || m_expiryTime == other.m_expiryTime)
-           && (ignoreStatistics || m_usageCount == other.m_usageCount) && m_locationChanged == other.m_locationChanged;
-}
-
 bool TimeInfo::operator==(const TimeInfo& other) const
 {
-    return m_lastModificationTime == other.m_lastModificationTime && m_creationTime == other.m_creationTime
-           && m_lastAccessTime == other.m_lastAccessTime && m_expires == other.m_expires
-           && m_expiryTime == other.m_expiryTime && m_usageCount == other.m_usageCount
-           && m_locationChanged == other.m_locationChanged;
+    return equals(other, CompareDefault);
+}
+
+bool TimeInfo::equals(const TimeInfo& other, CompareOptions options) const
+{
+    if (::compare(m_lastModificationTime, other.m_lastModificationTime, options) != 0) {
+        return false;
+    }
+    if (::compare(m_creationTime, other.m_creationTime, options) != 0) {
+        return false;
+    }
+    if (::compare(m_lastAccessTime, other.m_lastAccessTime, options | CompareRepresentsStatistic) != 0) {
+        return false;
+    }
+    if (::compare(m_expires, m_expiryTime, other.m_expires, other.expiryTime(), options) != 0) {
+        return false;
+    }
+    if (::compare(m_usageCount, other.m_usageCount, options | CompareRepresentsStatistic) != 0) {
+        return false;
+    }
+    if (::compare(m_locationChanged, other.m_locationChanged, options) != 0) {
+        return false;
+    }
+    return true;
 }

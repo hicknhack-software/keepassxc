@@ -47,6 +47,10 @@ public:
     void clear();
 
     bool operator==(const AutoTypeAssociations& other) const;
+    bool operator!=(const AutoTypeAssociations& other) const
+    {
+        return !(*this == other);
+    }
 
 private:
     QList<AutoTypeAssociations::Association> m_associations;

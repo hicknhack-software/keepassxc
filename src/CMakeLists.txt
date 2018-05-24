@@ -40,6 +40,7 @@ set(keepassx_SOURCES
     core/AutoTypeAssociations.cpp
     core/AsyncTask.h
     core/AutoTypeMatch.cpp
+    core/Compare.cpp
     core/Config.cpp
     core/CsvParser.cpp
     core/CustomData.cpp

@@ -33,6 +33,15 @@ uint Clock::currentSecondsSinceEpoch()
     return instance().currentDateTimeImpl().toTime_t();
 }
 
+QDateTime Clock::normalize(const QDateTime& dateTime)
+{
+    auto time = dateTime.time();
+    if (time.isValid() && time.msec() != 0) {
+        return dateTime.addMSecs(-time.msec());
+    }
+    return dateTime;
+}
+
 QDateTime Clock::datetimeUtc(int year, int month, int day, int hour, int min, int second)
 {
     return QDateTime(QDate(year, month, day), QTime(hour, min, second), Qt::UTC);

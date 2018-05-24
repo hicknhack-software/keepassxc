@@ -101,7 +101,7 @@ void DatabaseSharing::reinitialize()
             m_watched.remove(info.absoluteFilePath());
             m_sources[info.absolutePath()].remove(info.fileName());
         }
-        if (!couple.newReference.path.isEmpty()) {
+        if (!couple.newReference.path.isEmpty() && couple.newReference.type != Inactive) {
             const QFileInfo info(couple.newReference.path);
             m_fileWatcher.addPath(info.absoluteFilePath());
             m_fileWatcher.addPath(info.absolutePath());
@@ -557,6 +557,11 @@ QList<Group*> DatabaseSharing::shares() const
         }
     }
     return groups;
+}
+
+Database* DatabaseSharing::database() const
+{
+    return m_db;
 }
 
 void DatabaseSharing::exportSharedEntries()

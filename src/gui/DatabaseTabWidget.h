@@ -101,6 +101,7 @@ private slots:
     void changeDatabase(Database* newDb, bool unsavedChanges);
     void emitActivateDatabaseChanged();
     void emitDatabaseUnlockedFromDbWidgetSender();
+    void emitDatabaseSharingChanged(const QString& message, MessageWidget::MessageType type);
 
 private:
     bool saveDatabase(Database* db, QString filePath = "");

@@ -84,6 +84,7 @@ public:
     static void enable(Database* db, Type sharing);
 
     QList<Group*> shares() const;
+    Database* database() const;
 
 signals:
     void sharingChanged(QString, MessageWidget::MessageType);

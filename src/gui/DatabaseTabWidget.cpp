@@ -834,6 +834,7 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
 {
     if (oldDb) {
         oldDb->disconnect(this);
+        newDb->sharing()->disconnect(this);
     }
 
     connect(newDb, SIGNAL(nameTextChanged()), SLOT(updateTabNameFromDbSender()));
@@ -841,12 +842,31 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
     // TODO HNH: the messages are database -local - therefor it is needed to display the messages in the database tab
     connect(newDb->sharing(),
             SIGNAL(sharingChanged(QString, MessageWidget::MessageType)),
-            SIGNAL(messageTab(QString, MessageWidget::MessageType)));
-    // connect(newDb->sharing(), SIGNAL(sharingChanged(QString,MessageWidget::MessageType)),
+            SLOT(emitDatabaseSharingChanged(QString, MessageWidget::MessageType)));
     // SIGNAL(messageGlobal(QString,MessageWidget::MessageType)));
     newDb->setEmitModified(true);
     // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
     newDb->sharing()->handleChanged();
+}
+
+void DatabaseTabWidget::emitDatabaseSharingChanged(const QString& message, MessageWidget::MessageType type)
+{
+    auto* databaseSharing = qobject_cast<DatabaseSharing*>(sender());
+    auto* databaseWidget = currentDatabaseWidget();
+    if (!databaseWidget) {
+        return;
+    }
+    auto* database = currentDatabaseWidget()->database();
+    if (!database) {
+        return;
+    }
+    if (database->sharing() != databaseSharing) {
+        auto index = databaseIndex(databaseSharing->database());
+        emit messageGlobal(tr("Sharing update in background database %1:\n%2").arg(tabText(index)).arg(message), type);
+
+    } else {
+        emit messageTab(message, type);
+    }
 }
 
 void DatabaseTabWidget::performGlobalAutoType()

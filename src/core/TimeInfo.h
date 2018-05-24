@@ -19,27 +19,35 @@
 #define KEEPASSX_TIMEINFO_H
 
 #include <QDateTime>
+#include <QFlag>
+
+#include "core/Compare.h"
 
 class TimeInfo
 {
 public:
+    enum Precision
+    {
+        High,
+        Serialized
+    };
+
     TimeInfo();
 
-    QDateTime lastModificationTime() const;
-    QDateTime creationTime() const;
-    QDateTime lastAccessTime() const;
-    QDateTime expiryTime() const;
+    QDateTime lastModificationTime(Precision precision = High) const;
+    QDateTime creationTime(Precision precision = High) const;
+    QDateTime lastAccessTime(Precision precision = High) const;
+    QDateTime expiryTime(Precision precision = High) const;
     bool expires() const;
     int usageCount() const;
-    QDateTime locationChanged() const;
-
-    bool equals(const TimeInfo& other, bool ignoreStatistics = true) const;
+    QDateTime locationChanged(Precision precision = High) const;
 
     bool operator==(const TimeInfo& other) const;
     bool operator!=(const TimeInfo& other) const
     {
         return !this->operator==(other);
     }
+    bool equals(const TimeInfo& other, CompareOptions options = CompareDefault) const;
 
     void setLastModificationTime(const QDateTime& dateTime);
     void setCreationTime(const QDateTime& dateTime);

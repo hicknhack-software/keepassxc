@@ -164,7 +164,7 @@ void DatabaseSettingsWidget::load(Database* db)
 
     m_sharedGroupsModel.reset(new QStandardItemModel());
 
-    m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrump") << tr("Type") << tr("Path"));
+    m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path"));
     const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
     for (const Group* group : groups) {
         if (!DatabaseSharing::isShared(group)) {

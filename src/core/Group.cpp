@@ -266,11 +266,21 @@ const CustomData* Group::customData() const
     return m_customData;
 }
 
-bool Group::equals(const Group& other) const
+bool Group::equals(const Group& other, CompareOptions options) const
 {
-    bool equal = m_uuid == other.m_uuid && m_data == other.m_data && m_customData == other.m_customData
-                 && m_children.count() == other.m_children.count() && m_entries.count() == other.m_entries.count();
-    if (!equal) {
+    if (m_uuid != other.m_uuid) {
+        return false;
+    }
+    if (!m_data.equals(other.m_data, options)) {
+        return false;
+    }
+    if (m_customData != other.m_customData) {
+        return false;
+    }
+    if (m_children.count() != other.m_children.count()) {
+        return false;
+    }
+    if (m_entries.count() != other.m_entries.count()) {
         return false;
     }
     QSet<Uuid> groupUuids;
@@ -295,9 +305,9 @@ bool Group::equals(const Group& other) const
     return true;
 }
 
-bool Group::equals(const Group* other) const
+bool Group::equals(const Group* other, CompareOptions options) const
 {
-    return other && equals(*other);
+    return other && equals(*other, options);
 }
 
 void Group::setUuid(const Uuid& uuid)
@@ -978,10 +988,41 @@ Entry* Group::addEntryWithPath(QString entryPath)
 
 bool Group::GroupData::operator==(const Group::GroupData& other) const
 {
-    return name == other.name && notes == other.notes && iconNumber == other.iconNumber
-           && customIcon == other.customIcon && timeInfo.equals(other.timeInfo)
-           // TODO HNH: Some properties are configurable - should they be ignored?
-           && isExpanded == other.isExpanded && defaultAutoTypeSequence == other.defaultAutoTypeSequence
-           && autoTypeEnabled == other.autoTypeEnabled && searchingEnabled == other.searchingEnabled
-           && mergeMode == other.mergeMode;
+    return equals(other, CompareDefault);
+}
+
+bool Group::GroupData::equals(const Group::GroupData& other, CompareOptions options) const
+{
+    if (::compare(name, other.name, options) != 0) {
+        return false;
+    }
+    if (::compare(notes, other.notes, options) != 0) {
+        return false;
+    }
+    if (::compare(iconNumber, other.iconNumber) != 0) {
+        return false;
+    }
+    if (::compare(customIcon, other.customIcon) != 0) {
+        return false;
+    }
+    if (timeInfo.equals(other.timeInfo, options) != 0) {
+        return false;
+    }
+    // TODO HNH: Some properties are configurable - should they be ignored?
+    if (::compare(isExpanded, other.isExpanded, options) != 0) {
+        return false;
+    }
+    if (::compare(defaultAutoTypeSequence, other.defaultAutoTypeSequence, options) != 0) {
+        return false;
+    }
+    if (::compare(autoTypeEnabled, other.autoTypeEnabled, options) != 0) {
+        return false;
+    }
+    if (::compare(searchingEnabled, other.searchingEnabled, options) != 0) {
+        return false;
+    }
+    if (::compare(mergeMode, other.mergeMode, options) != 0) {
+        return false;
+    }
+    return true;
 }

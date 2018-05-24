@@ -15,7 +15,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "core/Merger.h"
+#include "Merger.h"
+
+#include "core/Clock.h"
 #include "core/Database.h"
 #include "core/Entry.h"
 #include "core/Metadata.h"
@@ -66,6 +68,8 @@ bool Merger::merge()
     changes << mergeGroup(m_context);
     changes << mergeDeletions(m_context);
     changes << mergeMetadata(m_context);
+
+    qDebug("Merged %s", qPrintable(changes.join("\n\t")));
 
     // At this point we have a list of changes we may want to show the user
     if (!changes.isEmpty()) {
@@ -283,8 +287,11 @@ Merger::ChangeList
 Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
     ChangeList changes;
-    const auto timeTarget = targetEntry->timeInfo().lastModificationTime();
-    const auto timeSource = sourceEntry->timeInfo().lastModificationTime();
+    // We need to cut off the milliseconds since the persistent format only supports times down to seconds
+    // so when we import data from a remote source, it may represent the (or even some msec newer) data
+    // which may be discarded due to higher runtime precision
+    const auto timeTarget = targetEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
+    const auto timeSource = sourceEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
 
     Group::MergeMode mergeMode = m_mode == ModeDefault ? context.m_targetGroup->mergeMode() : m_mode;
 
@@ -365,24 +372,30 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
 
     QMap<QDateTime, Entry*> merged;
     for (Entry* historyItem : targetHistoryItems) {
-        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime();
-        Q_ASSERT(!merged.contains(modificationTime));
+        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime(TimeInfo::Serialized);
+        Q_ASSERT(!merged.contains(modificationTime)
+                 || merged[modificationTime]->equals(historyItem, CompareSerializedTimestamps));
         merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
     }
     for (Entry* historyItem : sourceHistoryItems) {
         // Items with same modification-time changes will be regarded as same (like KeePass2)
-        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime();
+        const QDateTime modificationTime = historyItem->timeInfo().lastModificationTime(TimeInfo::Serialized);
+        Q_ASSERT(!merged.contains(modificationTime)
+                 || merged[modificationTime]->equals(historyItem, CompareSerializedTimestamps));
         if (!merged.contains(modificationTime)) {
             merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
         }
     }
-    const QDateTime ownModificationTime = targetEntry->timeInfo().lastModificationTime();
-    const QDateTime otherModificationTime = sourceEntry->timeInfo().lastModificationTime();
-    if (ownModificationTime < otherModificationTime && !merged.contains(ownModificationTime)) {
-        merged[ownModificationTime] = targetEntry->clone(Entry::CloneNoFlags);
+    const QDateTime targetModificationTime = targetEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
+    const QDateTime sourceModificationTime = sourceEntry->timeInfo().lastModificationTime(TimeInfo::Serialized);
+    Q_ASSERT(targetModificationTime != sourceModificationTime
+             || targetEntry->equals(sourceEntry, CompareSerializedTimestamps | CompareIgnoreHistory));
+
+    if (targetModificationTime < sourceModificationTime && !merged.contains(targetModificationTime)) {
+        merged[targetModificationTime] = targetEntry->clone(Entry::CloneNoFlags);
     }
-    if (ownModificationTime > otherModificationTime && !merged.contains(otherModificationTime)) {
-        merged[otherModificationTime] = sourceEntry->clone(Entry::CloneNoFlags);
+    if (targetModificationTime > sourceModificationTime && !merged.contains(sourceModificationTime)) {
+        merged[sourceModificationTime] = sourceEntry->clone(Entry::CloneNoFlags);
     }
 
     bool changed = false;
@@ -394,7 +407,7 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
         if (!oldEntry && !newEntry) {
             continue;
         }
-        if (oldEntry && newEntry && oldEntry->equals(newEntry)) {
+        if (oldEntry && newEntry && oldEntry->equals(newEntry, CompareSerializedTimestamps)) {
             continue;
         }
         changed = true;
@@ -408,6 +421,8 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
     // in a clone history item or in the Entry itself
     const TimeInfo timeInfo = targetEntry->timeInfo();
     const bool blockedSignals = targetEntry->blockSignals(true);
+    bool updateTimeInfo = targetEntry->canUpdateTimeinfo();
+    targetEntry->setUpdateTimeinfo(false);
     targetEntry->removeHistoryItems(targetHistoryItems);
     for (Entry* historyItem : merged.values()) {
         Q_ASSERT(!historyItem->parent());
@@ -415,6 +430,7 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
     }
     targetEntry->truncateHistory();
     targetEntry->blockSignals(blockedSignals);
+    targetEntry->setUpdateTimeinfo(updateTimeInfo);
     Q_ASSERT(timeInfo == targetEntry->timeInfo());
     Q_UNUSED(timeInfo);
     return true;
