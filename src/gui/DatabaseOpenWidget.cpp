@@ -21,7 +21,6 @@
 
 #include "core/Config.h"
 #include "core/Database.h"
-#include "core/DatabaseSharing.h"
 #include "core/FilePath.h"
 #include "crypto/Random.h"
 #include "format/KeePass2Reader.h"

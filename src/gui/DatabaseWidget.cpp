@@ -34,7 +34,6 @@
 
 #include "autotype/AutoType.h"
 #include "core/Config.h"
-#include "core/DatabaseSharing.h"
 #include "core/EntrySearcher.h"
 #include "core/FilePath.h"
 #include "core/Group.h"

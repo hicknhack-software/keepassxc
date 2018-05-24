@@ -22,7 +22,6 @@
 #include "core/Clock.h"
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
-#include "core/DatabaseSharing.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "totp/totp.h"
@@ -557,8 +556,6 @@ const QList<Entry*>& Entry::historyItems() const
 void Entry::addHistoryItem(Entry* entry)
 {
     Q_ASSERT(!entry->parent());
-    // Tests would not pass if the assertion is active
-    // Q_ASSERT(entry->uuid().isNull() || entry->uuid() == uuid());
 
     m_history.append(entry);
     emit modified();
@@ -643,7 +640,6 @@ bool Entry::equals(const Entry& other, CompareOptions options) const
         return false;
     }
     if (!m_data.equals(other.m_data, options)) {
-        m_data.equals(other.m_data, options);
         return false;
     }
     if (*m_customData != *other.m_customData) {

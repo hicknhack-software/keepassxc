@@ -787,8 +787,6 @@ Group* Group::clone(Entry::CloneFlags entryFlags, Group::CloneFlags groupFlags) 
         clonedGroup->m_data.timeInfo.setLastModificationTime(now);
         clonedGroup->m_data.timeInfo.setLastAccessTime(now);
         clonedGroup->m_data.timeInfo.setLocationChanged(now);
-    } else {
-        clonedGroup->m_data.timeInfo = m_data.timeInfo;
     }
 
     return clonedGroup;

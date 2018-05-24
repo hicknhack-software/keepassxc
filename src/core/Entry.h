@@ -221,7 +221,6 @@ public:
     bool canUpdateTimeinfo() const;
     void setUpdateTimeinfo(bool value);
 
-    static EntryReferenceType referenceType(const QString& referenceStr);
 signals:
     /**
      * Emitted when a default attribute has been changed.
@@ -241,6 +240,8 @@ private:
     QString resolvePlaceholderRecursive(const QString& placeholder, int maxDepth) const;
     QString resolveReferencePlaceholderRecursive(const QString& placeholder, int maxDepth) const;
     QString referenceFieldValue(EntryReferenceType referenceType) const;
+
+    static EntryReferenceType referenceType(const QString& referenceStr);
 
     template <class T> bool set(T& property, const T& value);
 
