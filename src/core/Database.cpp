@@ -112,7 +112,7 @@ const DatabaseSharing* Database::sharing() const
     return m_sharing;
 }
 
-Entry* Database::resolveEntry(const Uuid& uuid)
+Entry* Database::resolveEntry(const Uuid& uuid) const
 {
     return findEntryRecursive(uuid, m_rootGroup);
 }
@@ -122,7 +122,7 @@ Entry* Database::resolveEntry(const QString& text, EntryReferenceType referenceT
     return findEntryRecursive(text, referenceType, m_rootGroup);
 }
 
-Entry* Database::findEntryRecursive(const Uuid& uuid, Group* group)
+Entry* Database::findEntryRecursive(const Uuid& uuid, Group* group) const
 {
     const QList<Entry*> entryList = group->entries();
     for (Entry* entry : entryList) {

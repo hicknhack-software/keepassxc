@@ -338,7 +338,7 @@ bool DatabaseTabWidget::saveDatabase(Database* db, QString filePath)
             dbStruct.dbWidget->databaseSaved();
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
-            db->sharing()->exportSharedEntries();
+            db->sharing()->handleDatabaseSaved();
 
             updateTabName(db);
             emit messageDismissTab();
@@ -400,7 +400,7 @@ bool DatabaseTabWidget::saveDatabaseAs(Database* db)
             // Since we change to the saved database we should also export
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
-            db->sharing()->exportSharedEntries();
+            db->sharing()->handleDatabaseSaved();
 
             // changes of the current database
             //           SaveAs for non-existing datbase doesn't matter since one has to set the path while creation
@@ -846,7 +846,7 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
     // SIGNAL(messageGlobal(QString,MessageWidget::MessageType)));
     newDb->setEmitModified(true);
     // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
-    newDb->sharing()->handleDatabaseChanged();
+    newDb->sharing()->handleDatabaseOpened();
 }
 
 void DatabaseTabWidget::emitDatabaseSharingChanged(const QString& message, MessageWidget::MessageType type)

@@ -92,7 +92,7 @@ public:
     DatabaseSharing* sharing();
     const DatabaseSharing* sharing() const;
 
-    Entry* resolveEntry(const Uuid& uuid);
+    Entry* resolveEntry(const Uuid& uuid) const;
     Entry* resolveEntry(const QString& text, EntryReferenceType referenceType);
     Group* resolveGroup(const Uuid& uuid);
     QList<DeletedObject> deletedObjects();
@@ -153,7 +153,7 @@ private slots:
     void startModifiedTimer();
 
 private:
-    Entry* findEntryRecursive(const Uuid& uuid, Group* group);
+    Entry* findEntryRecursive(const Uuid& uuid, Group* group) const;
     Entry* findEntryRecursive(const QString& text, EntryReferenceType referenceType, Group* group);
     Group* findGroupRecursive(const Uuid& uuid, Group* group);
 

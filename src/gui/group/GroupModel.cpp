@@ -127,12 +127,12 @@ QVariant GroupModel::data(const QModelIndex& index, int role) const
 
     if (role == Qt::DisplayRole) {
         QString nameTemplate = tr("%1", "Template for name without annotation");
-        nameTemplate = DatabaseSharing::sharingIndicatorSuffix(group, nameTemplate);
+        nameTemplate = DatabaseSharing::indicatorSuffix(group, nameTemplate);
         return nameTemplate.arg(group->name());
     } else if (role == Qt::DecorationRole) {
         QPixmap pixmap = group->isExpired() ? databaseIcons()->iconPixmap(DatabaseIcons::ExpiredIconIndex)
                                             : group->iconScaledPixmap();
-        pixmap = DatabaseSharing::sharingIndicatorBadge(group, pixmap);
+        pixmap = DatabaseSharing::indicatorBadge(group, pixmap);
         return pixmap;
     } else if (role == Qt::FontRole) {
         QFont font;

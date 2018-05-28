@@ -38,14 +38,6 @@ class DatabaseSharing : public QObject
     Q_OBJECT
 
 public:
-    static QString sharingIndicatorSuffix(const Group* group, const QString& text);
-    static QPixmap sharingIndicatorBadge(const Group* group, QPixmap pixmap);
-    static bool isShared(const Group* group);
-
-    explicit DatabaseSharing(Database* db, QObject* parent = nullptr);
-    ~DatabaseSharing()
-    {
-    }
     enum Type
     {
         Inactive = 0,
@@ -61,11 +53,7 @@ public:
         QString path;
         QString password;
 
-        Reference()
-            : type(Type::Inactive)
-            , uuid(Uuid::random())
-        {
-        }
+        Reference();
         Reference(Type type, const Uuid& uuid, const QString& path, const QString& password);
         bool isNull() const;
         bool isActive() const;
@@ -77,16 +65,22 @@ public:
 
     static Reference referenceOf(const CustomData* customData);
     static void setReferenceTo(CustomData* customData, const Reference& reference);
-    static void removeReferenceFrom(CustomData* customData);
     static QString referenceTypeLabel(const Reference& reference);
 
-    void exportSharedEntries();
-    static bool isEnabled(const Database* db);
+    static QString indicatorSuffix(const Group* group, const QString& text);
+    static QPixmap indicatorBadge(const Group* group, QPixmap pixmap);
+    static bool isShared(const Group* group);
     static bool isEnabled(const Database* db, Type sharing);
     static void enable(Database* db, Type sharing);
 
-    QList<Group*> shares() const;
-    Database* database() const;
+    explicit DatabaseSharing(Database* db, QObject* parent = nullptr);
+    ~DatabaseSharing();
+
+    void handleDatabaseSaved();
+    void handleDatabaseOpened();
+
+    const Database* database() const;
+    Database* database();
 
 signals:
     void sharingChanged(QString, MessageWidget::MessageType);
@@ -100,6 +94,13 @@ private slots:
     void handleFileRemoved(const QString& path);
 
 private:
+    enum Change
+    {
+        Creation,
+        Update,
+        Deletion
+    };
+
     struct Result
     {
         enum Type
@@ -114,12 +115,7 @@ private:
         Type type;
         QString message;
 
-        Result(const QString& path = QString(), Type type = Success, const QString& message = QString())
-            : path(path)
-            , type(type)
-            , message(message)
-        {
-        }
+        Result(const QString& path = QString(), Type type = Success, const QString& message = QString());
 
         bool isValid() const;
         bool isError() const;
@@ -127,23 +123,17 @@ private:
         bool isInfo() const;
     };
 
-    static bool isExporting(const Database* database, const Group* group);
-    static bool isImporting(const Database* database, const Group* group);
     static QString serializeReference(const DatabaseSharing::Reference& reference);
     static Reference deserializeReference(const QString& raw);
-    static void resolveReferenceAttributes(Entry* targetEntry, Database* sourceDb);
+    static void resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb);
 
-    Result handleReferenceChanged(const QString& path);
-    Result exportSharedFrom(Group* group);
+    static Database* exportIntoContainer(const Reference& reference, const Group* sourceRoot);
+    static Result importContainerInto(const Reference& reference, Group* targetGroup);
+
+    Result importFromReferenceContainer(const QString& path);
+    QList<DatabaseSharing::Result> exportIntoReferenceContainers();
     void deinitialize();
     void reinitialize();
-
-    enum Change
-    {
-        Creation,
-        Update,
-        Deletion
-    };
 
     void handleFileUpdated(const QString& path, Change change);
     void notifyAbout(const QStringList& success, const QStringList& warning, const QStringList& error);

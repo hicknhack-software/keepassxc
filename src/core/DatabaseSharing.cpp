@@ -52,6 +52,10 @@ DatabaseSharing::DatabaseSharing(Database* db, QObject* parent)
     connect(m_fileWatcher, SIGNAL(fileRemoved(QString)), this, SLOT(handleFileRemoved(QString)));
 }
 
+DatabaseSharing::~DatabaseSharing()
+{
+}
+
 void DatabaseSharing::deinitialize()
 {
     m_fileWatcher->clear();
@@ -88,16 +92,16 @@ void DatabaseSharing::reinitialize()
     QStringList success;
     QStringList warning;
     QStringList error;
-    for (Update couple : updated) {
-        if (!couple.oldReference.path.isEmpty()) {
-            m_fileWatcher->removePath(couple.oldReference.path);
+    for (Update update : updated) {
+        if (!update.oldReference.path.isEmpty()) {
+            m_fileWatcher->removePath(update.oldReference.path);
         }
-        if (!couple.newReference.path.isEmpty() && couple.newReference.type != Inactive) {
-            m_fileWatcher->addPath(couple.newReference.path);
+        if (!update.newReference.path.isEmpty() && update.newReference.type != Inactive) {
+            m_fileWatcher->addPath(update.newReference.path);
         }
 
-        if (couple.newReference.isImporting()) {
-            const Result result = this->handleReferenceChanged(couple.newReference.path);
+        if (update.newReference.isImporting()) {
+            const Result result = this->importFromReferenceContainer(update.newReference.path);
             if (!result.isValid()) {
                 // tolerable result - blocked import or missing source
                 continue;
@@ -139,29 +143,28 @@ void DatabaseSharing::handleDatabaseChanged()
         Q_ASSERT(m_db);
         return;
     }
-    if (!isEnabled(m_db)) {
+    if (!isEnabled(m_db, ExportTo) && !isEnabled(m_db, ImportFrom)) {
         deinitialize();
     } else {
         reinitialize();
     }
 }
 
-bool DatabaseSharing::isExporting(const Database* database, const Group* group)
+bool DatabaseSharing::isEnabled(const Database* db, DatabaseSharing::Type type)
 {
-    if (!isEnabled(database, ExportTo)) {
+    if (!db) {
         return false;
     }
-    const Reference reference = referenceOf(group->customData());
-    return reference.isExporting();
-}
-
-bool DatabaseSharing::isImporting(const Database* database, const Group* group)
-{
-    if (!isEnabled(database, ImportFrom)) {
-        return false;
+    auto* meta = db->metadata();
+    auto* customData = meta->customData();
+    bool enabled = false;
+    if (type == SynchronizeWith || type == ExportTo) {
+        enabled |= customData->value(KeeShareExt).contains(KeeShareExt_ExportEnabled, Qt::CaseInsensitive);
     }
-    const Reference reference = referenceOf(group->customData());
-    return reference.isImporting();
+    if (type == SynchronizeWith || type == ImportFrom) {
+        enabled |= customData->value(KeeShareExt).contains(KeeShareExt_ImportEnabled, Qt::CaseInsensitive);
+    }
+    return enabled;
 }
 
 bool DatabaseSharing::isShared(const Group* group)
@@ -187,20 +190,13 @@ void DatabaseSharing::setReferenceTo(CustomData* customData, const DatabaseShari
     }
 }
 
-void DatabaseSharing::removeReferenceFrom(CustomData* customData)
-{
-    setReferenceTo(customData, Reference());
-}
-
-QPixmap DatabaseSharing::sharingIndicatorBadge(const Group* group, QPixmap pixmap)
+QPixmap DatabaseSharing::indicatorBadge(const Group* group, QPixmap pixmap)
 {
     if (!isShared(group)) {
         return pixmap;
     }
     const Reference reference = referenceOf(group->customData());
-    const bool enabled = isEnabled(
-        group->database(),
-        reference.type); //&& (isImporting(group->database(), group) || isExporting(group->database(), group));
+    const bool enabled = isEnabled(group->database(), reference.type);
     const QPixmap badge = enabled ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
                                   : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
     QImage canvas = pixmap.toImage();
@@ -227,7 +223,7 @@ QString DatabaseSharing::referenceTypeLabel(const Reference& reference)
     return "";
 }
 
-QString DatabaseSharing::sharingIndicatorSuffix(const Group* group, const QString& text)
+QString DatabaseSharing::indicatorSuffix(const Group* group, const QString& text)
 {
     Q_UNUSED(group);
     return text;
@@ -254,7 +250,7 @@ void DatabaseSharing::handleFileUpdated(const QString& path, Change change)
         break;
     }
 
-    const Result result = this->handleReferenceChanged(path);
+    const Result result = this->importFromReferenceContainer(path);
     if (!result.isValid()) {
         return;
     }
@@ -288,27 +284,8 @@ void DatabaseSharing::handleFileRemoved(const QString& path)
     handleFileUpdated(path, Deletion);
 }
 
-DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& path)
+DatabaseSharing::Result DatabaseSharing::importContainerInto(const Reference& reference, Group* targetGroup)
 {
-    if (!isEnabled(m_db, ImportFrom)) {
-        return {};
-    }
-    QPointer<Group> shareGroup = m_shareToGroup.value(path);
-    if (!shareGroup) {
-        qWarning("Source for %s does not exist", qPrintable(path));
-        Q_ASSERT(shareGroup);
-        return {};
-    }
-    const Reference reference = referenceOf(shareGroup->customData());
-    if (reference.type == Inactive) {
-        qDebug("Ignore change of inactive reference %s", qPrintable(reference.path));
-        return {};
-    }
-    if (reference.type == ExportTo) {
-        qDebug("Ignore change of export reference %s", qPrintable(reference.path));
-        return {};
-    }
-
     const QFileInfo info(reference.path);
     QFile dbFile(info.absoluteFilePath());
     if (!dbFile.exists()) {
@@ -329,9 +306,6 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
         return {reference.path, Result::Error, reader.errorString()};
     }
 
-    Database* targetDb = m_db;
-    Group* targetGroup = targetDb->rootGroup()->findGroupByUuid(shareGroup->uuid());
-    Q_ASSERT(targetGroup == shareGroup);
     qDebug("Synchronize %s %s with %s",
            qPrintable(reference.path),
            qPrintable(targetGroup->name()),
@@ -343,6 +317,31 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
         return {reference.path};
     }
     return {};
+}
+
+DatabaseSharing::Result DatabaseSharing::importFromReferenceContainer(const QString& path)
+{
+    if (!isEnabled(m_db, ImportFrom)) {
+        return {};
+    }
+    QPointer<Group> shareGroup = m_shareToGroup.value(path);
+    if (!shareGroup) {
+        qWarning("Source for %s does not exist", qPrintable(path));
+        Q_ASSERT(shareGroup);
+        return {};
+    }
+    const Reference reference = referenceOf(shareGroup->customData());
+    if (reference.type == Inactive) {
+        qDebug("Ignore change of inactive reference %s", qPrintable(reference.path));
+        return {};
+    }
+    if (reference.type == ExportTo) {
+        qDebug("Ignore change of export reference %s", qPrintable(reference.path));
+        return {};
+    }
+    Q_ASSERT(shareGroup->database() == m_db);
+    Q_ASSERT(shareGroup == m_db->rootGroup()->findGroupByUuid(shareGroup->uuid()));
+    return importContainerInto(reference, shareGroup);
 }
 
 DatabaseSharing::Reference DatabaseSharing::deserializeReference(const QString& raw)
@@ -367,7 +366,7 @@ QString DatabaseSharing::serializeReference(const DatabaseSharing::Reference& re
     return raw.join(KeeShareExt_referencePropertyDelimiter);
 }
 
-void DatabaseSharing::resolveReferenceAttributes(Entry* targetEntry, Database* sourceDb)
+void DatabaseSharing::resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb)
 {
     for (const QString& attribute : EntryAttributes::DefaultAttributes) {
         const QString standardValue = targetEntry->attributes()->value(attribute);
@@ -391,19 +390,10 @@ void DatabaseSharing::resolveReferenceAttributes(Entry* targetEntry, Database* s
     }
 }
 
-DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
+Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const Group* sourceRoot)
 {
-    Reference reference = referenceOf(sourceRoot->customData());
-    if (reference.path.isEmpty()) {
-        qWarning(
-            "Invalid export path in %s (%s)", qPrintable(sourceRoot->name()), qPrintable(sourceRoot->uuid().toHex()));
-        return {reference.path, Result::Warning, tr("Export without path for %1 impossible").arg(sourceRoot->name())};
-    }
-    qDebug("Export blocking %s to %s", qPrintable(sourceRoot->name()), qPrintable(reference.path));
-    m_fileWatcher->ignoreFileChanges(reference.path);
-
-    Database* sourceDb = sourceRoot->database();
-    QScopedPointer<Database> targetDb(new Database());
+    const Database* sourceDb = sourceRoot->database();
+    Database* targetDb(new Database());
     targetDb->metadata()->setRecycleBinEnabled(false);
     CompositeKey key;
     key.addKey(PasswordKey(reference.password));
@@ -445,34 +435,7 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
             resolveReferenceAttributes(targetEntry, sourceDb);
         }
     }
-    const QString errorMessage = targetDb->saveToFile(reference.path);
-    if (!errorMessage.isEmpty()) {
-        qWarning("Writing export dabase failed: %s.", errorMessage.toLatin1().data());
-        return {reference.path, Result::Error, errorMessage};
-    }
-    return {reference.path};
-}
-
-bool DatabaseSharing::isEnabled(const Database* db)
-{
-    return isEnabled(db, SynchronizeWith);
-}
-
-bool DatabaseSharing::isEnabled(const Database* db, DatabaseSharing::Type type)
-{
-    if (!db) {
-        return false;
-    }
-    auto* meta = db->metadata();
-    auto* customData = meta->customData();
-    bool enabled = false;
-    if (type == SynchronizeWith || type == ExportTo) {
-        enabled |= customData->value(KeeShareExt).contains(KeeShareExt_ExportEnabled, Qt::CaseInsensitive);
-    }
-    if (type == SynchronizeWith || type == ImportFrom) {
-        enabled |= customData->value(KeeShareExt).contains(KeeShareExt_ImportEnabled, Qt::CaseInsensitive);
-    }
-    return enabled;
+    return targetDb;
 }
 
 void DatabaseSharing::enable(Database* db, DatabaseSharing::Type sharing)
@@ -493,35 +456,60 @@ void DatabaseSharing::enable(Database* db, DatabaseSharing::Type sharing)
     }
 }
 
-QList<Group*> DatabaseSharing::shares() const
-{
-    QList<Group*> groups;
-    for (const QPointer<Group>& group : m_groupToReference.keys()) {
-        if (group) {
-            groups << group;
-        }
-    }
-    return groups;
-}
-
-Database* DatabaseSharing::database() const
+const Database* DatabaseSharing::database() const
 {
     return m_db;
 }
 
-void DatabaseSharing::exportSharedEntries()
+Database* DatabaseSharing::database()
+{
+    return m_db;
+}
+
+void DatabaseSharing::handleDatabaseOpened()
+{
+    if (!m_db) {
+        Q_ASSERT(m_db);
+        return;
+    }
+    if (!isEnabled(m_db, ExportTo) && !isEnabled(m_db, ImportFrom)) {
+        deinitialize();
+    } else {
+        reinitialize();
+    }
+}
+
+QList<DatabaseSharing::Result> DatabaseSharing::exportIntoReferenceContainers()
+{
+    QList<Result> results;
+    const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
+    for (const Group* group : groups) {
+        const Reference reference = referenceOf(group->customData());
+        if (!reference.isExporting()) {
+            continue;
+        }
+
+        m_fileWatcher->ignoreFileChanges(reference.path);
+        QScopedPointer<Database> targetDb(exportIntoContainer(reference, group));
+        const QString errorMessage = targetDb->saveToFile(reference.path);
+        m_fileWatcher->observeFileChanges(true);
+
+        if (!errorMessage.isEmpty()) {
+            qWarning("Writing export dabase failed: %s.", errorMessage.toLatin1().data());
+            results << Result{reference.path, Result::Error, errorMessage};
+            continue;
+        }
+        results << Result{reference.path};
+    }
+    return results;
+}
+
+void DatabaseSharing::handleDatabaseSaved()
 {
     if (!isEnabled(m_db, ExportTo)) {
         return;
     }
-    QList<Result> results;
-    QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
-    for (Group* group : groups) {
-        const Reference reference = referenceOf(group->customData());
-        if (reference.isExporting()) {
-            results << exportSharedFrom(group);
-        }
-    }
+    const QList<Result> results = exportIntoReferenceContainers();
     QStringList error;
     QStringList warning;
     QStringList success;
@@ -531,16 +519,22 @@ void DatabaseSharing::exportSharedEntries()
             continue;
         }
         if (result.isError()) {
-            error << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+            error << tr("Export to %1 failed (%2)").arg(result.path).arg(result.message);
         } else if (result.isWarning()) {
-            warning << tr("Import from %1 failed (%2)").arg(result.path).arg(result.message);
+            warning << tr("Export to %1 failed (%2)").arg(result.path).arg(result.message);
         } else if (result.isInfo()) {
-            success << tr("Import from %1 successful (%2)").arg(result.path).arg(result.message);
+            success << tr("Export to %1 successful (%2)").arg(result.path).arg(result.message);
         } else {
-            success << tr("Imported from %1").arg(result.path);
+            success << tr("Export to %1").arg(result.path);
         }
     }
     notifyAbout(success, warning, error);
+}
+
+DatabaseSharing::Reference::Reference()
+    : type(Type::Inactive)
+    , uuid(Uuid::random())
+{
 }
 
 DatabaseSharing::Reference::Reference(DatabaseSharing::Type type,
@@ -585,6 +579,13 @@ bool DatabaseSharing::Reference::operator<(const DatabaseSharing::Reference& oth
 bool DatabaseSharing::Reference::operator==(const DatabaseSharing::Reference& other) const
 {
     return path == other.path && uuid == other.uuid && password == other.password && type == other.type;
+}
+
+DatabaseSharing::Result::Result(const QString& path, DatabaseSharing::Result::Type type, const QString& message)
+    : path(path)
+    , type(type)
+    , message(message)
+{
 }
 
 bool DatabaseSharing::Result::isValid() const
