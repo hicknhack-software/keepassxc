@@ -23,6 +23,7 @@
 #include "core/DatabaseIcons.h"
 #include "core/Entry.h"
 #include "core/FilePath.h"
+#include "core/FileWatcher.h"
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
@@ -43,23 +44,17 @@ static const QChar KeeShareExt_referencePropertyDelimiter('|');
 DatabaseSharing::DatabaseSharing(Database* db, QObject* parent)
     : QObject(parent)
     , m_db(db)
+    , m_fileWatcher(new BulkFileWatcher(this))
 {
-    connect(m_db, SIGNAL(modified()), this, SLOT(handleChanged()));
-    connect(&m_fileWatcher, SIGNAL(fileChanged(QString)), this, SLOT(handleFileChanged(QString)));
-    connect(&m_fileWatcher, SIGNAL(directoryChanged(QString)), this, SLOT(handleDirectoryChanged(QString)));
-    connect(&m_fileWatchUnblockTimer, SIGNAL(timeout()), this, SLOT(unblockAutoReload()));
-    m_fileWatchUnblockTimer.setSingleShot(true);
+    connect(m_db, SIGNAL(modified()), this, SLOT(handleDatabaseChanged()));
+    connect(m_fileWatcher, SIGNAL(fileCreated(QString)), this, SLOT(handleFileCreated(QString)));
+    connect(m_fileWatcher, SIGNAL(fileChanged(QString)), this, SLOT(handleFileChanged(QString)));
+    connect(m_fileWatcher, SIGNAL(fileRemoved(QString)), this, SLOT(handleFileRemoved(QString)));
 }
 
 void DatabaseSharing::deinitialize()
 {
-    for (Reference reference : m_groupToReference.values()) {
-        QFileInfo info(reference.path);
-        m_fileWatcher.removePath(info.absoluteFilePath());
-        m_fileWatcher.removePath(info.absolutePath());
-    }
-    m_watched.clear();
-    m_sources.clear();
+    m_fileWatcher->clear();
     m_groupToReference.clear();
     m_referenceToGroup.clear();
 }
@@ -95,18 +90,10 @@ void DatabaseSharing::reinitialize()
     QStringList error;
     for (Update couple : updated) {
         if (!couple.oldReference.path.isEmpty()) {
-            const QFileInfo info(couple.oldReference.path);
-            m_fileWatcher.removePath(info.absoluteFilePath());
-            m_fileWatcher.removePath(info.absolutePath());
-            m_watched.remove(info.absoluteFilePath());
-            m_sources[info.absolutePath()].remove(info.fileName());
+            m_fileWatcher->removePath(couple.oldReference.path);
         }
         if (!couple.newReference.path.isEmpty() && couple.newReference.type != Inactive) {
-            const QFileInfo info(couple.newReference.path);
-            m_fileWatcher.addPath(info.absoluteFilePath());
-            m_fileWatcher.addPath(info.absolutePath());
-            m_watched[info.absoluteFilePath()] = info.exists();
-            m_sources[info.absolutePath()].insert(info.fileName());
+            m_fileWatcher->addPath(couple.newReference.path);
         }
 
         if (couple.newReference.isImporting()) {
@@ -146,7 +133,7 @@ void DatabaseSharing::notifyAbout(const QStringList& success, const QStringList&
     emit sharingChanged((success + warning + error).join("\n"), type);
 }
 
-void DatabaseSharing::handleChanged()
+void DatabaseSharing::handleDatabaseChanged()
 {
     if (!m_db) {
         Q_ASSERT(m_db);
@@ -211,8 +198,9 @@ QPixmap DatabaseSharing::sharingIndicatorBadge(const Group* group, QPixmap pixma
         return pixmap;
     }
     const Reference reference = referenceOf(group->customData());
-    const bool enabled = isEnabled(group->database(), reference.type)
-                         && (isImporting(group->database(), group) || isExporting(group->database(), group));
+    const bool enabled = isEnabled(
+        group->database(),
+        reference.type); //&& (isImporting(group->database(), group) || isExporting(group->database(), group));
     const QPixmap badge = enabled ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
                                   : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
     QImage canvas = pixmap.toImage();
@@ -252,12 +240,20 @@ QString DatabaseSharing::sharingIndicatorSuffix(const Group* group, const QStrin
     //               : tr("%1 [share inactive]", "Template for name with inactive sharing annotation").arg(text);
 }
 
-void DatabaseSharing::handleFileChanged(const QString& path)
+void DatabaseSharing::handleFileUpdated(const QString& path, Change change)
 {
-    qDebug("File changed %s", qPrintable(path));
-    const QFileInfo info(path);
-    qDebug("Refresh file %s", qPrintable(info.absoluteFilePath()));
-    m_fileWatcher.addPath(path);
+    switch (change) {
+    case Creation:
+        qDebug("File created %s", qPrintable(path));
+        break;
+    case Update:
+        qDebug("File changed %s", qPrintable(path));
+        break;
+    case Deletion:
+        qDebug("File deleted %s", qPrintable(path));
+        break;
+    }
+
     const Result result = this->handleReferenceChanged(path);
     if (!result.isValid()) {
         return;
@@ -277,6 +273,21 @@ void DatabaseSharing::handleFileChanged(const QString& path)
     notifyAbout(success, warning, error);
 }
 
+void DatabaseSharing::handleFileCreated(const QString& path)
+{
+    handleFileUpdated(path, Creation);
+}
+
+void DatabaseSharing::handleFileChanged(const QString& path)
+{
+    handleFileUpdated(path, Update);
+}
+
+void DatabaseSharing::handleFileRemoved(const QString& path)
+{
+    handleFileUpdated(path, Deletion);
+}
+
 DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& path)
 {
     if (!isEnabled(m_db, ImportFrom)) {
@@ -289,11 +300,6 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
         return {};
     }
     const Reference reference = referenceOf(shareGroup->customData());
-    QFileInfo info(reference.path);
-    if (m_blockedPaths[info.canonicalFilePath()] > Clock::currentDateTimeUtc()) {
-        qDebug("Ignore blocked change of reference %s", qPrintable(reference.path));
-        return {};
-    }
     if (reference.type == Inactive) {
         qDebug("Ignore change of inactive reference %s", qPrintable(reference.path));
         return {};
@@ -303,6 +309,7 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
         return {};
     }
 
+    const QFileInfo info(reference.path);
     QFile dbFile(info.absoluteFilePath());
     if (!dbFile.exists()) {
         qCritical("File %s does not exist.", qPrintable(info.absoluteFilePath()));
@@ -336,64 +343,6 @@ DatabaseSharing::Result DatabaseSharing::handleReferenceChanged(const QString& p
         return {reference.path};
     }
     return {};
-}
-
-void DatabaseSharing::handleDirectoryChanged(const QString& path)
-{
-    QStringList success;
-    QStringList warning;
-    QStringList error;
-    qDebug("Directory changed %s", qPrintable(path));
-    for (QString file : m_sources[path]) {
-        QFileInfo info(path + "/" + file);
-        if (!info.exists()) {
-            qDebug("Remove watch file %s", qPrintable(info.absoluteFilePath()));
-            m_fileWatcher.removePath(info.absolutePath());
-            warning << tr("Import file %1 removed").arg(info.absoluteFilePath());
-        }
-        if (!m_watched[info.absoluteFilePath()]) {
-            qDebug("Add watch file %s", qPrintable(info.absoluteFilePath()));
-            m_fileWatcher.addPath(info.absolutePath());
-            const Result message = this->handleReferenceChanged(info.absoluteFilePath());
-            if (message.isError()) {
-                error << tr("Import from %1 failed (%2)").arg(message.path).arg(message.message);
-            } else if (message.isWarning()) {
-                warning << tr("Import from %1 failed (%2)").arg(message.path).arg(message.message);
-            } else if (message.isInfo()) {
-                success << tr("Imported from %1 successful (%2").arg(message.path).arg(message.message);
-            } else {
-                success << tr("Imported from %1").arg(message.path);
-            }
-        }
-        if (m_watched[info.absoluteFilePath()] && info.exists()) {
-            qDebug("Refresh watch file %s", qPrintable(info.absoluteFilePath()));
-            m_fileWatcher.removePath(info.absolutePath());
-            m_fileWatcher.addPath(info.absolutePath());
-            // this->handleReferenceChanged(info.absoluteFilePath());
-        }
-        m_watched[info.absoluteFilePath()] = info.exists();
-    }
-    notifyAbout(success, warning, error);
-}
-
-void DatabaseSharing::unblockAutoReload()
-{
-    const QDateTime current = Clock::currentDateTimeUtc();
-    int timeout = 0;
-    for (QString key : m_blockedPaths.keys()) {
-        if (m_blockedPaths[key] < current) {
-            // We assume that there was no concurrent change of the database
-            // during our block - so no need to reimport
-            qDebug("Remove block from %s", qPrintable(key));
-            m_blockedPaths.remove(key);
-            continue;
-        }
-        qDebug("Keep block from %s", qPrintable(key));
-        timeout = static_cast<int>(current.msecsTo(m_blockedPaths[key]));
-    }
-    if (timeout > 0 && !m_fileWatchUnblockTimer.isActive()) {
-        m_fileWatchUnblockTimer.start(timeout);
-    }
 }
 
 DatabaseSharing::Reference DatabaseSharing::deserializeReference(const QString& raw)
@@ -450,12 +399,9 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
             "Invalid export path in %s (%s)", qPrintable(sourceRoot->name()), qPrintable(sourceRoot->uuid().toHex()));
         return {reference.path, Result::Warning, tr("Export without path for %1 impossible").arg(sourceRoot->name())};
     }
-    QFileInfo info(reference.path);
     qDebug("Export blocking %s to %s", qPrintable(sourceRoot->name()), qPrintable(reference.path));
-    m_blockedPaths[info.canonicalFilePath()] = Clock::currentDateTimeUtc().addMSecs(500);
-    if (!m_fileWatchUnblockTimer.isActive()) {
-        m_fileWatchUnblockTimer.start(500);
-    }
+    m_fileWatcher->ignoreFileChanges(reference.path);
+
     Database* sourceDb = sourceRoot->database();
     QScopedPointer<Database> targetDb(new Database());
     targetDb->metadata()->setRecycleBinEnabled(false);
@@ -499,9 +445,8 @@ DatabaseSharing::Result DatabaseSharing::exportSharedFrom(Group* sourceRoot)
             resolveReferenceAttributes(targetEntry, sourceDb);
         }
     }
-    QString errorMessage = targetDb->saveToFile(reference.path);
+    const QString errorMessage = targetDb->saveToFile(reference.path);
     if (!errorMessage.isEmpty()) {
-        //  emit messageTab(tr("Writing the database failed.").append("\n").append(errorMessage), MessageWidget::Error);
         qWarning("Writing export dabase failed: %s.", errorMessage.toLatin1().data());
         return {reference.path, Result::Error, errorMessage};
     }

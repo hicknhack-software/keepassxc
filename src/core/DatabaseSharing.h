@@ -18,7 +18,6 @@
 #ifndef KEEPASSXC_DATABASESHARING_H
 #define KEEPASSXC_DATABASESHARING_H
 
-#include <QFileSystemWatcher>
 #include <QMap>
 #include <QObject>
 #include <QSet>
@@ -28,6 +27,7 @@
 #include "core/Uuid.h"
 #include "gui/MessageWidget.h"
 
+class BulkFileWatcher;
 class Entry;
 class Group;
 class CustomData;
@@ -43,7 +43,9 @@ public:
     static bool isShared(const Group* group);
 
     explicit DatabaseSharing(Database* db, QObject* parent = nullptr);
-
+    ~DatabaseSharing()
+    {
+    }
     enum Type
     {
         Inactive = 0,
@@ -90,12 +92,12 @@ signals:
     void sharingChanged(QString, MessageWidget::MessageType);
 
 public slots:
-    void handleChanged();
+    void handleDatabaseChanged();
 
 private slots:
-    void unblockAutoReload();
-    void handleDirectoryChanged(const QString& path);
+    void handleFileCreated(const QString& path);
     void handleFileChanged(const QString& path);
+    void handleFileRemoved(const QString& path);
 
 private:
     struct Result
@@ -135,6 +137,15 @@ private:
     Result exportSharedFrom(Group* group);
     void deinitialize();
     void reinitialize();
+
+    enum Change
+    {
+        Creation,
+        Update,
+        Deletion
+    };
+
+    void handleFileUpdated(const QString& path, Change change);
     void notifyAbout(const QStringList& success, const QStringList& warning, const QStringList& error);
 
 private:
@@ -143,14 +154,7 @@ private:
     QMap<QPointer<Group>, Reference> m_groupToReference;
     QMap<QString, QPointer<Group>> m_shareToGroup;
 
-    // Handling of filesystem changes - it would better to create a central
-    // observer handling the filesystem which just notifies any client for changes
-    QMap<QString, QDateTime> m_blockedPaths;
-    QFileSystemWatcher m_fileWatcher;
-    QMap<QString, bool> m_watched;
-    QMap<QString, QSet<QString>> m_sources;
-    QTimer m_fileWatchTimer;
-    QTimer m_fileWatchUnblockTimer; // needed for Import/Export-References
+    BulkFileWatcher* m_fileWatcher;
 };
 
 #endif // KEEPASSXC_DATABASESHARING_H

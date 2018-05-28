@@ -38,7 +38,7 @@ class EditEntryWidget;
 class EditGroupWidget;
 class Entry;
 class EntryView;
-class FileWatcher;
+class DelayingFileWatcher;
 class Group;
 class GroupView;
 class KeePass1OpenWidget;
@@ -247,7 +247,7 @@ private:
     bool m_importingCsv;
 
     // Autoreload
-    QPointer<FileWatcher> m_fileWatcher;
+    QPointer<DelayingFileWatcher> m_fileWatcher;
     bool m_databaseModified;
 };
 

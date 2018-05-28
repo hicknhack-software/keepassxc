@@ -18,35 +18,75 @@
 #ifndef KEEPASSXC_FILEWATCHER_H
 #define KEEPASSXC_FILEWATCHER_H
 
-#include <QVariant>
-#include <QTimer>
 #include <QFileSystemWatcher>
+#include <QSet>
+#include <QTimer>
+#include <QVariant>
 
-class FileWatcher : public QObject
+class DelayingFileWatcher : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit FileWatcher(QObject *parent = nullptr);
+    explicit DelayingFileWatcher(QObject* parent = nullptr);
 
     void blockAutoReload(bool block);
-    void start(const QString &path);
+    void start(const QString& path);
 
     void restart();
     void stop();
+    void ignoreFileChanges();
+
 signals:
     void fileChanged();
 
+public slots:
+    void observeFileChanges(bool delayed = false);
+
 private slots:
-    void unblockAutoReload();
     void onWatchedFileChanged();
 
 private:
     QString m_filePath;
     QFileSystemWatcher m_fileWatcher;
-    QTimer m_fileWatchTimer;
-    QTimer m_fileWatchUnblockTimer;
-    bool m_ignoreAutoReload;
+    QTimer m_fileChangeDelayTimer;
+    QTimer m_fileUnblockTimer;
+    bool m_ignoreFileChange;
+};
+
+class BulkFileWatcher : public QObject
+{
+    Q_OBJECT
+public:
+    explicit BulkFileWatcher(QObject* parent = nullptr);
+
+    void clear();
+
+    void removePath(const QString& path);
+    void addPath(const QString& path);
+
+    void restart(const QString& path);
+
+    void ignoreFileChanges(const QString& path);
+
+signals:
+    void fileCreated(QString);
+    void fileChanged(QString);
+    void fileRemoved(QString);
+
+public slots:
+    void observeFileChanges(bool delayed = false);
+
+private slots:
+    void handleFileChanged(const QString& path);
+    void handleDirectoryChanged(const QString& path);
+
+private:
+    QSet<QString> m_filePaths;
+    QMap<QString, QDateTime> m_ignoreFilesChangess;
+    QFileSystemWatcher m_fileWatcher;
+    QMap<QString, QMap<QString, bool>> m_watchedFilesInDirectory;
+    QTimer m_fileWatchUnblockTimer; // needed for Import/Export-References
 };
 
 #endif // KEEPASSXC_FILEWATCHER_H

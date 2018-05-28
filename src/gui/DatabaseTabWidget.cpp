@@ -846,7 +846,7 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
     // SIGNAL(messageGlobal(QString,MessageWidget::MessageType)));
     newDb->setEmitModified(true);
     // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
-    newDb->sharing()->handleChanged();
+    newDb->sharing()->handleDatabaseChanged();
 }
 
 void DatabaseTabWidget::emitDatabaseSharingChanged(const QString& message, MessageWidget::MessageType type)

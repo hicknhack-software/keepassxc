@@ -73,7 +73,7 @@ DatabaseWidget::DatabaseWidget(Database* db, QWidget* parent)
     , m_newEntry(nullptr)
     , m_newParent(nullptr)
     , m_importingCsv(false)
-    , m_fileWatcher(new FileWatcher(this))
+    , m_fileWatcher(new DelayingFileWatcher(this))
 {
     m_mainWidget = new QWidget(this);
 
@@ -1219,7 +1219,11 @@ void DatabaseWidget::updateFilePath(const QString& filePath)
 
 void DatabaseWidget::blockAutoReload(bool block)
 {
-    m_fileWatcher->blockAutoReload(block);
+    if (block) {
+        m_fileWatcher->ignoreFileChanges();
+    } else {
+        m_fileWatcher->observeFileChanges(true);
+    }
 }
 
 void DatabaseWidget::reloadDatabaseFile()
@@ -1245,7 +1249,6 @@ void DatabaseWidget::reloadDatabaseFile()
             m_db->markAsModified();
             m_databaseModified = true;
             // Rewatch the database file
-            // m_fileWatcher->addPath(m_filePath);
             m_fileWatcher->restart();
             return;
         }
