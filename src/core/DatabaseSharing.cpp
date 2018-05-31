@@ -16,7 +16,7 @@
  */
 
 #include "DatabaseSharing.h"
-
+#include <iostream>
 #include "core/Clock.h"
 #include "core/CustomData.h"
 #include "core/Database.h"
@@ -27,14 +27,19 @@
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
+#include "format/KdbxXmlWriter.h"
+#include "format/KeePass2RandomStream.h"
 #include "format/KeePass2Reader.h"
 #include "keys/PasswordKey.h"
 
+#include <QBuffer>
 #include <QDebug>
 #include <QFileInfo>
 #include <QIcon>
 #include <QPainter>
 #include <QStringBuilder>
+
+#include <gcrypt.h>
 
 static const QString KeeShareExt_ExportEnabled("Export");
 static const QString KeeShareExt_ImportEnabled("Import");
@@ -390,6 +395,91 @@ void DatabaseSharing::resolveReferenceAttributes(Entry* targetEntry, const Datab
     }
 }
 
+void DatabaseSharing::createSignature(Database *db)
+{
+    Q_UNUSED(db);
+    // TODO HNH is it sufficient to hard code just one algorithm to create a signature?
+    QByteArray buffer;
+    QBuffer device(&buffer);
+    device.open(QBuffer::ReadWrite);
+    QByteArray headerHash;
+    KeePass2RandomStream randomStream(KeePass2::ProtectedStreamAlgo::ChaCha20);
+    KdbxXmlWriter xmlWriter(KeePass2::FILE_VERSION_4);
+    xmlWriter.writeDatabase(&device, db, &randomStream, headerHash);
+
+    const char *sha256name = gcry_md_algo_name(GCRY_MD_SHA256);
+    int sha256algo = gcry_md_map_name(sha256name);
+    gcry_md_hd_t hd_sha256;
+    gcry_md_open(&hd_sha256, sha256algo, 0);
+    gcry_md_write(hd_sha256, buffer.data(), buffer.size());
+    gcry_md_final(hd_sha256);
+    unsigned const char *sha256 = gcry_md_read(hd_sha256, sha256algo);
+    char hashed_sha256[65];
+    hashed_sha256[64] = '\0';
+    for(int i=0; i<32; i++){
+            sprintf(hashed_sha256+(i*2), "%02x", sha256[i]);
+    }
+    printf("%s", hashed_sha256);
+    gcry_md_close(hd_sha256);
+
+    gcry_sexp_t	key_parms_sexp, key_pair_sexp;
+    gcry_sexp_t	public_key_sexp = 0, private_key_sexp = 0;
+    gcry_sexp_t	data_sexp, enc_sexp = 0, dec_sexp = 0;
+    gcry_sexp_t	signature_sexp;
+    gcry_mpi_t	data;
+    gcry_error_t rc = 0;
+    rc = gcry_sexp_new(&key_parms_sexp, "(genkey (dsa (nbits 4:1024)))", 0, 1);
+    Q_ASSERT(rc == 0);
+    rc = gcry_pk_genkey(&key_pair_sexp, key_parms_sexp);
+    Q_ASSERT(rc == 0);
+    gcry_sexp_release (key_parms_sexp);
+    Q_ASSERT(rc == 0);
+
+    public_key_sexp = gcry_sexp_find_token (key_pair_sexp, "public-key", 0);
+     Q_ASSERT(public_key_sexp);
+
+    private_key_sexp = gcry_sexp_find_token (key_pair_sexp, "private-key", 0);
+   Q_ASSERT(private_key_sexp);
+
+    data = gcry_mpi_new(50);
+    gcry_mpi_set_ui(data, 123);
+
+    rc = gcry_sexp_build(&data_sexp, NULL, "(data (flags) (value %b))", 64, hashed_sha256);
+    Q_ASSERT(rc == 0);
+    gcry_sexp_dump(data_sexp);
+//    rc = gcry_pk_encrypt(&enc_sexp, data_sexp, public_key_sexp);
+//    Q_ASSERT(rc == 0);
+
+//    rc = gcry_pk_decrypt(&dec_sexp, enc_sexp, private_key_sexp);
+//    Q_ASSERT(rc == 0);
+gcry_sexp_dump(private_key_sexp);
+gcry_sexp_dump(public_key_sexp);
+std::cout.flush();
+std::cerr.flush();
+size_t keyLength = /*get_keypair_size(*/1028000/*)*/;
+    char* rsaKeyExpression = reinterpret_cast<char*>( calloc(sizeof(char), keyLength) );
+    gcry_sexp_sprint(key_pair_sexp, GCRYSEXP_FMT_DEFAULT, rsaKeyExpression, keyLength);
+    printf("%s\n", rsaKeyExpression);
+
+    rc = gcry_pk_sign(&signature_sexp, data_sexp, private_key_sexp);
+    Q_ASSERT(rc == 0);
+    gcry_sexp_dump(signature_sexp);
+
+    rc = gcry_pk_verify(signature_sexp, data_sexp, public_key_sexp);
+    Q_ASSERT(rc == 0);
+
+    Q_ASSERT(0 == rc || GPG_ERR_BAD_SIGNATURE == rc);
+
+      fprintf(stderr, "correct signature? %s\n", (0 == rc)? "yes" : "no");
+
+      gcry_mpi_release(data);
+      gcry_sexp_release(enc_sexp);
+      gcry_sexp_release(dec_sexp);
+      gcry_sexp_release(signature_sexp);
+      gcry_sexp_release(private_key_sexp);
+    gcry_sexp_release(public_key_sexp);
+}
+
 Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const Group* sourceRoot)
 {
     const Database* sourceDb = sourceRoot->database();
@@ -435,6 +525,7 @@ Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const
             resolveReferenceAttributes(targetEntry, sourceDb);
         }
     }
+    createSignature(targetDb);
     return targetDb;
 }
 

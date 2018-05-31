@@ -17,8 +17,9 @@
  */
 
 #include "SSHAgent.h"
-#include "BinaryStream.h"
-#include "KeeAgentSettings.h"
+
+#include "core/BinaryStream.h"
+#include "sshagent/KeeAgentSettings.h"
 
 #ifndef Q_OS_WIN
 #include <QtNetwork>

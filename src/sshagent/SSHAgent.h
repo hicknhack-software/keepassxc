@@ -16,13 +16,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef AGENTCLIENT_H
-#define AGENTCLIENT_H
+#ifndef KEEPASSXC_SSHAGENT_H
+#define KEEPASSXC_SSHAGENT_H
 
-#include "OpenSSHKey.h"
 #include <QList>
 #include <QtCore>
 
+#include "crypto/OpenSSHKey.h"
 #include "gui/DatabaseWidget.h"
 
 class SSHAgent : public QObject
@@ -75,4 +75,4 @@ private:
     QString m_error;
 };
 
-#endif // AGENTCLIENT_H
+#endif // KEEPASSXC_SSHAGENT_H

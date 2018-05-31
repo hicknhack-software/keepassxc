@@ -6,10 +6,7 @@ if(WITH_XC_SSHAGENT)
         blowfish.c
         AgentSettingsPage.cpp
         AgentSettingsWidget.cpp
-        BinaryStream.cpp
         KeeAgentSettings.cpp
-        OpenSSHKey.cpp
-        ASN1Key.cpp
         SSHAgent.cpp
     )
 

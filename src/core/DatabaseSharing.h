@@ -130,6 +130,8 @@ private:
     static Database* exportIntoContainer(const Reference& reference, const Group* sourceRoot);
     static Result importContainerInto(const Reference& reference, Group* targetGroup);
 
+    static void createSignature(Database *db);
+
     Result importFromReferenceContainer(const QString& path);
     QList<DatabaseSharing::Result> exportIntoReferenceContainers();
     void deinitialize();

@@ -40,6 +40,7 @@ set(keepassx_SOURCES
     core/AutoTypeAssociations.cpp
     core/AsyncTask.h
     core/AutoTypeMatch.cpp
+    core/BinaryStream.cpp
     core/Compare.cpp
     core/Config.cpp
     core/CsvParser.cpp
@@ -76,9 +77,12 @@ set(keepassx_SOURCES
     core/Base32.cpp
     cli/Utils.cpp
     cli/Utils.h
+    crypto/ASN1Key.cpp
     crypto/Crypto.cpp
     crypto/CryptoHash.cpp
+    crypto/OpenSSHKey.cpp
     crypto/Random.cpp
+    crypto/Signature.cpp
     crypto/SymmetricCipher.cpp
     crypto/SymmetricCipherBackend.h
     crypto/SymmetricCipherGcrypt.cpp
