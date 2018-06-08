@@ -288,11 +288,11 @@ struct RSASigner
             return QString();
         }
         if (gcry_mpi_cmp (mpi[P], mpi[Q]) > 0)
-            {
+        {
             // see https://www.gnupg.org/documentation/manuals/gcrypt/RSA-key-parameters.html#RSA-key-parameters
-              gcry_mpi_swap (mpi[P], mpi[Q]);
-              gcry_mpi_invm (mpi[U], mpi[P], mpi[Q]);
-            }
+            gcry_mpi_swap (mpi[P], mpi[Q]);
+            gcry_mpi_invm (mpi[U], mpi[P], mpi[Q]);
+        }
         rc = gcry_sexp_build(&sexp[Key], NULL, "(private-key (rsa (n %m) (e %m) (d %m) (p %m) (q %m) (u %m)))", mpi[N], mpi[E], mpi[D], mpi[P], mpi[Q], mpi[U]);
         if( rc != GPG_ERR_NO_ERROR ){
             raiseError();
@@ -304,7 +304,7 @@ struct RSASigner
             raiseError();
             return QString();
         }
-::qDebug() << ">> " << block.size() << QString::fromLatin1(block.toHex());
+
         rc = gcry_sexp_build(&sexp[Data], NULL, "(data (flags pkcs1) (hash sha256 %b))", block.size(), block.data());
         // rc = gcry_sexp_build(&sexp[Data], NULL, "(data (flags raw) (value %b))", data.size(), data.data());
         if( rc != GPG_ERR_NO_ERROR ){
@@ -346,12 +346,13 @@ struct RSASigner
         gcry<MPI, gcry_mpi_t, &gcry_mpi_release> mpi;
         gcry<SEXP, gcry_sexp_t, &gcry_sexp_release> sexp;
         const QList<QByteArray> parts = key.publicParts();
-        rc = gcry_mpi_scan(&mpi[N], format, parts[0].data(), parts[0].size(), nullptr);
+
+        rc = gcry_mpi_scan(&mpi[E], format, parts[0].data(), parts[0].size(), nullptr);
         if( rc != GPG_ERR_NO_ERROR ){
             raiseError();
             return false;
         }
-        rc = gcry_mpi_scan(&mpi[E], format, parts[1].data(), parts[1].size(), nullptr);
+        rc = gcry_mpi_scan(&mpi[N], format, parts[1].data(), parts[1].size(), nullptr);
         if( rc != GPG_ERR_NO_ERROR ){
             raiseError();
             return false;
@@ -396,16 +397,25 @@ struct RSASigner
 
 QString Signature::create(const QByteArray &data, const OpenSSHKey &key)
 {
-    if( key.privateType() == OpenSSHKey::TYPE_DSA ){
+    // TODO HNH: currently we publish the signature in our own non-standard format - it would
+    //           be better to use a standard format (like ASN1 - but this would be more easy
+    //           when we integrate a proper library)
+    //           Even more, we could publish standard self signed certificates with the container
+    //           instead of the custom certificates
+    if( key.privateType() == OpenSSHKey::TYPE_DSA_PRIVATE ){
         DSASigner signer;
         QString result = signer.sign(data, key);
-        ::qWarning() << signer.error;
+        if(signer.rc != GPG_ERR_NO_ERROR){
+            ::qWarning() << signer.error;
+        }
         return result;
     }
-    if( key.privateType() == OpenSSHKey::TYPE_RSA ){
+    if( key.privateType() == OpenSSHKey::TYPE_RSA_PRIVATE ){
         RSASigner signer;
         QString result = signer.sign(data, key);
-        ::qWarning() << signer.error;
+        if(signer.rc != GPG_ERR_NO_ERROR){
+            ::qWarning() << signer.error;
+        }
         return result;
     }
     ::qWarning() << "Unsupported Public/Private key format";
@@ -414,16 +424,20 @@ QString Signature::create(const QByteArray &data, const OpenSSHKey &key)
 
 bool Signature::verify(const QByteArray &data, const QString &signature, const OpenSSHKey &key)
 {
-    if( key.privateType() == OpenSSHKey::TYPE_DSA ){
+    if( key.privateType() == OpenSSHKey::TYPE_DSA_PRIVATE ){
         DSASigner signer;
         bool result = signer.verify(data, key, signature);
-        ::qWarning() << signer.error;
+        if(signer.rc != GPG_ERR_NO_ERROR){
+            ::qWarning() << signer.error;
+        }
         return result;
     }
-    if( key.privateType() == OpenSSHKey::TYPE_RSA ){
+    if( key.privateType() == OpenSSHKey::TYPE_RSA_PRIVATE || key.privateType() == OpenSSHKey::TYPE_RSA_PUBLIC ){
         RSASigner signer;
         bool result = signer.verify(data, key, signature);
-        ::qWarning() << signer.error;
+        if(signer.rc != GPG_ERR_NO_ERROR){
+            ::qWarning() << signer.error;
+        }
         return result;
     }
     ::qWarning() << "Unsupported Public/Private key format";

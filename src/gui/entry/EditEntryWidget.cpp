@@ -521,7 +521,7 @@ bool EditEntryWidget::getOpenSSHKey(OpenSSHKey& key, bool decrypt)
         return false;
     }
 
-    if (!key.parse(privateKeyData)) {
+    if (!key.parsePKCS1PEM(privateKeyData)) {
         showMessage(key.errorString(), MessageWidget::Error);
         return false;
     }

@@ -307,7 +307,7 @@ void SSHAgent::databaseModeChanged(DatabaseWidget::Mode mode)
 
             OpenSSHKey key;
 
-            if (!key.parse(keyData)) {
+            if (!key.parsePKCS1PEM(keyData)) {
                 continue;
             }
 

@@ -30,7 +30,7 @@ public:
     OpenSSHKey(const OpenSSHKey& other);
     bool operator==(const OpenSSHKey& other) const;
 
-    bool parse(const QByteArray& in);
+    bool parsePKCS1PEM(const QByteArray& in);
     bool encrypted() const;
     bool openPrivateKey(const QString& passphrase = QString());
 
@@ -58,22 +58,24 @@ public:
     QList<QByteArray> privateParts() const;
     const QString &privateType() const;
 
-    static const QString TYPE_DSA;
-    static const QString TYPE_RSA;
-    static const QString TYPE_OPENSSH;
+    static const QString TYPE_DSA_PRIVATE;
+    static const QString TYPE_RSA_PRIVATE;
+    static const QString TYPE_RSA_PUBLIC;
+    static const QString TYPE_OPENSSH_PRIVATE;
+    static const QString TYPE_OPENSSH_PUBLIC;
 private:
 
-    bool parsePEM(const QByteArray& in, QByteArray& out);
+    bool extractPEM(const QByteArray& in, QByteArray& out);
 
     QString m_type;
     QString m_cipherName;
     QByteArray m_cipherIV;
     QString m_kdfName;
     QByteArray m_kdfOptions;
-    QByteArray m_rawPrivateData;
-    QList<QByteArray> m_publicData;
-    QList<QByteArray> m_privateData;
-    QString m_privateType;
+    QByteArray m_rawData;
+    QString m_rawType;
+    QList<QByteArray> m_rawPublicData;
+    QList<QByteArray> m_rawPrivateData;
     QString m_comment;
     QString m_error;
 };
