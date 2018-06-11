@@ -15,20 +15,37 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_SIGNATURE_H
-#define KEEPASSXC_SIGNATURE_H
+#ifndef KEEPASSXC_TOOL_H
+#define KEEPASSXC_TOOL_H
 
-#include <QString>
-#include <gcrypt.h>
+#include <QMap>
 
-class QByteArray;
-class OpenSSHKey;
-
-class Signature
+namespace Tool
 {
-public:
-    static QString create(const QByteArray& data, const OpenSSHKey& key);
-    static bool verify(const QByteArray& data, const QString& signature, const OpenSSHKey& key);
-};
+    template <typename Key, typename Value, void deleter(Value)> struct GMap
+    {
+        QMap<Key, Value> values;
+        Value& operator[](const Key index)
+        {
+            return values[index];
+        }
 
-#endif // KEEPASSXC_SIGNATURE_H
+        ~GMap()
+        {
+            for (Value m : values) {
+                deleter(m);
+            }
+        }
+    };
+
+    template <typename Value, void deleter(Value)> struct GValue
+    {
+        Value value;
+        ~GValue()
+        {
+            deleter(value);
+        }
+    };
+}
+
+#endif // KEEPASSXC_TOOL_H

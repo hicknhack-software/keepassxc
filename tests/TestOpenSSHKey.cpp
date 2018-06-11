@@ -17,6 +17,7 @@
 
 #include "TestOpenSSHKey.h"
 #include "TestGlobal.h"
+#include "core/BinaryStream.h"
 #include "crypto/Crypto.h"
 #include "crypto/OpenSSHKey.h"
 
@@ -125,8 +126,8 @@ void TestOpenSSHKey::testDecryptRSAAES128CBC()
     QVERIFY(key.parsePKCS1PEM(keyData));
     QVERIFY(key.encrypted());
     QCOMPARE(key.cipherName(), QString("AES-128-CBC"));
-    QVERIFY(!key.openPrivateKey("incorrectpassphrase"));
-    QVERIFY(key.openPrivateKey("correctpassphrase"));
+    QVERIFY(!key.openKey("incorrectpassphrase"));
+    QVERIFY(key.openKey("correctpassphrase"));
     QCOMPARE(key.type(), QString("ssh-rsa"));
     QCOMPARE(key.comment(), QString(""));
     QCOMPARE(key.fingerprint(), QString("SHA256:1Hsebt2WWnmc72FERsUOgvaajIGHkrMONxXylcmk87U"));
@@ -190,8 +191,8 @@ void TestOpenSSHKey::testDecryptOpenSSHAES256CBC()
     QVERIFY(key.parsePKCS1PEM(keyData));
     QVERIFY(key.encrypted());
     QCOMPARE(key.cipherName(), QString("aes256-cbc"));
-    QVERIFY(!key.openPrivateKey("incorrectpassphrase"));
-    QVERIFY(key.openPrivateKey("correctpassphrase"));
+    QVERIFY(!key.openKey("incorrectpassphrase"));
+    QVERIFY(key.openKey("correctpassphrase"));
     QCOMPARE(key.type(), QString("ssh-ed25519"));
     QCOMPARE(key.comment(), QString("opensshkey-test-aes256cbc@keepassxc"));
 
@@ -244,8 +245,8 @@ void TestOpenSSHKey::testDecryptRSAAES256CBC()
     QVERIFY(key.parsePKCS1PEM(keyData));
     QVERIFY(key.encrypted());
     QCOMPARE(key.cipherName(), QString("AES-256-CBC"));
-    QVERIFY(!key.openPrivateKey("incorrectpassphrase"));
-    QVERIFY(key.openPrivateKey("correctpassphrase"));
+    QVERIFY(!key.openKey("incorrectpassphrase"));
+    QVERIFY(key.openKey("correctpassphrase"));
     QCOMPARE(key.type(), QString("ssh-rsa"));
     QCOMPARE(key.comment(), QString(""));
     QCOMPARE(key.fingerprint(), QString("SHA256:1Hsebt2WWnmc72FERsUOgvaajIGHkrMONxXylcmk87U"));
@@ -268,8 +269,8 @@ void TestOpenSSHKey::testDecryptOpenSSHAES256CTR()
     QVERIFY(key.parsePKCS1PEM(keyData));
     QVERIFY(key.encrypted());
     QCOMPARE(key.cipherName(), QString("aes256-ctr"));
-    QVERIFY(!key.openPrivateKey("incorrectpassphrase"));
-    QVERIFY(key.openPrivateKey("correctpassphrase"));
+    QVERIFY(!key.openKey("incorrectpassphrase"));
+    QVERIFY(key.openKey("correctpassphrase"));
     QCOMPARE(key.type(), QString("ssh-ed25519"));
     QCOMPARE(key.comment(), QString("opensshkey-test-aes256ctr@keepassxc"));
 
@@ -322,8 +323,8 @@ void TestOpenSSHKey::testDecryptRSAAES256CTR()
     QVERIFY(key.parsePKCS1PEM(keyData));
     QVERIFY(key.encrypted());
     QCOMPARE(key.cipherName(), QString("AES-256-CTR"));
-    QVERIFY(!key.openPrivateKey("incorrectpassphrase"));
-    QVERIFY(key.openPrivateKey("correctpassphrase"));
+    QVERIFY(!key.openKey("incorrectpassphrase"));
+    QVERIFY(key.openKey("correctpassphrase"));
     QCOMPARE(key.type(), QString("ssh-rsa"));
     QCOMPARE(key.comment(), QString(""));
     QCOMPARE(key.fingerprint(), QString("SHA256:1Hsebt2WWnmc72FERsUOgvaajIGHkrMONxXylcmk87U"));

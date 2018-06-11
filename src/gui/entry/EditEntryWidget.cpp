@@ -527,7 +527,7 @@ bool EditEntryWidget::getOpenSSHKey(OpenSSHKey& key, bool decrypt)
     }
 
     if (key.encrypted() && (decrypt || key.publicKey().isEmpty())) {
-        if (!key.openPrivateKey(m_entry->password())) {
+        if (!key.openKey(m_entry->password())) {
             showMessage(key.errorString(), MessageWidget::Error);
             return false;
         }

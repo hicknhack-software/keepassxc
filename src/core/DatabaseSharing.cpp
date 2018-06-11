@@ -16,7 +16,6 @@
  */
 
 #include "DatabaseSharing.h"
-#include <iostream>
 #include "core/Clock.h"
 #include "core/CustomData.h"
 #include "core/Database.h"
@@ -31,6 +30,7 @@
 #include "format/KeePass2RandomStream.h"
 #include "format/KeePass2Reader.h"
 #include "keys/PasswordKey.h"
+#include <iostream>
 
 #include <QBuffer>
 #include <QDebug>
@@ -41,9 +41,15 @@
 
 #include <gcrypt.h>
 
+#include <crypto/OpenSSHKey.h>
+#include <crypto/Signature.h>
+
 static const QString KeeShareExt_ExportEnabled("Export");
 static const QString KeeShareExt_ImportEnabled("Import");
 static const QString KeeShareExt("KeeShareXC");
+static const QString KeeShareExt_Source("KeeShareXC_Source");
+static const QString KeeShareExt_Certificate("KeeShareXC_Certificate");
+static const QString KeeShareExt_Signature("KeeShareXC_Signature");
 static const QChar KeeShareExt_referencePropertyDelimiter('|');
 
 DatabaseSharing::DatabaseSharing(Database* db, QObject* parent)
@@ -190,9 +196,14 @@ void DatabaseSharing::setReferenceTo(CustomData* customData, const DatabaseShari
 {
     if (reference.isNull()) {
         customData->remove(KeeShareExt);
-    } else {
+        return;
+    }
+    if (customData->contains(KeeShareExt)) {
         customData->set(KeeShareExt, serializeReference(reference));
     }
+    Reference copy = reference;
+    copy.signer = "KeeShare-Signer";
+    customData->set(KeeShareExt, serializeReference(reference));
 }
 
 QPixmap DatabaseSharing::indicatorBadge(const Group* group, QPixmap pixmap)
@@ -289,6 +300,38 @@ void DatabaseSharing::handleFileRemoved(const QString& path)
     handleFileUpdated(path, Deletion);
 }
 
+bool DatabaseSharing::unsign(Database* db, const Reference& reference)
+{
+    QVariantMap map = db->publicCustomData();
+    map[KeeShareExt_Source] = reference.signer;
+    map[KeeShareExt_Certificate] = reference.certificate;
+    QString signature = map[KeeShareExt_Signature].toString();
+    map[KeeShareExt_Signature] = QString();
+    db->setPublicCustomData(map);
+
+    // TODO HNH is it sufficient to hard code just one algorithm to create a signature?
+    // TODO HNH it would be better to use standard formats like real certificates and ANS1 formats to sign our data -
+    // but that would possibly need an ASN1 lib
+    QByteArray buffer;
+    QBuffer device(&buffer);
+    device.open(QBuffer::ReadWrite);
+    QByteArray headerHash;
+    KeePass2RandomStream randomStream(KeePass2::ProtectedStreamAlgo::ChaCha20);
+    KdbxXmlWriter xmlWriter(KeePass2::FILE_VERSION_4);
+    xmlWriter.writeDatabase(&device, db, &randomStream, headerHash);
+
+    Signature signer;
+    OpenSSHKey key;
+    key.parsePKCS1PEM(map[KeeShareExt_Certificate].toString().toLatin1());
+    key.openKey(QString());
+    bool success = signer.verify(buffer, signature, key);
+    map.remove(KeeShareExt_Signature);
+    map.remove(KeeShareExt_Certificate);
+    map.remove(KeeShareExt_Source);
+    db->setPublicCustomData(map);
+    return success;
+}
+
 DatabaseSharing::Result DatabaseSharing::importContainerInto(const Reference& reference, Group* targetGroup)
 {
     const QFileInfo info(reference.path);
@@ -309,6 +352,10 @@ DatabaseSharing::Result DatabaseSharing::importContainerInto(const Reference& re
     if (reader.hasError()) {
         qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));
         return {reference.path, Result::Error, reader.errorString()};
+    }
+
+    if (!unsign(sourceDb, reference)) {
+        qWarning("Invalid signature of database");
     }
 
     qDebug("Synchronize %s %s with %s",
@@ -395,10 +442,17 @@ void DatabaseSharing::resolveReferenceAttributes(Entry* targetEntry, const Datab
     }
 }
 
-void DatabaseSharing::createSignature(Database *db)
+void DatabaseSharing::sign(Database* db, const Reference& reference)
 {
-    Q_UNUSED(db);
+    QVariantMap map = db->publicCustomData();
+    map[KeeShareExt_Source] = reference.signer;
+    map[KeeShareExt_Certificate] = reference.certificate;
+    map[KeeShareExt_Signature] = QString();
+    db->setPublicCustomData(map);
+
     // TODO HNH is it sufficient to hard code just one algorithm to create a signature?
+    // TODO HNH it would be better to use standard formats like real certificates and ANS1 formats to sign our data -
+    // but that would possibly need an ASN1 lib
     QByteArray buffer;
     QBuffer device(&buffer);
     device.open(QBuffer::ReadWrite);
@@ -407,77 +461,13 @@ void DatabaseSharing::createSignature(Database *db)
     KdbxXmlWriter xmlWriter(KeePass2::FILE_VERSION_4);
     xmlWriter.writeDatabase(&device, db, &randomStream, headerHash);
 
-    const char *sha256name = gcry_md_algo_name(GCRY_MD_SHA256);
-    int sha256algo = gcry_md_map_name(sha256name);
-    gcry_md_hd_t hd_sha256;
-    gcry_md_open(&hd_sha256, sha256algo, 0);
-    gcry_md_write(hd_sha256, buffer.data(), buffer.size());
-    gcry_md_final(hd_sha256);
-    unsigned const char *sha256 = gcry_md_read(hd_sha256, sha256algo);
-    char hashed_sha256[65];
-    hashed_sha256[64] = '\0';
-    for(int i=0; i<32; i++){
-            sprintf(hashed_sha256+(i*2), "%02x", sha256[i]);
-    }
-    printf("%s", hashed_sha256);
-    gcry_md_close(hd_sha256);
+    Signature signer;
+    OpenSSHKey key;
+    key.parsePKCS1PEM(reference.key.toLatin1());
+    key.openKey(QString());
+    map[KeeShareExt_Signature] = signer.create(buffer, key);
 
-    gcry_sexp_t	key_parms_sexp, key_pair_sexp;
-    gcry_sexp_t	public_key_sexp = 0, private_key_sexp = 0;
-    gcry_sexp_t	data_sexp, enc_sexp = 0, dec_sexp = 0;
-    gcry_sexp_t	signature_sexp;
-    gcry_mpi_t	data;
-    gcry_error_t rc = 0;
-    rc = gcry_sexp_new(&key_parms_sexp, "(genkey (dsa (nbits 4:1024)))", 0, 1);
-    Q_ASSERT(rc == 0);
-    rc = gcry_pk_genkey(&key_pair_sexp, key_parms_sexp);
-    Q_ASSERT(rc == 0);
-    gcry_sexp_release (key_parms_sexp);
-    Q_ASSERT(rc == 0);
-
-    public_key_sexp = gcry_sexp_find_token (key_pair_sexp, "public-key", 0);
-     Q_ASSERT(public_key_sexp);
-
-    private_key_sexp = gcry_sexp_find_token (key_pair_sexp, "private-key", 0);
-   Q_ASSERT(private_key_sexp);
-
-    data = gcry_mpi_new(50);
-    gcry_mpi_set_ui(data, 123);
-
-    rc = gcry_sexp_build(&data_sexp, NULL, "(data (flags) (value %b))", 64, hashed_sha256);
-    Q_ASSERT(rc == 0);
-    gcry_sexp_dump(data_sexp);
-//    rc = gcry_pk_encrypt(&enc_sexp, data_sexp, public_key_sexp);
-//    Q_ASSERT(rc == 0);
-
-//    rc = gcry_pk_decrypt(&dec_sexp, enc_sexp, private_key_sexp);
-//    Q_ASSERT(rc == 0);
-gcry_sexp_dump(private_key_sexp);
-gcry_sexp_dump(public_key_sexp);
-std::cout.flush();
-std::cerr.flush();
-size_t keyLength = /*get_keypair_size(*/1028000/*)*/;
-    char* rsaKeyExpression = reinterpret_cast<char*>( calloc(sizeof(char), keyLength) );
-    gcry_sexp_sprint(key_pair_sexp, GCRYSEXP_FMT_DEFAULT, rsaKeyExpression, keyLength);
-    printf("%s\n", rsaKeyExpression);
-
-    rc = gcry_pk_sign(&signature_sexp, data_sexp, private_key_sexp);
-    Q_ASSERT(rc == 0);
-    gcry_sexp_dump(signature_sexp);
-
-    rc = gcry_pk_verify(signature_sexp, data_sexp, public_key_sexp);
-    Q_ASSERT(rc == 0);
-
-    Q_ASSERT(0 == rc || GPG_ERR_BAD_SIGNATURE == rc);
-
-      fprintf(stderr, "correct signature? %s\n", (0 == rc)? "yes" : "no");
-
-      gcry_mpi_release(data);
-      gcry_sexp_release(enc_sexp);
-      gcry_sexp_release(dec_sexp);
-      gcry_sexp_release(signature_sexp);
-      gcry_sexp_release(private_key_sexp);
-    gcry_sexp_release(public_key_sexp);
+    db->setPublicCustomData(map);
 }
 
 Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const Group* sourceRoot)
@@ -513,6 +503,7 @@ Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const
     delete obsoleteRoot;
 
     targetDb->metadata()->setName(sourceRoot->name());
+
     // Push all deletions of the source database to the target
     // simple moving out of a share group will not trigger a deletion in the
     // target - a more elaborate mechanism may need the use of another custom
@@ -525,7 +516,7 @@ Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const
             resolveReferenceAttributes(targetEntry, sourceDb);
         }
     }
-    createSignature(targetDb);
+    sign(targetDb, reference);
     return targetDb;
 }
 

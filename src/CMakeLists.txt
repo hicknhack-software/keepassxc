@@ -86,6 +86,7 @@ set(keepassx_SOURCES
     crypto/SymmetricCipher.cpp
     crypto/SymmetricCipherBackend.h
     crypto/SymmetricCipherGcrypt.cpp
+    crypto/Tool.cpp
     crypto/kdf/Kdf.cpp
     crypto/kdf/Kdf_p.h
     crypto/kdf/AesKdf.cpp

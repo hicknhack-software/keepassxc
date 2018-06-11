@@ -80,13 +80,12 @@ int SymmetricCipherGcrypt::gcryptMode(SymmetricCipher::Mode mode)
     }
 }
 
-void SymmetricCipherGcrypt::setError(const gcry_error_t &err)
+void SymmetricCipherGcrypt::setError(const gcry_error_t& err)
 {
     const char* gcryptError = gcry_strerror(err);
     const char* gcryptErrorSource = gcry_strsource(err);
 
-    m_error =
-        QString("%1/%2").arg(QString::fromLocal8Bit(gcryptErrorSource), QString::fromLocal8Bit(gcryptError));
+    m_error = QString("%1/%2").arg(QString::fromLocal8Bit(gcryptErrorSource), QString::fromLocal8Bit(gcryptError));
 }
 
 bool SymmetricCipherGcrypt::init()

@@ -48,7 +48,7 @@ public:
 private:
     static int gcryptAlgo(SymmetricCipher::Algorithm algo);
     static int gcryptMode(SymmetricCipher::Mode mode);
-    void setError(const gcry_error_t &err);
+    void setError(const gcry_error_t& err);
 
     gcry_cipher_hd_t m_ctx;
     const int m_algo;

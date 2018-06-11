@@ -52,6 +52,9 @@ public:
         Uuid uuid;
         QString path;
         QString password;
+        QString certificate;
+        QString key;
+        QString signer;
 
         Reference();
         Reference(Type type, const Uuid& uuid, const QString& path, const QString& password);
@@ -130,7 +133,8 @@ private:
     static Database* exportIntoContainer(const Reference& reference, const Group* sourceRoot);
     static Result importContainerInto(const Reference& reference, Group* targetGroup);
 
-    static void createSignature(Database *db);
+    static void sign(Database* db, const Reference& reference);
+    static bool unsign(Database* db, const Reference& reference);
 
     Result importFromReferenceContainer(const QString& path);
     QList<DatabaseSharing::Result> exportIntoReferenceContainers();

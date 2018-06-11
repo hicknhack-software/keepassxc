@@ -311,7 +311,7 @@ void SSHAgent::databaseModeChanged(DatabaseWidget::Mode mode)
                 continue;
             }
 
-            if (!key.openPrivateKey(e->password())) {
+            if (!key.openKey(e->password())) {
                 continue;
             }
 

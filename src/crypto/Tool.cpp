@@ -1,4 +1,5 @@
 /*
+ *  Copyright (C) 2018 Toni Spets <toni.spets@iki.fi>
  *  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -15,20 +16,4 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_SIGNATURE_H
-#define KEEPASSXC_SIGNATURE_H
-
-#include <QString>
 #include <gcrypt.h>
-
-class QByteArray;
-class OpenSSHKey;
-
-class Signature
-{
-public:
-    static QString create(const QByteArray& data, const OpenSSHKey& key);
-    static bool verify(const QByteArray& data, const QString& signature, const OpenSSHKey& key);
-};
-
-#endif // KEEPASSXC_SIGNATURE_H

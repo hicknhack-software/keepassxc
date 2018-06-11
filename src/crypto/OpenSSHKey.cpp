@@ -17,20 +17,154 @@
  */
 
 #include "OpenSSHKey.h"
-#include "ASN1Key.h"
+
+#include "core/BinaryStream.h"
+#include "crypto/ASN1Key.h"
 #include "crypto/SymmetricCipher.h"
+#include "crypto/Tool.h"
 #include <QCryptographicHash>
 #include <QRegularExpression>
 #include <QStringList>
+
+#include <gcrypt.h>
 
 const QString OpenSSHKey::TYPE_DSA_PRIVATE = "DSA PRIVATE KEY";
 const QString OpenSSHKey::TYPE_RSA_PRIVATE = "RSA PRIVATE KEY";
 const QString OpenSSHKey::TYPE_RSA_PUBLIC = "RSA PUBLIC KEY";
 const QString OpenSSHKey::TYPE_OPENSSH_PRIVATE = "OPENSSH PRIVATE KEY";
-const QString OpenSSHKey::TYPE_OPENSSH_PUBLIC = "OPENSSH PUBLIC KEY";
 
 // bcrypt_pbkdf.cpp
 int bcrypt_pbkdf(const QByteArray& pass, const QByteArray& salt, QByteArray& key, quint32 rounds);
+
+template <typename Value, void deleter(Value)> struct gcry
+{
+    Value value;
+    ~gcry()
+    {
+        deleter(value);
+    }
+};
+
+OpenSSHKey OpenSSHKey::generate()
+{
+    enum Index
+    {
+        Params,
+        CombinedKey,
+        PrivateKey,
+        PublicKey,
+
+        N,
+        E,
+        D,
+        P,
+        Q,
+        U, // private key
+    };
+
+    Tool::GMap<Index, gcry_mpi_t, &gcry_mpi_release> private_mpi;
+    Tool::GMap<Index, gcry_mpi_t, &gcry_mpi_release> public_mpi;
+    Tool::GMap<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
+    gcry_error_t rc = GPG_ERR_NO_ERROR;
+    rc = gcry_sexp_build(&sexp[Params], NULL, "(genkey (rsa (nbits 4:2048)))");
+    if (rc != GPG_ERR_NO_ERROR) {
+        qWarning() << "Could not create sharing key" << gcry_err_code(rc);
+    }
+
+    rc = gcry_pk_genkey(&sexp[CombinedKey], sexp[Params]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        qWarning() << "Could not create sharing key" << gcry_err_code(rc);
+    }
+    gcry_sexp_dump(sexp[CombinedKey]);
+
+    sexp[PrivateKey] = gcry_sexp_find_token(sexp[CombinedKey], "private-key", 1);
+    sexp[PublicKey] = gcry_sexp_find_token(sexp[CombinedKey], "public-key", 1);
+
+    sexp[N] = gcry_sexp_find_token(sexp[PrivateKey], "n", 1);
+    private_mpi[N] = gcry_sexp_nth_mpi(sexp[N], 1, GCRYMPI_FMT_USG);
+    sexp[E] = gcry_sexp_find_token(sexp[PrivateKey], "e", 1);
+    private_mpi[E] = gcry_sexp_nth_mpi(sexp[E], 1, GCRYMPI_FMT_USG);
+    sexp[D] = gcry_sexp_find_token(sexp[PrivateKey], "d", 1);
+    private_mpi[D] = gcry_sexp_nth_mpi(sexp[D], 1, GCRYMPI_FMT_USG);
+    sexp[Q] = gcry_sexp_find_token(sexp[PrivateKey], "q", 1);
+    private_mpi[Q] = gcry_sexp_nth_mpi(sexp[Q], 1, GCRYMPI_FMT_USG);
+    sexp[P] = gcry_sexp_find_token(sexp[PrivateKey], "p", 1);
+    private_mpi[P] = gcry_sexp_nth_mpi(sexp[P], 1, GCRYMPI_FMT_USG);
+    sexp[U] = gcry_sexp_find_token(sexp[PrivateKey], "u", 1);
+    private_mpi[U] = gcry_sexp_nth_mpi(sexp[U], 1, GCRYMPI_FMT_USG);
+
+    sexp[N] = gcry_sexp_find_token(sexp[PublicKey], "n", 1);
+    public_mpi[N] = gcry_sexp_nth_mpi(sexp[N], 1, GCRYMPI_FMT_USG);
+    sexp[E] = gcry_sexp_find_token(sexp[PublicKey], "e", 1);
+    public_mpi[E] = gcry_sexp_nth_mpi(sexp[E], 1, GCRYMPI_FMT_USG);
+
+    // TODO HNH Buffer is not handled properly - reduce duplication
+    QList<QByteArray> publicParts;
+    QList<QByteArray> privateParts;
+    unsigned char* s_buffer = nullptr;
+    size_t s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, private_mpi[N]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    privateParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+    s_buffer = nullptr;
+    s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, private_mpi[E]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    privateParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+    s_buffer = nullptr;
+    s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, private_mpi[D]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    privateParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+    s_buffer = nullptr;
+    s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, private_mpi[P]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    privateParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+    s_buffer = nullptr;
+    s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, private_mpi[Q]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    privateParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+    s_buffer = nullptr;
+    s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, private_mpi[U]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    privateParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+
+    s_buffer = nullptr;
+    s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, public_mpi[E]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    publicParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+    s_buffer = nullptr;
+    s_written = 0;
+    rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, public_mpi[N]);
+    if (rc != GPG_ERR_NO_ERROR) {
+        return OpenSSHKey();
+    }
+    publicParts << QByteArray(reinterpret_cast<char*>(s_buffer), s_written);
+    OpenSSHKey key;
+    key.setType("ssh-rsa");
+    key.setPublicData(publicParts);
+    key.setPublicData(privateParts);
+    key.setComment("");
+    return key;
+}
 
 OpenSSHKey::OpenSSHKey(QObject* parent)
     : QObject(parent)
@@ -88,7 +222,6 @@ int OpenSSHKey::keyLength() const
     } else if (m_type == "ssh-ed25519" && m_rawPublicData.length() == 1) {
         return m_rawPublicData[0].length() * 8;
     }
-
     return 0;
 }
 
@@ -236,8 +369,7 @@ bool OpenSSHKey::parsePKCS1PEM(const QByteArray& in)
         return false;
     }
 
-    if (m_rawType == TYPE_DSA_PRIVATE || m_rawType == TYPE_RSA_PRIVATE
-            || m_rawType == TYPE_RSA_PUBLIC) {
+    if (m_rawType == TYPE_DSA_PRIVATE || m_rawType == TYPE_RSA_PRIVATE || m_rawType == TYPE_RSA_PUBLIC) {
         m_rawData = data;
     } else if (m_rawType == TYPE_OPENSSH_PRIVATE) {
         BinaryStream stream(&data);
@@ -294,7 +426,7 @@ bool OpenSSHKey::parsePKCS1PEM(const QByteArray& in)
 
     // load private if no encryption
     if (!encrypted()) {
-        return openPrivateKey();
+        return openKey();
     }
 
     return true;
@@ -305,7 +437,7 @@ bool OpenSSHKey::encrypted() const
     return (m_cipherName != "none");
 }
 
-bool OpenSSHKey::openPrivateKey(const QString& passphrase)
+bool OpenSSHKey::openKey(const QString& passphrase)
 {
     QScopedPointer<SymmetricCipher> cipher;
 
@@ -417,13 +549,13 @@ bool OpenSSHKey::openPrivateKey(const QString& passphrase)
         }
 
         return true;
-    } else if (m_rawType == TYPE_RSA_PRIVATE ) {
+    } else if (m_rawType == TYPE_RSA_PRIVATE) {
         if (!ASN1Key::parsePrivateRSA(rawData, *this)) {
             m_error = tr("Decryption failed, wrong passphrase?");
             return false;
         }
         return true;
-    } else if( m_rawType == TYPE_RSA_PUBLIC ){
+    } else if (m_rawType == TYPE_RSA_PUBLIC) {
         if (!ASN1Key::parsePublicRSA(rawData, *this)) {
             m_error = tr("Decryption failed, wrong passphrase?");
             return false;

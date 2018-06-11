@@ -30,14 +30,8 @@ private slots:
     void testSigningOpenSSH_RSA_PrivateOnly();
     void testSigningOpenSSH_RSA();
 
-    // void testSigningOpenSSL_RSA_PrivateOnly();
-    // void testSigningOpenSSL_RSA();
-
     void testSigningTest_RSA_PrivateOnly();
     void testSigningTest_RSA();
-
-    void testSigningOpenSSH_DSA_PrivateOnly();
-    // void testSigningOpenSSH_DSA();
 };
 
 #endif // KEEPASSX_TESTSIGNATURE_H

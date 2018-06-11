@@ -19,20 +19,23 @@
 #ifndef KEEPASSXC_OPENSSHKEY_H
 #define KEEPASSXC_OPENSSHKEY_H
 
-#include "core/BinaryStream.h"
 #include <QtCore>
+
+class BinaryStream;
 
 class OpenSSHKey : QObject
 {
     Q_OBJECT
 public:
+    static OpenSSHKey generate();
+
     explicit OpenSSHKey(QObject* parent = nullptr);
     OpenSSHKey(const OpenSSHKey& other);
     bool operator==(const OpenSSHKey& other) const;
 
     bool parsePKCS1PEM(const QByteArray& in);
     bool encrypted() const;
-    bool openPrivateKey(const QString& passphrase = QString());
+    bool openKey(const QString& passphrase = QString());
 
     const QString cipherName() const;
     const QString type() const;
@@ -56,15 +59,14 @@ public:
 
     QList<QByteArray> publicParts() const;
     QList<QByteArray> privateParts() const;
-    const QString &privateType() const;
+    const QString& privateType() const;
 
     static const QString TYPE_DSA_PRIVATE;
     static const QString TYPE_RSA_PRIVATE;
     static const QString TYPE_RSA_PUBLIC;
     static const QString TYPE_OPENSSH_PRIVATE;
-    static const QString TYPE_OPENSSH_PUBLIC;
-private:
 
+private:
     bool extractPEM(const QByteArray& in, QByteArray& out);
 
     QString m_type;
