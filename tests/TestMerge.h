@@ -31,10 +31,11 @@ private slots:
     void testMergeIntoNew();
     void testMergeNoChanges();
     void testResolveConflictNewer();
-    void testResolveConflictOlder();
+    void testResolveConflictExisting();
     void testResolveGroupConflictOlder();
     void testResolveConflictKeepBoth();
-    void testResolveConflictSynchronized();
+    void testResolveConflictKeepNewerExtended();
+    void testResolveConflictKeepExistingExtended();
     void testMoveEntry();
     void testMoveEntryPreserveChanges();
     void testMoveEntryIntoNewGroup();

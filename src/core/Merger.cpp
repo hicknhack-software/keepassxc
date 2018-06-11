@@ -95,8 +95,7 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
             moveEntry(targetEntry, context.m_targetGroup);
         } else {
             // Entry is already present in the database. Update it.
-            bool locationChanged =
-                targetEntry->timeInfo().locationChanged() < sourceEntry->timeInfo().locationChanged();
+            bool locationChanged = targetEntry->timeInfo().locationChanged() < sourceEntry->timeInfo().locationChanged();
             if (locationChanged && targetEntry->group() != context.m_targetGroup) {
                 changes << tr("Relocating %1 [%2]").arg(sourceEntry->title()).arg(sourceEntry->uuid().toHex());
                 moveEntry(targetEntry, context.m_targetGroup);
@@ -139,8 +138,7 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
     return changes;
 }
 
-Merger::ChangeList
-Merger::resolveGroupConflict(const MergeContext& context, const Group* sourceChildGroup, Group* targetChildGroup)
+Merger::ChangeList Merger::resolveGroupConflict(const MergeContext& context, const Group* sourceChildGroup, Group* targetChildGroup)
 {
     Q_UNUSED(context);
     ChangeList changes;
@@ -159,7 +157,9 @@ Merger::resolveGroupConflict(const MergeContext& context, const Group* sourceChi
             targetChildGroup->setIcon(sourceChildGroup->iconNumber());
         }
         targetChildGroup->setExpiryTime(sourceChildGroup->timeInfo().expiryTime());
-        // TODO HNH: Since we are updating our own group from the source group, I think we should update the timestamp
+        TimeInfo timeInfo = targetChildGroup->timeInfo();
+        timeInfo.setLastModificationTime(timeOther);
+        targetChildGroup->setTimeInfo(timeInfo);
     }
     return changes;
 }
@@ -263,77 +263,80 @@ void Merger::eraseGroup(Group* group)
     database->setDeletedObjects(deletions);
 }
 
-Merger::ChangeList
-Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
+Merger::ChangeList Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
     ChangeList changes;
     // We need to cut off the milliseconds since the persistent format only supports times down to seconds
     // so when we import data from a remote source, it may represent the (or even some msec newer) data
     // which may be discarded due to higher runtime precision
-    const auto timeTarget = Clock::serialized(targetEntry->timeInfo().lastModificationTime());
-    const auto timeSource = Clock::serialized(sourceEntry->timeInfo().lastModificationTime());
 
     Group::MergeMode mergeMode = m_mode == ModeDefault ? context.m_targetGroup->mergeMode() : m_mode;
-
     switch (mergeMode) {
-    case Group::KeepBoth:
-        // if one entry is newer, create a clone and add it to the group
-        if (timeTarget > timeSource) {
-            Entry* clonedEntry = sourceEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
-            moveEntry(clonedEntry, context.m_targetGroup);
-            markOlderEntry(clonedEntry);
-            changes << tr("Adding backup for older source %1 [%2]")
+    case Group::KeepBoth: {
+            const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
+            // if one entry is newer, create a clone and add it to the group
+            if (comparison < 0) {
+                Entry* clonedEntry = sourceEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
+                moveEntry(clonedEntry, context.m_targetGroup);
+                markOlderEntry(targetEntry);
+                changes << tr("Adding backup for older target %1 [%2]")
+                           .arg(targetEntry->title())
+                           .arg(targetEntry->uuid().toHex());
+            } else if (comparison > 0) {
+                Entry* clonedEntry = sourceEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
+                moveEntry(clonedEntry, context.m_targetGroup);
+                markOlderEntry(clonedEntry);
+                changes << tr("Adding backup for older source %1 [%2]")
                            .arg(sourceEntry->title())
                            .arg(sourceEntry->uuid().toHex());
-        } else if (timeTarget < timeSource) {
-            Entry* clonedEntry = sourceEntry->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
-            moveEntry(clonedEntry, context.m_targetGroup);
-            markOlderEntry(targetEntry);
-            changes << tr("Adding backup for older target %1 [%2]")
-                           .arg(targetEntry->title())
-                           .arg(targetEntry->uuid().toHex());
+            }
         }
         break;
 
-    case Group::KeepNewer:
-        if (timeTarget < timeSource) {
-            // only if other entry is newer, replace existing one
-            Entry* clonedEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
-            Group* currentGroup = targetEntry->group();
-            qDebug("Updating entry %s.", qPrintable(targetEntry->title()));
-            moveEntry(clonedEntry, currentGroup);
-            eraseEntry(targetEntry);
-            changes << tr("Overwriting %1 [%2]").arg(clonedEntry->title()).arg(clonedEntry->uuid().toHex());
-        }
-        break;
-
-    case Group::KeepExisting:
-        break;
-
-    case Group::Synchronize:
-        if (timeTarget < timeSource) {
-            Group* currentGroup = targetEntry->group();
-            Entry* clonedEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
-            qDebug("Merge %s/%s with alien on top under %s",
-                   qPrintable(targetEntry->title()),
-                   qPrintable(sourceEntry->title()),
-                   qPrintable(currentGroup->name()));
-            changes << tr("Synchronizing from newer source %1 [%2]")
+    case Group::KeepExisting: {
+            const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
+            if (comparison < 0) {
+                // we need to make our older entry "newer" than the new entry - therefore
+                // we just create a new history entry without any changes - this preserves
+                // the old state before merging the new state and updates the timestamp
+                // the merge takes care, that the newer entry is sorted inbetween both entries
+                // this type of merge changes the database timestamp since reapplying the
+                // old entry is an active change of the database!
+                changes << tr("Reapplying older target entry on top of newer source %1 [%2]")
                            .arg(targetEntry->title())
                            .arg(targetEntry->uuid().toHex());
-            moveEntry(clonedEntry, currentGroup);
-            mergeHistory(targetEntry, clonedEntry);
-            eraseEntry(targetEntry);
-        } else {
-            qDebug("Merge %s/%s with local on top/under %s",
-                   qPrintable(targetEntry->title()),
-                   qPrintable(sourceEntry->title()),
-                   qPrintable(targetEntry->group()->name()));
-            const bool changed = mergeHistory(sourceEntry, targetEntry);
-            if (changed) {
-                changes << tr("Synchronizing from older source %1 [%2]")
+                Entry* agedTargetEntry = targetEntry->clone(Entry::CloneNoFlags);
+                targetEntry->addHistoryItem(agedTargetEntry);
+            }
+            // Intended Fallthrough - timestamp of target shoult be changed and influences following execution
+        }
+
+    case Group::KeepNewer: {
+            const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
+            if (comparison < 0) {
+                Group* currentGroup = targetEntry->group();
+                Entry* clonedEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
+                qDebug("Merge %s/%s with alien on top under %s",
+                       qPrintable(targetEntry->title()),
+                       qPrintable(sourceEntry->title()),
+                       qPrintable(currentGroup->name()));
+                changes << tr("Synchronizing from newer source %1 [%2]")
+                           .arg(targetEntry->title())
+                           .arg(targetEntry->uuid().toHex());
+                moveEntry(clonedEntry, currentGroup);
+                mergeHistory(targetEntry, clonedEntry);
+                eraseEntry(targetEntry);
+            } else {
+                qDebug("Merge %s/%s with local on top/under %s",
+                       qPrintable(targetEntry->title()),
+                       qPrintable(sourceEntry->title()),
+                       qPrintable(targetEntry->group()->name()));
+                const bool changed = mergeHistory(sourceEntry, targetEntry);
+                if (changed) {
+                    changes << tr("Synchronizing from older source %1 [%2]")
                                .arg(targetEntry->title())
                                .arg(targetEntry->uuid().toHex());
+                }
             }
         }
         break;

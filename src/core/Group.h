@@ -46,8 +46,7 @@ public:
         ModeInherit,
         KeepBoth,
         KeepNewer,
-        KeepExisting,
-        Synchronize
+        KeepExisting
     };
 
     enum CloneFlag

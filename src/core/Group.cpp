@@ -238,12 +238,10 @@ Group::MergeMode Group::mergeMode() const
     if (m_data.mergeMode == Group::MergeMode::ModeInherit) {
         if (m_parent) {
             return m_parent->mergeMode();
-        } else {
-            return Group::MergeMode::KeepNewer; // fallback
         }
-    } else {
-        return m_data.mergeMode;
+        return Group::MergeMode::KeepNewer; // fallback
     }
+    return m_data.mergeMode;
 }
 
 Entry* Group::lastTopVisibleEntry() const
