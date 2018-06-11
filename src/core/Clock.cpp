@@ -16,7 +16,7 @@
  */
 #include "Clock.h"
 
-static const Clock* m_clock = nullptr;
+QSharedPointer<Clock> Clock::m_instance = QSharedPointer<Clock>();
 
 QDateTime Clock::currentDateTimeUtc()
 {
@@ -92,24 +92,18 @@ QDateTime Clock::currentDateTimeImpl() const
 
 void Clock::resetInstance()
 {
-    if (m_clock) {
-        delete m_clock;
-    }
-    m_clock = nullptr;
+    m_instance.clear();
 }
 
 void Clock::setInstance(Clock* clock)
 {
-    if (m_clock) {
-        delete m_clock;
-    }
-    m_clock = clock;
+    m_instance = QSharedPointer<Clock>(clock);
 }
 
 const Clock& Clock::instance()
 {
-    if (!m_clock) {
-        m_clock = new Clock();
+    if (!m_instance) {
+        m_instance = QSharedPointer<Clock>(new Clock());
     }
-    return *m_clock;
+    return *m_instance;
 }

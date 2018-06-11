@@ -28,6 +28,7 @@ Merger::Merger(const Database* sourceDb, Database* targetDb)
     : m_mode(ModeDefault)
 {
     if (!sourceDb || !targetDb) {
+        Q_ASSERT(sourceDb && targetDb);
         return;
     }
 
@@ -39,6 +40,7 @@ Merger::Merger(const Group* sourceGroup, Group* targetGroup)
     : m_mode(ModeDefault)
 {
     if (!sourceGroup || !targetGroup) {
+        Q_ASSERT(sourceGroup && targetGroup);
         return;
     }
 
@@ -353,23 +355,23 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
     for (Entry* historyItem : targetHistoryItems) {
         const QDateTime modificationTime = Clock::serialized(historyItem->timeInfo().lastModificationTime());
         Q_ASSERT(!merged.contains(modificationTime)
-                 || merged[modificationTime]->equals(historyItem, CompareIgnoreMilliseconds));
+                 || merged[modificationTime]->equals(historyItem, CompareItemIgnoreMilliseconds));
         merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
     }
     for (Entry* historyItem : sourceHistoryItems) {
         // Items with same modification-time changes will be regarded as same (like KeePass2)
         const QDateTime modificationTime = Clock::serialized(historyItem->timeInfo().lastModificationTime());
         Q_ASSERT(!merged.contains(modificationTime)
-                 || merged[modificationTime]->equals(historyItem, CompareIgnoreMilliseconds));
+                 || merged[modificationTime]->equals(historyItem, CompareItemIgnoreMilliseconds));
         if (!merged.contains(modificationTime)) {
             merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
         }
     }
     const QDateTime targetModificationTime = Clock::serialized(targetEntry->timeInfo().lastModificationTime());
     const QDateTime sourceModificationTime = Clock::serialized(sourceEntry->timeInfo().lastModificationTime());
-    Q_ASSERT(
-        targetModificationTime != sourceModificationTime
-        || targetEntry->equals(sourceEntry, CompareIgnoreMilliseconds | CompareIgnoreHistory | CompareIgnoreLocation));
+    Q_ASSERT(targetModificationTime != sourceModificationTime
+             || targetEntry->equals(
+                    sourceEntry, CompareItemIgnoreMilliseconds | CompareItemIgnoreHistory | CompareItemIgnoreLocation));
 
     if (targetModificationTime < sourceModificationTime && !merged.contains(targetModificationTime)) {
         merged[targetModificationTime] = targetEntry->clone(Entry::CloneNoFlags);
@@ -387,7 +389,7 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
         if (!oldEntry && !newEntry) {
             continue;
         }
-        if (oldEntry && newEntry && oldEntry->equals(newEntry, CompareIgnoreMilliseconds)) {
+        if (oldEntry && newEntry && oldEntry->equals(newEntry, CompareItemIgnoreMilliseconds)) {
             continue;
         }
         changed = true;

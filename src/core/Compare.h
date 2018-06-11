@@ -22,23 +22,27 @@
 
 #include "core/Clock.h"
 
-enum CompareOption
+enum CompareItemOption
 {
-    CompareDefault = 0,
-    CompareIgnoreMilliseconds = 0x4,
-    CompareIgnoreStatistics = 0x8,
-    CompareIgnoreDisabled = 0x10,
-    CompareIgnoreHistory = 0x20,
-    CompareIgnoreLocation = 0x40,
+    CompareItemDefault = 0,
+    CompareItemIgnoreMilliseconds = 0x4,
+    CompareItemIgnoreStatistics = 0x8,
+    CompareItemIgnoreDisabled = 0x10,
+    CompareItemIgnoreHistory = 0x20,
+    CompareItemIgnoreLocation = 0x40,
 };
-Q_DECLARE_FLAGS(CompareOptions, CompareOption)
-Q_DECLARE_OPERATORS_FOR_FLAGS(CompareOptions)
+Q_DECLARE_FLAGS(CompareItemOptions, CompareItemOption)
+Q_DECLARE_OPERATORS_FOR_FLAGS(CompareItemOptions)
 
 class QColor;
-
+/*!
+ * \return true when both color match
+ *
+ * Comparison converts both into the cmyk-model
+ */
 bool operator<(const QColor& lhs, const QColor& rhs);
 
-template <typename Type> inline short compareGeneric(const Type& lhs, const Type& rhs, CompareOptions)
+template <typename Type> inline short compareGeneric(const Type& lhs, const Type& rhs, CompareItemOptions)
 {
     if (lhs != rhs) {
         return lhs < rhs ? -1 : +1;
@@ -46,21 +50,22 @@ template <typename Type> inline short compareGeneric(const Type& lhs, const Type
     return 0;
 }
 
-template <typename Type> inline short compare(const Type& lhs, const Type& rhs, CompareOptions options = CompareDefault)
+template <typename Type>
+inline short compare(const Type& lhs, const Type& rhs, CompareItemOptions options = CompareItemDefault)
 {
     return compareGeneric(lhs, rhs, options);
 }
 
-template <> inline short compare(const QDateTime& lhs, const QDateTime& rhs, CompareOptions options)
+template <> inline short compare(const QDateTime& lhs, const QDateTime& rhs, CompareItemOptions options)
 {
-    if (!options.testFlag(CompareIgnoreMilliseconds)) {
+    if (!options.testFlag(CompareItemIgnoreMilliseconds)) {
         return compareGeneric(lhs, rhs, options);
     }
     return compareGeneric(Clock::serialized(lhs), Clock::serialized(rhs), options);
 }
 
 template <typename Type>
-inline short compare(bool enabled, const Type& lhs, const Type& rhs, CompareOptions options = CompareDefault)
+inline short compare(bool enabled, const Type& lhs, const Type& rhs, CompareItemOptions options = CompareItemDefault)
 {
     if (!enabled) {
         return 0;
@@ -69,14 +74,15 @@ inline short compare(bool enabled, const Type& lhs, const Type& rhs, CompareOpti
 }
 
 template <typename Type>
-inline short
-compare(bool lhsEnabled, const Type& lhs, bool rhsEnabled, const Type& rhs, CompareOptions options = CompareDefault)
+inline short compare(bool lhsEnabled,
+                     const Type& lhs,
+                     bool rhsEnabled,
+                     const Type& rhs,
+                     CompareItemOptions options = CompareItemDefault)
 {
-    short enabled = compareGeneric(lhsEnabled, rhsEnabled, options);
-    if (enabled == 0) {
-        if (!options.testFlag(CompareIgnoreDisabled) || (lhsEnabled && rhsEnabled)) {
-            return compare(lhs, rhs, options);
-        }
+    const short enabled = compareGeneric(lhsEnabled, rhsEnabled, options);
+    if (enabled == 0 && (!options.testFlag(CompareItemIgnoreDisabled) || (lhsEnabled && rhsEnabled))) {
+        return compare(lhs, rhs, options);
     }
     return enabled;
 }

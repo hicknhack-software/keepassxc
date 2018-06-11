@@ -73,11 +73,8 @@ public:
         Group::MergeMode mergeMode;
 
         bool operator==(const GroupData& other) const;
-        bool operator!=(const GroupData& other) const
-        {
-            return !(*this == other);
-        }
-        bool equals(const GroupData& other, CompareOptions options) const;
+        bool operator!=(const GroupData& other) const;
+        bool equals(const GroupData& other, CompareItemOptions options) const;
     };
 
     Group();
@@ -107,8 +104,7 @@ public:
     CustomData* customData();
     const CustomData* customData() const;
 
-    bool equals(const Group& other, CompareOptions options) const;
-    bool equals(const Group* other, CompareOptions options) const;
+    bool equals(const Group* other, CompareItemOptions options) const;
 
     static const int DefaultIconNumber;
     static const int RecycleBinIconNumber;

@@ -128,3 +128,8 @@ bool AutoTypeAssociations::operator==(const AutoTypeAssociations& other) const
     }
     return true;
 }
+
+bool AutoTypeAssociations::operator!=(const AutoTypeAssociations& other) const
+{
+    return !(*this == other);
+}
