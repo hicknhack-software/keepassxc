@@ -19,6 +19,7 @@
 #define KEEPASSXC_CLOCK_H
 
 #include <QDateTime>
+#include <QSharedPointer>
 
 class Clock
 {
@@ -49,6 +50,9 @@ protected:
     static void resetInstance();
     static void setInstance(Clock* clock);
     static const Clock& instance();
+
+private:
+    static QSharedPointer<Clock> m_instance;
 };
 
 #endif // KEEPASSX_ENTRY_H

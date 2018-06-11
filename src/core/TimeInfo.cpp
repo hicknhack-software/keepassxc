@@ -109,10 +109,10 @@ void TimeInfo::setLocationChanged(const QDateTime& dateTime)
 
 bool TimeInfo::operator==(const TimeInfo& other) const
 {
-    return equals(other, CompareDefault);
+    return equals(other, CompareItemDefault);
 }
 
-bool TimeInfo::equals(const TimeInfo& other, CompareOptions options) const
+bool TimeInfo::equals(const TimeInfo& other, CompareItemOptions options) const
 {
     if (::compare(m_lastModificationTime, other.m_lastModificationTime, options) != 0) {
         return false;
@@ -120,16 +120,18 @@ bool TimeInfo::equals(const TimeInfo& other, CompareOptions options) const
     if (::compare(m_creationTime, other.m_creationTime, options) != 0) {
         return false;
     }
-    if (::compare(!options.testFlag(CompareIgnoreStatistics), m_lastAccessTime, other.m_lastAccessTime, options) != 0) {
+    if (::compare(!options.testFlag(CompareItemIgnoreStatistics), m_lastAccessTime, other.m_lastAccessTime, options)
+        != 0) {
         return false;
     }
     if (::compare(m_expires, m_expiryTime, other.m_expires, other.expiryTime(), options) != 0) {
         return false;
     }
-    if (::compare(!options.testFlag(CompareIgnoreStatistics), m_usageCount, other.m_usageCount, options) != 0) {
+    if (::compare(!options.testFlag(CompareItemIgnoreStatistics), m_usageCount, other.m_usageCount, options) != 0) {
         return false;
     }
-    if (::compare(!options.testFlag(CompareIgnoreLocation), m_locationChanged, other.m_locationChanged, options) != 0) {
+    if (::compare(!options.testFlag(CompareItemIgnoreLocation), m_locationChanged, other.m_locationChanged, options)
+        != 0) {
         return false;
     }
     return true;

@@ -27,10 +27,10 @@ QTEST_GUILESS_MAIN(TestMerge)
 
 namespace
 {
-    TimeInfo modificationTime(TimeInfo timeInfo, int iYears, int iMonths, int iDays)
+    TimeInfo modificationTime(TimeInfo timeInfo, int years, int months, int days)
     {
         const QDateTime time = timeInfo.lastModificationTime();
-        timeInfo.setLastModificationTime(time.addYears(iYears).addMonths(iMonths).addDays(iDays));
+        timeInfo.setLastModificationTime(time.addYears(years).addMonths(months).addDays(days));
         return timeInfo;
     }
 

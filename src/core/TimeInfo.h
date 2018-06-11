@@ -41,7 +41,7 @@ public:
     {
         return !this->operator==(other);
     }
-    bool equals(const TimeInfo& other, CompareOptions options = CompareDefault) const;
+    bool equals(const TimeInfo& other, CompareItemOptions options = CompareItemDefault) const;
 
     void setLastModificationTime(const QDateTime& dateTime);
     void setCreationTime(const QDateTime& dateTime);

@@ -79,9 +79,8 @@ template <class T> inline bool Entry::set(T& property, const T& value)
         property = value;
         emit modified();
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 void Entry::updateTimeinfo()
@@ -149,15 +148,13 @@ QPixmap Entry::iconPixmap() const
 {
     if (m_data.customIcon.isNull()) {
         return databaseIcons()->iconPixmap(m_data.iconNumber);
-    } else {
-        Q_ASSERT(database());
-
-        if (database()) {
-            return database()->metadata()->customIconPixmap(m_data.customIcon);
-        } else {
-            return QPixmap();
-        }
     }
+
+    Q_ASSERT(database());
+    if (database()) {
+        return database()->metadata()->customIconPixmap(m_data.customIcon);
+    }
+    return QPixmap();
 }
 
 QPixmap Entry::iconScaledPixmap() const
@@ -165,11 +162,9 @@ QPixmap Entry::iconScaledPixmap() const
     if (m_data.customIcon.isNull()) {
         // built-in icons are 16x16 so don't need to be scaled
         return databaseIcons()->iconPixmap(m_data.iconNumber);
-    } else {
-        Q_ASSERT(database());
-
-        return database()->metadata()->customIconScaledPixmap(m_data.customIcon);
     }
+    Q_ASSERT(database());
+    return database()->metadata()->customIconScaledPixmap(m_data.customIcon);
 }
 
 int Entry::iconNumber() const
@@ -634,42 +629,40 @@ void Entry::truncateHistory()
     }
 }
 
-bool Entry::equals(const Entry& other, CompareOptions options) const
+bool Entry::equals(const Entry* other, CompareItemOptions options) const
 {
-    if (m_uuid != other.uuid()) {
+    if (!other) {
         return false;
     }
-    if (!m_data.equals(other.m_data, options)) {
+    if (m_uuid != other->uuid()) {
         return false;
     }
-    if (*m_customData != *other.m_customData) {
+    if (!m_data.equals(other->m_data, options)) {
         return false;
     }
-    if (*m_attributes != *other.m_attributes) {
+    if (*m_customData != *other->m_customData) {
         return false;
     }
-    if (*m_attachments != *other.m_attachments) {
+    if (*m_attributes != *other->m_attributes) {
         return false;
     }
-    if (*m_autoTypeAssociations != *other.m_autoTypeAssociations) {
+    if (*m_attachments != *other->m_attachments) {
         return false;
     }
-    if (!options.testFlag(CompareIgnoreHistory)) {
-        if (m_history.count() != other.m_history.count()) {
+    if (*m_autoTypeAssociations != *other->m_autoTypeAssociations) {
+        return false;
+    }
+    if (!options.testFlag(CompareItemIgnoreHistory)) {
+        if (m_history.count() != other->m_history.count()) {
             return false;
         }
         for (int i = 0; i < m_history.count(); ++i) {
-            if (!m_history[i]->equals(*other.m_history[i], options)) {
+            if (!m_history[i]->equals(other->m_history[i], options)) {
                 return false;
             }
         }
     }
     return true;
-}
-
-bool Entry::equals(const Entry* other, CompareOptions options) const
-{
-    return other && equals(*other, options);
 }
 
 Entry* Entry::clone(CloneFlags flags) const
@@ -997,18 +990,16 @@ const Database* Entry::database() const
 {
     if (m_group) {
         return m_group->database();
-    } else {
-        return nullptr;
     }
+    return nullptr;
 }
 
 Database* Entry::database()
 {
     if (m_group) {
         return m_group->database();
-    } else {
-        return nullptr;
     }
+    return nullptr;
 }
 
 QString Entry::maskPasswordPlaceholders(const QString& str) const
@@ -1082,9 +1073,11 @@ Entry::PlaceholderType Entry::placeholderType(const QString& placeholder) const
 {
     if (!placeholder.startsWith(QLatin1Char('{')) || !placeholder.endsWith(QLatin1Char('}'))) {
         return PlaceholderType::NotPlaceholder;
-    } else if (placeholder.startsWith(QLatin1Literal("{S:"))) {
+    }
+    if (placeholder.startsWith(QLatin1Literal("{S:"))) {
         return PlaceholderType::CustomAttribute;
-    } else if (placeholder.startsWith(QLatin1Literal("{REF:"))) {
+    }
+    if (placeholder.startsWith(QLatin1Literal("{REF:"))) {
         return PlaceholderType::Reference;
     }
 
@@ -1144,10 +1137,15 @@ QString Entry::resolveUrl(const QString& url) const
 
 bool EntryData::operator==(const EntryData& other) const
 {
-    return equals(other, CompareDefault);
+    return equals(other, CompareItemDefault);
 }
 
-bool EntryData::equals(const EntryData& other, CompareOptions options) const
+bool EntryData::operator!=(const EntryData& other) const
+{
+    return !(*this == other);
+}
+
+bool EntryData::equals(const EntryData& other, CompareItemOptions options) const
 {
     if (::compare(iconNumber, other.iconNumber, options) != 0) {
         return false;

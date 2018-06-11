@@ -65,11 +65,8 @@ struct EntryData
     mutable quint8 totpStep;
 
     bool operator==(const EntryData& other) const;
-    bool operator!=(const EntryData& other) const
-    {
-        return !(*this == other);
-    }
-    bool equals(const EntryData& other, CompareOptions options) const;
+    bool operator!=(const EntryData& other) const;
+    bool equals(const EntryData& other, CompareItemOptions options) const;
 };
 
 class Entry : public QObject
@@ -150,8 +147,7 @@ public:
     void removeHistoryItems(const QList<Entry*>& historyEntries);
     void truncateHistory();
 
-    bool equals(const Entry& other, CompareOptions options = CompareDefault) const;
-    bool equals(const Entry* other, CompareOptions options = CompareDefault) const;
+    bool equals(const Entry* other, CompareItemOptions options = CompareItemDefault) const;
 
     enum CloneFlag
     {

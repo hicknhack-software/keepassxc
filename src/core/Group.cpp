@@ -266,48 +266,37 @@ const CustomData* Group::customData() const
     return m_customData;
 }
 
-bool Group::equals(const Group& other, CompareOptions options) const
+bool Group::equals(const Group* other, CompareItemOptions options) const
 {
-    if (m_uuid != other.m_uuid) {
+    if (!other) {
         return false;
     }
-    if (!m_data.equals(other.m_data, options)) {
+    if (m_uuid != other->m_uuid) {
         return false;
     }
-    if (m_customData != other.m_customData) {
+    if (!m_data.equals(other->m_data, options)) {
         return false;
     }
-    if (m_children.count() != other.m_children.count()) {
+    if (m_customData != other->m_customData) {
         return false;
     }
-    if (m_entries.count() != other.m_entries.count()) {
+    if (m_children.count() != other->m_children.count()) {
         return false;
     }
-    QSet<Uuid> groupUuids;
-    QSet<Uuid> otherGroupUuids;
+    if (m_entries.count() != other->m_entries.count()) {
+        return false;
+    }
     for (int i = 0; i < m_children.count(); ++i) {
-        groupUuids << m_children[i]->uuid();
-        otherGroupUuids << other.m_children[i]->uuid();
+        if (m_children[i]->uuid() != other->m_children[i]->uuid()) {
+            return false;
+        }
     }
-    if (groupUuids != otherGroupUuids) {
-        return false;
-    }
-
-    QSet<Uuid> entryUuids;
-    QSet<Uuid> otherEntryUuids;
     for (int i = 0; i < m_entries.count(); ++i) {
-        entryUuids << m_entries[i]->uuid();
-        otherEntryUuids << other.m_entries[i]->uuid();
-    }
-    if (entryUuids != otherEntryUuids) {
-        return false;
+        if (m_entries[i]->uuid() != other->m_entries[i]->uuid()) {
+            return false;
+        }
     }
     return true;
-}
-
-bool Group::equals(const Group* other, CompareOptions options) const
-{
-    return other && equals(*other, options);
 }
 
 void Group::setUuid(const Uuid& uuid)
@@ -986,10 +975,15 @@ Entry* Group::addEntryWithPath(QString entryPath)
 
 bool Group::GroupData::operator==(const Group::GroupData& other) const
 {
-    return equals(other, CompareDefault);
+    return equals(other, CompareItemDefault);
 }
 
-bool Group::GroupData::equals(const Group::GroupData& other, CompareOptions options) const
+bool Group::GroupData::operator!=(const Group::GroupData& other) const
+{
+    return !(*this == other);
+}
+
+bool Group::GroupData::equals(const Group::GroupData& other, CompareItemOptions options) const
 {
     if (::compare(name, other.name, options) != 0) {
         return false;
