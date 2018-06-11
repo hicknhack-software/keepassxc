@@ -19,15 +19,15 @@
 #define KEEPASSXC_MERGER_H
 
 #include "core/Group.h"
-#include <QCoreApplication>
 #include <QPointer>
+#include <QObject>
 
 class Database;
 class Entry;
 
-class Merger
+class Merger : public QObject
 {
-    Q_DECLARE_TR_FUNCTIONS(Merger)
+    Q_OBJECT
 public:
     Merger(const Database* sourceDb, Database* targetDb);
     Merger(const Group* sourceGroup, Group* targetGroup);

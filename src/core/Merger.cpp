@@ -110,8 +110,7 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
     for (Group* sourceChildGroup : sourceChildGroups) {
         Group* targetChildGroup = context.m_targetRootGroup->findGroupByUuid(sourceChildGroup->uuid());
         if (!targetChildGroup) {
-            changes
-                << tr("Creating missing %1 [%2]").arg(sourceChildGroup->name()).arg(sourceChildGroup->uuid().toHex());
+            changes << tr("Creating missing %1 [%2]").arg(sourceChildGroup->name()).arg(sourceChildGroup->uuid().toHex());
             targetChildGroup = sourceChildGroup->clone(Entry::CloneNoFlags, Group::CloneNoFlags);
             moveGroup(targetChildGroup, context.m_targetGroup);
             TimeInfo timeinfo = targetChildGroup->timeInfo();
@@ -367,6 +366,7 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
             merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
         }
     }
+
     const QDateTime targetModificationTime = Clock::serialized(targetEntry->timeInfo().lastModificationTime());
     const QDateTime sourceModificationTime = Clock::serialized(sourceEntry->timeInfo().lastModificationTime());
     Q_ASSERT(targetModificationTime != sourceModificationTime
@@ -375,8 +375,7 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
 
     if (targetModificationTime < sourceModificationTime && !merged.contains(targetModificationTime)) {
         merged[targetModificationTime] = targetEntry->clone(Entry::CloneNoFlags);
-    }
-    if (targetModificationTime > sourceModificationTime && !merged.contains(sourceModificationTime)) {
+    } else if (targetModificationTime > sourceModificationTime && !merged.contains(sourceModificationTime)) {
         merged[sourceModificationTime] = sourceEntry->clone(Entry::CloneNoFlags);
     }
 

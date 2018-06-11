@@ -22,32 +22,31 @@
 
 #include <QDateTime>
 
-namespace Test
+
+class TestClock : public Clock
 {
-    class Clock : public ::Clock
-    {
-    public:
-        Clock(int year, int month, int day, int hour, int min, int second);
+public:
+    TestClock(int year, int month, int day, int hour, int min, int second);
 
-        Clock(QDateTime utcBase = QDateTime::currentDateTimeUtc());
+    TestClock(QDateTime utcBase = QDateTime::currentDateTimeUtc());
 
-        const QDateTime& advanceSecond(int seconds);
-        const QDateTime& advanceMinute(int minutes);
-        const QDateTime& advanceHour(int hours);
-        const QDateTime& advanceDay(int days);
-        const QDateTime& advanceMonth(int months);
-        const QDateTime& advanceYear(int years);
+    const QDateTime& advanceSecond(int seconds);
+    const QDateTime& advanceMinute(int minutes);
+    const QDateTime& advanceHour(int hours);
+    const QDateTime& advanceDay(int days);
+    const QDateTime& advanceMonth(int months);
+    const QDateTime& advanceYear(int years);
 
-        static void setup(::Clock* clock);
-        static void teardown();
+    static void setup(Clock* clock);
+    static void teardown();
 
-    protected:
-        QDateTime currentDateTimeUtcImpl() const;
-        QDateTime currentDateTimeImpl() const;
+protected:
+    QDateTime currentDateTimeUtcImpl() const;
+    QDateTime currentDateTimeImpl() const;
 
-    private:
-        QDateTime m_utcCurrent;
-    };
-} // namespace Test
+private:
+    QDateTime m_utcCurrent;
+};
+
 
 #endif // KEEPASSXC_TESTCLOCK_H

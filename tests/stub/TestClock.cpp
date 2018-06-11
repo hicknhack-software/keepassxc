@@ -17,74 +17,70 @@
 
 #include "TestClock.h"
 
-namespace Test
+TestClock::TestClock(int year, int month, int day, int hour, int min, int second)
+    : Clock()
+    , m_utcCurrent(datetimeUtc(year, month, day, hour, min, second))
 {
+}
 
-    Clock::Clock(int year, int month, int day, int hour, int min, int second)
-        : ::Clock()
-        , m_utcCurrent(datetimeUtc(year, month, day, hour, min, second))
-    {
-    }
+TestClock::TestClock(QDateTime utcBase)
+    : Clock()
+    , m_utcCurrent(utcBase)
+{
+}
 
-    Clock::Clock(QDateTime utcBase)
-        : ::Clock()
-        , m_utcCurrent(utcBase)
-    {
-    }
+const QDateTime& TestClock::advanceSecond(int seconds)
+{
+    m_utcCurrent = m_utcCurrent.addSecs(seconds);
+    return m_utcCurrent;
+}
 
-    const QDateTime& Clock::advanceSecond(int seconds)
-    {
-        m_utcCurrent = m_utcCurrent.addSecs(seconds);
-        return m_utcCurrent;
-    }
+const QDateTime& TestClock::advanceMinute(int minutes)
+{
+    m_utcCurrent = m_utcCurrent.addSecs(minutes * 60);
+    return m_utcCurrent;
+}
 
-    const QDateTime& Clock::advanceMinute(int minutes)
-    {
-        m_utcCurrent = m_utcCurrent.addSecs(minutes * 60);
-        return m_utcCurrent;
-    }
+const QDateTime& TestClock::advanceHour(int hours)
+{
+    m_utcCurrent = m_utcCurrent.addSecs(hours * 60 * 60);
+    return m_utcCurrent;
+}
 
-    const QDateTime& Clock::advanceHour(int hours)
-    {
-        m_utcCurrent = m_utcCurrent.addSecs(hours * 60 * 60);
-        return m_utcCurrent;
-    }
+const QDateTime& TestClock::advanceDay(int days)
+{
+    m_utcCurrent = m_utcCurrent.addDays(days);
+    return m_utcCurrent;
+}
 
-    const QDateTime& Clock::advanceDay(int days)
-    {
-        m_utcCurrent = m_utcCurrent.addDays(days);
-        return m_utcCurrent;
-    }
+const QDateTime& TestClock::advanceMonth(int months)
+{
+    m_utcCurrent = m_utcCurrent.addMonths(months);
+    return m_utcCurrent;
+}
 
-    const QDateTime& Clock::advanceMonth(int months)
-    {
-        m_utcCurrent = m_utcCurrent.addMonths(months);
-        return m_utcCurrent;
-    }
+const QDateTime& TestClock::advanceYear(int years)
+{
+    m_utcCurrent = m_utcCurrent.addYears(years);
+    return m_utcCurrent;
+}
 
-    const QDateTime& Clock::advanceYear(int years)
-    {
-        m_utcCurrent = m_utcCurrent.addYears(years);
-        return m_utcCurrent;
-    }
+void TestClock::setup(Clock* clock)
+{
+    Clock::setInstance(clock);
+}
 
-    void Clock::setup(::Clock* clock)
-    {
-        ::Clock::setInstance(clock);
-    }
+void TestClock::teardown()
+{
+    Clock::resetInstance();
+}
 
-    void Clock::teardown()
-    {
-        ::Clock::resetInstance();
-    }
+QDateTime TestClock::currentDateTimeUtcImpl() const
+{
+    return m_utcCurrent;
+}
 
-    QDateTime Clock::currentDateTimeUtcImpl() const
-    {
-        return m_utcCurrent;
-    }
-
-    QDateTime Clock::currentDateTimeImpl() const
-    {
-        return m_utcCurrent.toLocalTime();
-    }
+QDateTime TestClock::currentDateTimeImpl() const
+{
+    return m_utcCurrent.toLocalTime();
 }

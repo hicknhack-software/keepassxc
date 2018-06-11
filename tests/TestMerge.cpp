@@ -34,7 +34,7 @@ namespace
         return timeInfo;
     }
 
-    Test::Clock* m_clock = nullptr;
+    TestClock* m_clock = nullptr;
 }
 
 void TestMerge::initTestCase()
@@ -47,13 +47,13 @@ void TestMerge::initTestCase()
 void TestMerge::init()
 {
     Q_ASSERT(m_clock == nullptr);
-    m_clock = new Test::Clock(2010, 5, 5, 10, 30, 10);
-    Test::Clock::setup(m_clock);
+    m_clock = new TestClock(2010, 5, 5, 10, 30, 10);
+    TestClock::setup(m_clock);
 }
 
 void TestMerge::cleanup()
 {
-    Test::Clock::teardown();
+    TestClock::teardown();
     m_clock = nullptr;
 }
 
