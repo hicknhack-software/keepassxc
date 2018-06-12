@@ -20,6 +20,9 @@
 
 #include "core/Database.h"
 #include <QObject>
+#include <QMap>
+#include <QDateTime>
+#include <functional>
 
 class TestMerge : public QObject
 {
@@ -54,6 +57,7 @@ private slots:
 private:
     Database* createTestDatabase();
     Database* createTestDatabaseStructureClone(Database* source, int entryFlags, int groupFlags);
+    void testResolveConflictTemplate(int mergeMode, std::function<void (Database *, const QMap<const char *, QDateTime> &)> verification);
 };
 
 #endif // KEEPASSX_TESTMERGE_H
