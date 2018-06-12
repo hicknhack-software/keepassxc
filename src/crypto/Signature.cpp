@@ -18,8 +18,8 @@
 #include "Signature.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoHash.h"
+#include "crypto/CryptoTool.h"
 #include "crypto/OpenSSHKey.h"
-#include "crypto/Tool.h"
 
 #include <QByteArray>
 #include <gcrypt.h>
@@ -64,8 +64,8 @@ struct RSASigner
 
         const QByteArray block = CryptoHash::hash(data, CryptoHash::Sha256);
 
-        Tool::GMap<Index, gcry_mpi_t, &gcry_mpi_release> mpi;
-        Tool::GMap<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
+        Tool::Map<Index, gcry_mpi_t, &gcry_mpi_release> mpi;
+        Tool::Map<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
         const gcry_mpi_format format = GCRYMPI_FMT_USG;
         const QList<QByteArray> parts = key.privateParts();
         rc = gcry_mpi_scan(&mpi[N], format, parts[0].data(), parts[0].size(), nullptr);
@@ -137,15 +137,14 @@ struct RSASigner
         // TODO CK: manage memory allocated by gcry (sexp_find, mpi_aprint, ...)
         sexp[S] = gcry_sexp_find_token(sexp[Sig], "s", 1);
         mpi[S] = gcry_sexp_nth_mpi(sexp[S], 1, GCRYMPI_FMT_USG);
-        unsigned char* s_buffer = nullptr;
-        size_t s_written = 0;
-        rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &s_buffer, &s_written, mpi[S]);
+        Tool::Buffer buffer;
+        rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &buffer.raw, &buffer.size, mpi[S]);
         if (rc != GPG_ERR_NO_ERROR) {
             raiseError();
             return QString();
         }
         return QString("rsa|%1").arg(
-            QString::fromLatin1(QByteArray(reinterpret_cast<char*>(s_buffer), s_written).toHex()));
+            QString::fromLatin1(buffer.content().toHex()));
     }
 
     bool verify(const QByteArray& data, const OpenSSHKey& key, const QString& signature)
@@ -166,8 +165,8 @@ struct RSASigner
         };
         const QByteArray block = CryptoHash::hash(data, CryptoHash::Sha256);
 
-        Tool::GMap<MPI, gcry_mpi_t, &gcry_mpi_release> mpi;
-        Tool::GMap<SEXP, gcry_sexp_t, &gcry_sexp_release> sexp;
+        Tool::Map<MPI, gcry_mpi_t, &gcry_mpi_release> mpi;
+        Tool::Map<SEXP, gcry_sexp_t, &gcry_sexp_release> sexp;
         const QList<QByteArray> parts = key.publicParts();
 
         rc = gcry_mpi_scan(&mpi[E], format, parts[0].data(), parts[0].size(), nullptr);

@@ -15,14 +15,14 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_TOOL_H
-#define KEEPASSXC_TOOL_H
+#ifndef KEEPASSXC_CRYPTOTOOL_H
+#define KEEPASSXC_CRYPTOTOOL_H
 
 #include <QMap>
 
 namespace Tool
 {
-    template <typename Key, typename Value, void deleter(Value)> struct GMap
+    template <typename Key, typename Value, void deleter(Value)> struct Map
     {
         QMap<Key, Value> values;
         Value& operator[](const Key index)
@@ -30,7 +30,7 @@ namespace Tool
             return values[index];
         }
 
-        ~GMap()
+        ~Map()
         {
             for (Value m : values) {
                 deleter(m);
@@ -38,14 +38,17 @@ namespace Tool
         }
     };
 
-    template <typename Value, void deleter(Value)> struct GValue
+    struct Buffer
     {
-        Value value;
-        ~GValue()
-        {
-            deleter(value);
-        }
+        unsigned char* raw;
+        size_t size;
+
+        Buffer();
+        ~Buffer();
+
+        void clear();
+        QByteArray content() const;
     };
 }
 
-#endif // KEEPASSXC_TOOL_H
+#endif // KEEPASSXC_CRYPTOTOOL_H

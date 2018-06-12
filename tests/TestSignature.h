@@ -27,8 +27,11 @@ class TestSignature : public QObject
 
 private slots:
     void initTestCase();
+
     void testSigningOpenSSH_RSA_PrivateOnly();
     void testSigningOpenSSH_RSA();
+
+    void testSigningGenerated_RSA_PrivateOnly();
 
     void testSigningTest_RSA_PrivateOnly();
     void testSigningTest_RSA();

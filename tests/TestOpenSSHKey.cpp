@@ -329,3 +329,12 @@ void TestOpenSSHKey::testDecryptRSAAES256CTR()
     QCOMPARE(key.comment(), QString(""));
     QCOMPARE(key.fingerprint(), QString("SHA256:1Hsebt2WWnmc72FERsUOgvaajIGHkrMONxXylcmk87U"));
 }
+
+void TestOpenSSHKey::testGenerateRSA()
+{
+    OpenSSHKey key = OpenSSHKey::generate(false);
+    QVERIFY(!key.encrypted());
+    QCOMPARE(key.cipherName(), QString("none"));
+    QCOMPARE(key.type(), QString("ssh-rsa"));
+    QCOMPARE(key.comment(), QString(""));
+}

@@ -80,13 +80,13 @@ set(keepassx_SOURCES
     crypto/ASN1Key.cpp
     crypto/Crypto.cpp
     crypto/CryptoHash.cpp
+    crypto/CryptoTool.cpp
     crypto/OpenSSHKey.cpp
     crypto/Random.cpp
     crypto/Signature.cpp
     crypto/SymmetricCipher.cpp
     crypto/SymmetricCipherBackend.h
     crypto/SymmetricCipherGcrypt.cpp
-    crypto/Tool.cpp
     crypto/kdf/Kdf.cpp
     crypto/kdf/Kdf_p.h
     crypto/kdf/AesKdf.cpp

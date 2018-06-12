@@ -110,8 +110,6 @@ static QByteArray data("Some trivial test with a longer .... ...................
 void TestSignature::initTestCase()
 {
     QVERIFY(Crypto::init());
-
-    OpenSSHKey::generate();
 }
 
 void TestSignature::testSigningOpenSSH_RSA_PrivateOnly()
@@ -148,6 +146,20 @@ void TestSignature::testSigningOpenSSH_RSA()
 
     Signature verifier;
     const bool verified = verifier.verify(data, sign, publicKey);
+    QCOMPARE(verified, true);
+}
+
+void TestSignature::testSigningGenerated_RSA_PrivateOnly()
+{
+    OpenSSHKey privateKey = OpenSSHKey::generate(false);
+    privateKey.openKey(QString());
+
+    Signature signer;
+    const QString sign = signer.create(data, privateKey);
+    QVERIFY(!sign.isEmpty());
+
+    Signature verifier;
+    const bool verified = verifier.verify(data, sign, privateKey);
     QCOMPARE(verified, true);
 }
 

@@ -27,7 +27,7 @@ class OpenSSHKey : QObject
 {
     Q_OBJECT
 public:
-    static OpenSSHKey generate();
+    static OpenSSHKey generate(bool secure = true);
 
     explicit OpenSSHKey(QObject* parent = nullptr);
     OpenSSHKey(const OpenSSHKey& other);
@@ -74,8 +74,8 @@ private:
     QByteArray m_cipherIV;
     QString m_kdfName;
     QByteArray m_kdfOptions;
-    QByteArray m_rawData;
     QString m_rawType;
+    QByteArray m_rawData;
     QList<QByteArray> m_rawPublicData;
     QList<QByteArray> m_rawPrivateData;
     QString m_comment;

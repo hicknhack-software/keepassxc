@@ -15,5 +15,38 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#include "CryptoTool.h"
 #include <gcrypt.h>
+#include <QByteArray>
+
+namespace Tool {
+
+Buffer::Buffer()
+    : raw(nullptr)
+    , size(0)
+{
+
+}
+
+Buffer::~Buffer()
+{
+    clear();
+}
+
+void Buffer::clear()
+{
+    if(size > 0){
+        free(raw);
+    }
+    raw = nullptr; size = 0;
+}
+
+QByteArray Buffer::content() const
+{
+    return QByteArray(reinterpret_cast<char*>(raw), size );
+}
+
+}
+
+
+
