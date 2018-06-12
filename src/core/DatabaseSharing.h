@@ -48,16 +48,16 @@ public:
 
     struct Reference
     {
-        Type type;
+        Type type; // Type of reference
         Uuid uuid;
         QString path;
         QString password;
-        QString certificate;
+        QStringList certificates;
         QString key;
         QString signer;
 
         Reference();
-        Reference(Type type, const Uuid& uuid, const QString& path, const QString& password);
+        Reference(Type type, const Uuid& uuid, const QString& path, const QString& password, const QStringList& certificates, const QString& key, const QString& signer);
         bool isNull() const;
         bool isActive() const;
         bool isExporting() const;
@@ -69,6 +69,7 @@ public:
     static Reference referenceOf(const CustomData* customData);
     static void setReferenceTo(CustomData* customData, const Reference& reference);
     static QString referenceTypeLabel(const Reference& reference);
+    static void assignDefaultsTo(Reference &reference);
 
     static QString indicatorSuffix(const Group* group, const QString& text);
     static QPixmap indicatorBadge(const Group* group, QPixmap pixmap);

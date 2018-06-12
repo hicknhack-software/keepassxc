@@ -74,7 +74,10 @@ private:
     QByteArray m_cipherIV;
     QString m_kdfName;
     QByteArray m_kdfOptions;
+public:
+    // TODO HNH Hack!
     QString m_rawType;
+private:
     QByteArray m_rawData;
     QList<QByteArray> m_rawPublicData;
     QList<QByteArray> m_rawPrivateData;

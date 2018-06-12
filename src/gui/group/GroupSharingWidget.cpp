@@ -32,6 +32,7 @@
 GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     : QWidget(parent)
     , m_ui(new Ui::GroupSharingWidget())
+    , m_verificationModel(new GroupSharingVerificationModel(this))
 {
     m_ui->setupUi(this);
 
@@ -121,6 +122,7 @@ void GroupSharingWidget::update()
         m_ui->pathEdit->clear();
         m_ui->passwordGenerator->hide();
         m_ui->togglePasswordGeneratorButton->setChecked(false);
+
     } else {
         const DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
 
@@ -144,6 +146,9 @@ void GroupSharingWidget::setGeneratedPassword(const QString& password)
         return;
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    if( reference.isNull() ){
+        DatabaseSharing::assignDefaultsTo(reference);
+    }
     reference.password = password;
     DatabaseSharing::setReferenceTo(m_customData, reference);
     m_ui->togglePasswordGeneratorButton->setChecked(false);
@@ -155,6 +160,9 @@ void GroupSharingWidget::setPath(const QString& path)
         return;
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    if( reference.isNull() ){
+        DatabaseSharing::assignDefaultsTo(reference);
+    }
     reference.path = path;
     DatabaseSharing::setReferenceTo(m_customData, reference);
 }
@@ -170,6 +178,9 @@ void GroupSharingWidget::selectPath()
         defaultDirPath = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first();
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    if( reference.isNull() ){
+        DatabaseSharing::assignDefaultsTo(reference);
+    }
     QString filetype = tr("kdbx", "Filetype for sharing container");
     QString filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeePass2 Sharing Container"), tr("All files"));
     QString filename = reference.path;
@@ -212,6 +223,9 @@ void GroupSharingWidget::selectPassword()
         return;
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    if( reference.isNull() ){
+        DatabaseSharing::assignDefaultsTo(reference);
+    }
     reference.password = m_ui->passwordEdit->text();
     DatabaseSharing::setReferenceTo(m_customData, reference);
 }
@@ -222,6 +236,51 @@ void GroupSharingWidget::selectType()
         return;
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    if( reference.isNull() ){
+        DatabaseSharing::assignDefaultsTo(reference);
+    }
     reference.type = static_cast<DatabaseSharing::Type>(m_ui->typeComboBox->currentData().toInt());
+
     DatabaseSharing::setReferenceTo(m_customData, reference);
+}
+
+GroupSharingVerificationModel::GroupSharingVerificationModel(QObject *parent)
+    : QAbstractItemModel(parent)
+{
+
+}
+
+QModelIndex GroupSharingVerificationModel::index(int row, int column, const QModelIndex &parent) const
+{
+    if( parent.isValid() ){
+        return QModelIndex();
+    }
+    return this->createIndex(row, column);
+}
+
+QModelIndex GroupSharingVerificationModel::parent(const QModelIndex &child) const
+{
+    Q_UNUSED(child);
+    return QModelIndex();
+}
+
+int GroupSharingVerificationModel::rowCount(const QModelIndex &parent) const
+{
+    if(parent.isValid()){
+        return 0;
+    }
+    return 0;
+}
+
+int GroupSharingVerificationModel::columnCount(const QModelIndex &parent) const
+{
+    Q_UNUSED(parent);
+    return 0;
+}
+
+QVariant GroupSharingVerificationModel::data(const QModelIndex &index, int role) const
+{
+    Q_UNUSED(index);
+    Q_UNUSED(role);
+    return QVariant();
 }

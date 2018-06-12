@@ -201,8 +201,6 @@ void DatabaseSharing::setReferenceTo(CustomData* customData, const DatabaseShari
     if (customData->contains(KeeShareExt)) {
         customData->set(KeeShareExt, serializeReference(reference));
     }
-    Reference copy = reference;
-    copy.signer = "KeeShare-Signer";
     customData->set(KeeShareExt, serializeReference(reference));
 }
 
@@ -237,6 +235,23 @@ QString DatabaseSharing::referenceTypeLabel(const Reference& reference)
         return tr("Synchronize with");
     }
     return "";
+}
+
+void DatabaseSharing::assignDefaultsTo(DatabaseSharing::Reference &reference)
+{
+    OpenSSHKey signatureKey = OpenSSHKey::generate();
+    signatureKey.openKey(QString());
+    QStringList certificate = QStringList() << "rsa" << "verified";
+    for( const QByteArray& part : signatureKey.publicParts() ){
+        certificate << part.toHex();
+    }
+    QStringList key = QStringList() << "rsa";
+    for( const QByteArray& part : signatureKey.privateParts() ){
+        key << part.toHex();
+    }
+    reference.certificates << QString::fromLatin1(certificate.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64());
+    reference.key = key.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64();
+    reference.signer = "KeeShare-Signer";
 }
 
 QString DatabaseSharing::indicatorSuffix(const Group* group, const QString& text)
@@ -303,9 +318,16 @@ void DatabaseSharing::handleFileRemoved(const QString& path)
 bool DatabaseSharing::unsign(Database* db, const Reference& reference)
 {
     QVariantMap map = db->publicCustomData();
-    map[KeeShareExt_Source] = reference.signer;
-    map[KeeShareExt_Certificate] = reference.certificate;
-    QString signature = map[KeeShareExt_Signature].toString();
+    QString publicKey = map[KeeShareExt_Certificate].toString();
+    // TODO CK: Let the user decide if the certificate is trustworthy
+    Reference copy = reference;
+    copy.certificates << publicKey;
+    if( !copy.certificates.contains(publicKey)){
+        ::qWarning() << "Unverified public key of" << map[KeeShareExt_Source];
+        return false;
+    }
+    QString signature = QByteArray::fromBase64(map[KeeShareExt_Signature].toString().toLatin1());
+    ::qDebug() << ">> IMPORT" << signature;
     map[KeeShareExt_Signature] = QString();
     db->setPublicCustomData(map);
 
@@ -322,7 +344,15 @@ bool DatabaseSharing::unsign(Database* db, const Reference& reference)
 
     Signature signer;
     OpenSSHKey key;
-    key.parsePKCS1PEM(map[KeeShareExt_Certificate].toString().toLatin1());
+    QStringList parts = QString::fromLatin1(QByteArray::fromBase64(publicKey.toLatin1())).split(KeeShareExt_referencePropertyDelimiter);
+    Q_ASSERT(parts[0] == "rsa");
+    Q_ASSERT(parts[1] == "verified");
+    QList<QByteArray> publicData;
+    for( int i = 2; i < parts.count(); ++i ){
+        publicData << QByteArray::fromHex(parts[i].toLatin1());
+    }
+    key.m_rawType = OpenSSHKey::TYPE_RSA_PUBLIC;
+    key.setPublicData(publicData);
     key.openKey(QString());
     bool success = signer.verify(buffer, signature, key);
     map.remove(KeeShareExt_Signature);
@@ -355,7 +385,8 @@ DatabaseSharing::Result DatabaseSharing::importContainerInto(const Reference& re
     }
 
     if (!unsign(sourceDb, reference)) {
-        qWarning("Invalid signature of database");
+        qCritical("Invalid signature of database");
+        return {reference.path, Result::Error, tr("Invalid signature") };
     }
 
     qDebug("Synchronize %s %s with %s",
@@ -399,7 +430,7 @@ DatabaseSharing::Result DatabaseSharing::importFromReferenceContainer(const QStr
 DatabaseSharing::Reference DatabaseSharing::deserializeReference(const QString& raw)
 {
     const auto parts = raw.split(KeeShareExt_referencePropertyDelimiter);
-    if (parts.count() != 4) {
+    if (parts.count() != 7) {
         qWarning("Invalid sharing reference detected - sharing disabled");
         return Reference();
     }
@@ -407,14 +438,21 @@ DatabaseSharing::Reference DatabaseSharing::deserializeReference(const QString& 
     const auto uuid = Uuid::fromHex(parts[1]);
     const auto path = QByteArray::fromBase64(parts[2].toLatin1());
     const auto password = QByteArray::fromBase64(parts[3].toLatin1());
-    return Reference(type, uuid, path, password);
+    const auto certificates = QString::fromLatin1(QByteArray::fromBase64(parts[4].toLatin1())).split(KeeShareExt_referencePropertyDelimiter);
+    const auto key = QByteArray::fromBase64(parts[5].toLatin1());
+    const auto signer = QByteArray::fromBase64(parts[6].toLatin1());
+    return Reference(type, uuid, path, password, certificates, key, signer);
 }
 
 QString DatabaseSharing::serializeReference(const DatabaseSharing::Reference& reference)
 {
-    const QStringList raw = QStringList() << QString::number(static_cast<int>(reference.type)) << reference.uuid.toHex()
+    const QStringList raw = QStringList() << QString::number(static_cast<int>(reference.type))
+                                          << reference.uuid.toHex()
                                           << reference.path.toLatin1().toBase64()
-                                          << reference.password.toLatin1().toBase64();
+                                          << reference.password.toLatin1().toBase64()
+                                          << reference.certificates.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64()
+                                          << reference.key.toLatin1().toBase64()
+                                          << reference.signer.toLatin1().toBase64();
     return raw.join(KeeShareExt_referencePropertyDelimiter);
 }
 
@@ -446,7 +484,7 @@ void DatabaseSharing::sign(Database* db, const Reference& reference)
 {
     QVariantMap map = db->publicCustomData();
     map[KeeShareExt_Source] = reference.signer;
-    map[KeeShareExt_Certificate] = reference.certificate;
+    map[KeeShareExt_Certificate] = reference.certificates.first();
     map[KeeShareExt_Signature] = QString();
     db->setPublicCustomData(map);
 
@@ -463,9 +501,19 @@ void DatabaseSharing::sign(Database* db, const Reference& reference)
 
     Signature signer;
     OpenSSHKey key;
-    key.parsePKCS1PEM(reference.key.toLatin1());
+    QList<QByteArray> privateData;
+    QString privateKey = QString::fromLatin1(QByteArray::fromBase64(reference.key.toLatin1()));
+    QStringList parts = privateKey.split(KeeShareExt_referencePropertyDelimiter);
+    Q_ASSERT(parts[0] == "rsa");
+    for( int i = 1; i < parts.count(); ++i){
+        privateData << QByteArray::fromHex(parts[i].toLatin1());
+    }
+    key.m_rawType = OpenSSHKey::TYPE_RSA_PRIVATE;
+    key.setPrivateData(privateData);
     key.openKey(QString());
-    map[KeeShareExt_Signature] = signer.create(buffer, key);
+    QString signature = signer.create(buffer, key).toLatin1().toBase64();
+    ::qDebug() << ">> EXPORT" << signature;
+    map[KeeShareExt_Signature] = signature;
 
     db->setPublicCustomData(map);
 }
@@ -622,11 +670,17 @@ DatabaseSharing::Reference::Reference()
 DatabaseSharing::Reference::Reference(DatabaseSharing::Type type,
                                       const Uuid& uuid,
                                       const QString& path,
-                                      const QString& password)
+                                      const QString& password,
+                                      const QStringList &certificates,
+                                      const QString &key,
+                                      const QString &signer)
     : type(type)
     , uuid(uuid)
     , path(path)
     , password(password)
+    , certificates(certificates)
+    , key(key)
+    , signer(signer)
 {
 }
 
