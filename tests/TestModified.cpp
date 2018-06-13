@@ -31,7 +31,7 @@ QTEST_GUILESS_MAIN(TestModified)
 
 namespace
 {
-    Test::Clock* m_clock = nullptr;
+    TestClock* m_clock = nullptr;
 }
 
 void TestModified::initTestCase()
@@ -42,13 +42,13 @@ void TestModified::initTestCase()
 void TestModified::init()
 {
     Q_ASSERT(m_clock == nullptr);
-    m_clock = new Test::Clock(2010, 5, 5, 10, 30, 10);
-    Test::Clock::setup(m_clock);
+    m_clock = new TestClock(2010, 5, 5, 10, 30, 10);
+    TestClock::setup(m_clock);
 }
 
 void TestModified::cleanup()
 {
-    Test::Clock::teardown();
+    TestClock::teardown();
     m_clock = nullptr;
 }
 

@@ -37,10 +37,7 @@ public:
     QDateTime locationChanged() const;
 
     bool operator==(const TimeInfo& other) const;
-    bool operator!=(const TimeInfo& other) const
-    {
-        return !this->operator==(other);
-    }
+    bool operator!=(const TimeInfo& other) const;
     bool equals(const TimeInfo& other, CompareItemOptions options = CompareItemDefault) const;
 
     void setLastModificationTime(const QDateTime& dateTime);

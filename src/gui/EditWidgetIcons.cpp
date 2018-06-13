@@ -40,8 +40,8 @@ IconStruct::IconStruct()
 {
 }
 
-UrlFetchProgressDialog::UrlFetchProgressDialog(const QUrl& url, QWidget* parent)
-    : QProgressDialog(parent)
+UrlFetchProgressDialog::UrlFetchProgressDialog(const QUrl &url, QWidget *parent)
+  : QProgressDialog(parent)
 {
     setWindowTitle(tr("Download Progress"));
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -174,8 +174,7 @@ void EditWidgetIcons::setUrl(const QString& url)
 }
 
 #ifdef WITH_XC_NETWORKING
-namespace
-{
+namespace {
     // Try to get the 2nd level domain of the host part of a QUrl. For example,
     // "foo.bar.example.com" would become "example.com", and "foo.bar.example.co.uk"
     // would become "example.co.uk".
@@ -196,7 +195,7 @@ namespace
         return url;
     }
 
-    QUrl getRedirectTarget(QNetworkReply* reply)
+    QUrl getRedirectTarget(QNetworkReply *reply)
     {
         QVariant var = reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
         QUrl url = convertVariantToUrl(var);
@@ -277,8 +276,8 @@ void EditWidgetIcons::fetchFinished()
         return;
     } else {
         if (!googleFallbackEnabled) {
-            emit messageEditEntry(tr("Unable to fetch favicon.") + "\n"
-                                      + tr("Hint: You can enable Google as a fallback under Tools>Settings>Security"),
+            emit messageEditEntry(tr("Unable to fetch favicon.") + "\n" +
+                                  tr("Hint: You can enable Google as a fallback under Tools>Settings>Security"),
                                   MessageWidget::Error);
         } else {
             emit messageEditEntry(tr("Unable to fetch favicon."), MessageWidget::Error);
@@ -309,7 +308,7 @@ void EditWidgetIcons::startFetchFavicon(const QUrl& url)
     connect(m_reply, &QNetworkReply::finished, this, &EditWidgetIcons::fetchFinished);
     connect(m_reply, &QIODevice::readyRead, this, &EditWidgetIcons::fetchReadyRead);
 
-    UrlFetchProgressDialog* progress = new UrlFetchProgressDialog(url, this);
+    UrlFetchProgressDialog *progress = new UrlFetchProgressDialog(url, this);
     progress->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_reply, &QNetworkReply::finished, progress, &QProgressDialog::hide);
     connect(m_reply, &QNetworkReply::downloadProgress, progress, &UrlFetchProgressDialog::networkReplyProgress);

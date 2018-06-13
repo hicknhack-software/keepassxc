@@ -41,7 +41,7 @@ Group::Group()
     m_data.isExpanded = true;
     m_data.autoTypeEnabled = Inherit;
     m_data.searchingEnabled = Inherit;
-    m_data.mergeMode = ModeInherit;
+    m_data.mergeMode = Default;
 
     connect(m_customData, SIGNAL(modified()), this, SIGNAL(modified()));
     connect(this, SIGNAL(modified()), SLOT(updateTimeinfo()));
@@ -235,15 +235,13 @@ Group::TriState Group::searchingEnabled() const
 
 Group::MergeMode Group::mergeMode() const
 {
-    if (m_data.mergeMode == Group::MergeMode::ModeInherit) {
+    if (m_data.mergeMode == Group::MergeMode::Default) {
         if (m_parent) {
             return m_parent->mergeMode();
-        } else {
-            return Group::MergeMode::KeepNewer; // fallback
         }
-    } else {
-        return m_data.mergeMode;
+        return Group::MergeMode::Synchronize; // fallback
     }
+    return m_data.mergeMode;
 }
 
 Entry* Group::lastTopVisibleEntry() const
@@ -575,7 +573,7 @@ Entry* Group::findEntry(QString entryId)
     return nullptr;
 }
 
-Entry* Group::findEntryByUuid(const Uuid& uuid)
+Entry* Group::findEntryByUuid(const Uuid& uuid) const
 {
     Q_ASSERT(!uuid.isNull());
     for (Entry* entry : entriesRecursive(false)) {

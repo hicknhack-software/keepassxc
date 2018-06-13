@@ -19,15 +19,15 @@
 #define KEEPASSXC_MERGER_H
 
 #include "core/Group.h"
-#include <QCoreApplication>
 #include <QPointer>
+#include <QObject>
 
 class Database;
 class Entry;
 
-class Merger
+class Merger : public QObject
 {
-    Q_DECLARE_TR_FUNCTIONS(Merger)
+    Q_OBJECT
 public:
     Merger(const Database* sourceDb, Database* targetDb);
     Merger(const Group* sourceGroup, Group* targetGroup);
@@ -61,6 +61,13 @@ private:
         Group* group); // remove an entry without a trace in the deletedObjects - needed for elemination cloned entries
     ChangeList resolveEntryConflict(const MergeContext& context, const Entry* existingEntry, Entry* otherEntry);
     ChangeList resolveGroupConflict(const MergeContext& context, const Group* existingGroup, Group* otherGroup);
+    Merger::ChangeList resolveEntryConflictKeepBoth(const MergeContext &context, const Entry *sourceEntry, Entry *targetEntry);
+    Merger::ChangeList resolveEntryConflictSynchronizeKeepLocal(const MergeContext &context, const Entry *sourceEntry, Entry *targetEntry);
+    Merger::ChangeList resolveEntryConflictSynchronizeKeepRemote(const MergeContext &context, const Entry *sourceEntry, Entry *targetEntry);
+    Merger::ChangeList resolveEntryConflictSynchronize(const MergeContext &context, const Entry *sourceEntry, Entry *targetEntry);
+    Merger::ChangeList resolveEntryConflictOverwriteUsingLocal(const MergeContext &context, const Entry *sourceEntry, Entry *targetEntry);
+    Merger::ChangeList resolveEntryConflictOverwriteUsingRemote(const MergeContext &context, const Entry *sourceEntry, Entry *targetEntry);
+    Merger::ChangeList resolveEntryConflictOverwriteUsingNewer(const MergeContext &context, const Entry *sourceEntry, Entry *targetEntry);
 
 private:
     MergeContext m_context;

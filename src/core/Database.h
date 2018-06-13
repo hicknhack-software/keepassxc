@@ -158,7 +158,6 @@ private:
     Group* findGroupRecursive(const Uuid& uuid, Group* group);
 
     void createRecycleBin();
-    void createShareBin();
     QString writeDatabase(QIODevice* device);
     bool backupDatabase(QString filePath);
 

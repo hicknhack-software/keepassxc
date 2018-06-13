@@ -19,11 +19,11 @@
 #ifndef KEEPASSX_EDITWIDGETICONS_H
 #define KEEPASSX_EDITWIDGETICONS_H
 
-#include <QNetworkAccessManager>
-#include <QProgressDialog>
 #include <QSet>
+#include <QProgressDialog>
 #include <QUrl>
 #include <QWidget>
+#include <QNetworkAccessManager>
 
 #include "config-keepassx.h"
 #include "core/Global.h"
@@ -55,7 +55,7 @@ class UrlFetchProgressDialog : public QProgressDialog
     Q_OBJECT
 
 public:
-    explicit UrlFetchProgressDialog(const QUrl& url, QWidget* parent = nullptr);
+    explicit UrlFetchProgressDialog(const QUrl &url, QWidget *parent = nullptr);
 
 public slots:
     void networkReplyProgress(qint64 bytesRead, qint64 totalBytes);
@@ -105,7 +105,7 @@ private:
     QList<QUrl> m_urlsToTry;
     QByteArray m_bytesReceived;
     QNetworkAccessManager m_netMgr;
-    QNetworkReply* m_reply;
+    QNetworkReply *m_reply;
     int m_redirects;
 #endif
     DefaultIconModel* const m_defaultIconModel;

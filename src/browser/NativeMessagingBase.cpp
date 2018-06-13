@@ -138,8 +138,7 @@ QString NativeMessagingBase::getLocalServerPath() const
 #if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
     // Use XDG_RUNTIME_DIR instead of /tmp if it's available
     QString path = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    return path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::TempLocation) + serverPath
-                          : path + serverPath;
+    return path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::TempLocation) + serverPath : path + serverPath;
 #else // Q_OS_MAC, Q_OS_WIN and others
     return QStandardPaths::writableLocation(QStandardPaths::TempLocation) + serverPath;
 #endif

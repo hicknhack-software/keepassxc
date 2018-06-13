@@ -19,7 +19,6 @@
 #include "totp.h"
 #include "core/Base32.h"
 #include <QCryptographicHash>
-#include <QDateTime>
 #include <QMessageAuthenticationCode>
 #include <QRegExp>
 #include <QUrl>

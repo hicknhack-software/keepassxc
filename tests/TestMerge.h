@@ -20,6 +20,9 @@
 
 #include "core/Database.h"
 #include <QObject>
+#include <QMap>
+#include <QDateTime>
+#include <functional>
 
 class TestMerge : public QObject
 {
@@ -31,10 +34,15 @@ private slots:
     void testMergeIntoNew();
     void testMergeNoChanges();
     void testResolveConflictNewer();
-    void testResolveConflictOlder();
+    void testResolveConflictExisting();
     void testResolveGroupConflictOlder();
     void testResolveConflictKeepBoth();
-    void testResolveConflictSynchronized();
+    void testResolveConflictExtended_Synchronized();
+    void testResolveConflictExtended_SynchronizedKeepLocal();
+    void testResolveConflictExtended_SynchronizedKeepRemote();
+    void testResolveConflictExtended_OverwriteUsingLocal();
+    void testResolveConflictExtended_OverwriteUsingRemote();
+    void testResolveConflictExtended_OverwriteUsingNewer();
     void testMoveEntry();
     void testMoveEntryPreserveChanges();
     void testMoveEntryIntoNewGroup();
@@ -53,6 +61,7 @@ private slots:
 private:
     Database* createTestDatabase();
     Database* createTestDatabaseStructureClone(Database* source, int entryFlags, int groupFlags);
+    void testResolveConflictTemplate(int mergeMode, std::function<void (Database *, const QMap<const char *, QDateTime> &)> verification);
 };
 
 #endif // KEEPASSX_TESTMERGE_H
