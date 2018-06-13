@@ -415,6 +415,22 @@ void TestMerge::testResolveConflictTemplate(int mergeMode, std::function<void (D
     Merger merger(dbSource.data(), dbDestination.data());
     merger.merge();
 
+    QPointer<Group> mergedRootGroup = dbDestination->rootGroup();
+    QCOMPARE(mergedRootGroup->entries().size(), 0);
+    // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
+    // exists as normal group, therefore only one entry is considered deleted
+    QCOMPARE(dbDestination->metadata()->recycleBin()->entries().size(), 1);
+    QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
+    QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
+    QVERIFY(mergedGroup1);
+    QVERIFY(mergedGroup2);
+    QCOMPARE(mergedGroup1->entries().size(), 2);
+    QCOMPARE(mergedGroup2->entries().size(), 2);
+    QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
+    QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
+    QVERIFY(mergedEntry1);
+    QVERIFY(mergedEntry2);
+
     verification(dbDestination.data(), timestamps);
 }
 
@@ -425,20 +441,9 @@ void TestMerge::testResolveConflictExtended_Synchronized()
 {
     testResolveConflictTemplate(Group::Synchronize, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
-        QCOMPARE(mergedRootGroup->entries().size(), 0);
-        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
-        // exists as normal group, therefore only one entry is considered deleted
-        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
         QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
-        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
-        QVERIFY(mergedGroup1);
-        QVERIFY(mergedGroup2);
-        QCOMPARE(mergedGroup1->entries().size(), 2);
-        QCOMPARE(mergedGroup2->entries().size(), 2);
         QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
         QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
-        QVERIFY(mergedEntry1);
-        QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 4);
         QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
@@ -473,20 +478,9 @@ void TestMerge::testResolveConflictExtended_SynchronizedKeepLocal()
 {
     testResolveConflictTemplate(Group::SynchronizeKeepLocal, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
-        QCOMPARE(mergedRootGroup->entries().size(), 0);
-        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
-        // exists as normal group, therefore only one entry is considered deleted
-        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
         QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
-        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
-        QVERIFY(mergedGroup1);
-        QVERIFY(mergedGroup2);
-        QCOMPARE(mergedGroup1->entries().size(), 2);
-        QCOMPARE(mergedGroup2->entries().size(), 2);
         QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
         QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
-        QVERIFY(mergedEntry1);
-        QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 4);
         QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
@@ -520,20 +514,9 @@ void TestMerge::testResolveConflictExtended_SynchronizedKeepRemote()
 {
     testResolveConflictTemplate(Group::SynchronizeKeepRemote, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
-        QCOMPARE(mergedRootGroup->entries().size(), 0);
-        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
-        // exists as normal group, therefore only one entry is considered deleted
-        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
         QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
-        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
-        QVERIFY(mergedGroup1);
-        QVERIFY(mergedGroup2);
-        QCOMPARE(mergedGroup1->entries().size(), 2);
-        QCOMPARE(mergedGroup2->entries().size(), 2);
         QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
         QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
-        QVERIFY(mergedEntry1);
-        QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 5);
         QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
@@ -567,20 +550,9 @@ void TestMerge::testResolveConflictExtended_OverwriteUsingLocal()
 {
     testResolveConflictTemplate(Group::OverwriteUsingLocal, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
-        QCOMPARE(mergedRootGroup->entries().size(), 0);
-        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
-        // exists as normal group, therefore only one entry is considered deleted
-        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
         QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
-        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
-        QVERIFY(mergedGroup1);
-        QVERIFY(mergedGroup2);
-        QCOMPARE(mergedGroup1->entries().size(), 2);
-        QCOMPARE(mergedGroup2->entries().size(), 2);
         QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
         QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
-        QVERIFY(mergedEntry1);
-        QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 3);
         QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
@@ -608,20 +580,9 @@ void TestMerge::testResolveConflictExtended_OverwriteUsingRemote()
 {
     testResolveConflictTemplate(Group::OverwriteUsingRemote, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
-        QCOMPARE(mergedRootGroup->entries().size(), 0);
-        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
-        // exists as normal group, therefore only one entry is considered deleted
-        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
         QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
-        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
-        QVERIFY(mergedGroup1);
-        QVERIFY(mergedGroup2);
-        QCOMPARE(mergedGroup1->entries().size(), 2);
-        QCOMPARE(mergedGroup2->entries().size(), 2);
         QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
         QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
-        QVERIFY(mergedEntry1);
-        QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 3);
         QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
@@ -650,20 +611,9 @@ void TestMerge::testResolveConflictExtended_OverwriteUsingNewer()
 {
     testResolveConflictTemplate(Group::OverwriteUsingNewer, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
-        QCOMPARE(mergedRootGroup->entries().size(), 0);
-        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
-        // exists as normal group, therefore only one entry is considered deleted
-        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
         QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
-        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
-        QVERIFY(mergedGroup1);
-        QVERIFY(mergedGroup2);
-        QCOMPARE(mergedGroup1->entries().size(), 2);
-        QCOMPARE(mergedGroup2->entries().size(), 2);
         QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
         QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
-        QVERIFY(mergedEntry1);
-        QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 3);
         QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
