@@ -52,18 +52,21 @@ public:
         Uuid uuid;
         QString path;
         QString password;
-        QStringList certificates;
-        QString key;
-        QString signer;
+        QStringList acceptedCertificates;
+        QString ownCertificate;
+        QString ownKey;
+        QString exporter;
 
         Reference();
-        Reference(Type type, const Uuid& uuid, const QString& path, const QString& password, const QStringList& certificates, const QString& key, const QString& signer);
         bool isNull() const;
         bool isActive() const;
         bool isExporting() const;
         bool isImporting() const;
         bool operator<(const Reference& other) const;
         bool operator==(const Reference& other) const;
+
+        QString serialized() const;
+        bool deserialize(const QString &serialized);
     };
 
     static Reference referenceOf(const CustomData* customData);
@@ -127,8 +130,6 @@ private:
         bool isInfo() const;
     };
 
-    static QString serializeReference(const DatabaseSharing::Reference& reference);
-    static Reference deserializeReference(const QString& raw);
     static void resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb);
 
     static Database* exportIntoContainer(const Reference& reference, const Group* sourceRoot);

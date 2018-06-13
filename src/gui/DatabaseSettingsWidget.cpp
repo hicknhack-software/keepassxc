@@ -164,7 +164,7 @@ void DatabaseSettingsWidget::load(Database* db)
 
     m_sharedGroupsModel.reset(new QStandardItemModel());
 
-    m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path"));
+    m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path") << tr("Last Signer") << tr("Certificates"));
     const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
     for (const Group* group : groups) {
         if (!DatabaseSharing::isShared(group)) {
@@ -177,7 +177,10 @@ void DatabaseSettingsWidget::load(Database* db)
         QList<QStandardItem*> row = QList<QStandardItem*>()
                                     << new QStandardItem(hierarchy.join(" / "))
                                     << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference))
-                                    << new QStandardItem(reference.path);
+                                    << new QStandardItem(reference.path)
+                                    << new QStandardItem(reference.exporter)
+                                    << new QStandardItem(reference.acceptedCertificates.join(" "))
+                                       ;
         m_sharedGroupsModel->appendRow(row);
     }
 
