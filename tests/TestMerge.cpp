@@ -337,49 +337,44 @@ void TestMerge::testResolveConflictTemplate(int mergeMode, std::function<void (D
     QCOMPARE(dbSource->rootGroup()->children().at(0)->entries().at(1)->historyItems().count(), 1);
 
     // simulate some work in the dbs (manipulate the history)
-    QPointer<Entry> destinationEntry0 = dbDestination->rootGroup()->children().at(0)->entries().at(0);
-    QPointer<Entry> destinationEntry1 = dbDestination->rootGroup()->children().at(0)->entries().at(1);
-    QPointer<Entry> sourceEntry0 = dbSource->rootGroup()->children().at(0)->entries().at(0);
-    QPointer<Entry> sourceEntry1 = dbSource->rootGroup()->children().at(0)->entries().at(1);
+    QPointer<Entry> destinationEntry1 = dbDestination->rootGroup()->children().at(0)->entries().at(0);
+    QPointer<Entry> destinationEntry2 = dbDestination->rootGroup()->children().at(0)->entries().at(1);
+    QPointer<Entry> sourceEntry1 = dbSource->rootGroup()->children().at(0)->entries().at(0);
+    QPointer<Entry> sourceEntry2 = dbSource->rootGroup()->children().at(0)->entries().at(1);
 
-    m_clock->advanceMinute(1);
-
-    destinationEntry0->beginUpdate();
-    destinationEntry0->setNotes("1");
-    destinationEntry0->endUpdate();
-    destinationEntry1->beginUpdate();
-    destinationEntry1->setNotes("1");
-    destinationEntry1->endUpdate();
-    sourceEntry0->beginUpdate();
-    sourceEntry0->setNotes("1");
-    sourceEntry0->endUpdate();
-    sourceEntry1->beginUpdate();
-    sourceEntry1->setNotes("1");
-    sourceEntry1->endUpdate();
-
-    timestamps["newestCommonHistoryTime"] = m_clock->currentDateTimeUtc();
-
-    m_clock->advanceSecond(1);
+    timestamps["newestCommonHistoryTime"] = m_clock->advanceMinute(1);
 
     destinationEntry1->beginUpdate();
-    destinationEntry1->setNotes("2");
+    destinationEntry1->setNotes("1 Common");
     destinationEntry1->endUpdate();
-    sourceEntry0->beginUpdate();
-    sourceEntry0->setNotes("2");
-    sourceEntry0->endUpdate();
-
-    timestamps["oldestDivergingHistoryTime"] = m_clock->currentDateTimeUtc();
-
-    m_clock->advanceHour(1);
-
-    destinationEntry0->beginUpdate();
-    destinationEntry0->setNotes("3");
-    destinationEntry0->endUpdate();
+    destinationEntry2->beginUpdate();
+    destinationEntry2->setNotes("1 Common");
+    destinationEntry2->endUpdate();
     sourceEntry1->beginUpdate();
-    sourceEntry1->setNotes("3");
+    sourceEntry1->setNotes("1 Common");
+    sourceEntry1->endUpdate();
+    sourceEntry2->beginUpdate();
+    sourceEntry2->setNotes("1 Common");
+    sourceEntry2->endUpdate();
+
+    timestamps["oldestDivergingHistoryTime"] = m_clock->advanceSecond(1);
+
+    destinationEntry2->beginUpdate();
+    destinationEntry2->setNotes("2 Destination");
+    destinationEntry2->endUpdate();
+    sourceEntry1->beginUpdate();
+    sourceEntry1->setNotes("2 Source");
     sourceEntry1->endUpdate();
 
-    timestamps["newestDivergingHistoryTime"] = m_clock->currentDateTimeUtc();
+    timestamps["newestDivergingHistoryTime"] = m_clock->advanceHour(1);
+
+    destinationEntry1->beginUpdate();
+    destinationEntry1->setNotes("3 Destination");
+    destinationEntry1->endUpdate();
+    sourceEntry2->beginUpdate();
+    sourceEntry2->setNotes("3 Source");
+    sourceEntry2->endUpdate();
+
 
     // sanity check
     QCOMPARE(dbDestination->rootGroup()->children().at(0)->entries().at(0)->historyItems().count(), 3);
@@ -426,9 +421,9 @@ void TestMerge::testResolveConflictTemplate(int mergeMode, std::function<void (D
 /**
  * Tests the KeepNewer mode concerning history.
  */
-void TestMerge::testResolveConflictKeepNewerExtended()
+void TestMerge::testResolveConflictExtended_Synchronized()
 {
-    testResolveConflictTemplate(Group::KeepNewer, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
+    testResolveConflictTemplate(Group::Synchronize, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
         QCOMPARE(mergedRootGroup->entries().size(), 0);
         // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
@@ -445,19 +440,27 @@ void TestMerge::testResolveConflictKeepNewerExtended()
         QVERIFY(mergedEntry1);
         QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 4);
+        QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(1)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(2)->notes(), QString("1 Common"));
         QCOMPARE(mergedEntry1->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(3)->notes(), QString("2 Source"));
         QCOMPARE(mergedEntry1->historyItems().at(3)->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
-        QVERIFY(mergedEntry1->timeInfo().lastModificationTime() >= timestamps["newestDivergingHistoryTime"]);
-        QVERIFY(mergedEntry1->timeInfo().lastModificationTime() < timestamps["mergeTime"]);
+        QCOMPARE(mergedEntry1->notes(), QString("3 Destination"));
+        QCOMPARE(mergedEntry1->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
         QCOMPARE(mergedEntry2->historyItems().count(), 4);
+        QCOMPARE(mergedEntry2->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry2->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(1)->notes(), QString(""));
         QCOMPARE(mergedEntry2->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(2)->notes(), QString("1 Common"));
         QCOMPARE(mergedEntry2->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(3)->notes(), QString("2 Destination"));
         QCOMPARE(mergedEntry2->historyItems().at(3)->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
-        QVERIFY(mergedEntry2->timeInfo().lastModificationTime() >= timestamps["newestDivergingHistoryTime"]);
-        QVERIFY(mergedEntry2->timeInfo().lastModificationTime() < timestamps["mergeTime"]);
+        QCOMPARE(mergedEntry2->notes(), QString("3 Source"));
+        QCOMPARE(mergedEntry2->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
         QVERIFY(db->rootGroup()->findEntry("entryDestination"));
         QVERIFY(db->rootGroup()->findEntry("entrySource"));
     });
@@ -466,9 +469,9 @@ void TestMerge::testResolveConflictKeepNewerExtended()
 /**
  * Tests the KeepExisting mode concerning history.
  */
-void TestMerge::testResolveConflictKeepExistingExtended()
+void TestMerge::testResolveConflictExtended_SynchronizedKeepLocal()
 {
-    testResolveConflictTemplate(Group::KeepExisting, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
+    testResolveConflictTemplate(Group::SynchronizeKeepLocal, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
         QPointer<Group> mergedRootGroup = db->rootGroup();
         QCOMPARE(mergedRootGroup->entries().size(), 0);
         // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
@@ -485,19 +488,200 @@ void TestMerge::testResolveConflictKeepExistingExtended()
         QVERIFY(mergedEntry1);
         QVERIFY(mergedEntry2);
         QCOMPARE(mergedEntry1->historyItems().count(), 4);
+        QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(1)->notes(), QString(""));
         QCOMPARE(mergedEntry1->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(2)->notes(), QString("1 Common"));
         QCOMPARE(mergedEntry1->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(3)->notes(), QString("2 Source"));
         QCOMPARE(mergedEntry1->historyItems().at(3)->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
-        QVERIFY(mergedEntry1->timeInfo().lastModificationTime() >= timestamps["newestDivergingHistoryTime"]);
-        QVERIFY(mergedEntry1->timeInfo().lastModificationTime() < timestamps["mergeTime"]);
+        QCOMPARE(mergedEntry1->notes(), QString("3 Destination"));
+        QCOMPARE(mergedEntry1->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
         QCOMPARE(mergedEntry2->historyItems().count(), 5);
+        QCOMPARE(mergedEntry2->historyItems().at(0)->notes(), QString(""));
         QCOMPARE(mergedEntry2->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(1)->notes(), QString(""));
         QCOMPARE(mergedEntry2->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(2)->notes(), QString("1 Common"));
         QCOMPARE(mergedEntry2->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(3)->notes(), QString("2 Destination"));
         QCOMPARE(mergedEntry2->historyItems().at(3)->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(4)->notes(), QString("3 Source"));
         QCOMPARE(mergedEntry2->historyItems().at(4)->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
-        QVERIFY(mergedEntry2->timeInfo().lastModificationTime() >= timestamps["mergeTime"]);
+        QCOMPARE(mergedEntry2->notes(), QString("2 Destination"));
+        QCOMPARE(mergedEntry2->timeInfo().lastModificationTime(), timestamps["mergeTime"]);
+        QVERIFY(db->rootGroup()->findEntry("entryDestination"));
+        QVERIFY(db->rootGroup()->findEntry("entrySource"));
+    });
+}
+
+void TestMerge::testResolveConflictExtended_SynchronizedKeepRemote()
+{
+    testResolveConflictTemplate(Group::SynchronizeKeepRemote, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
+        QPointer<Group> mergedRootGroup = db->rootGroup();
+        QCOMPARE(mergedRootGroup->entries().size(), 0);
+        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
+        // exists as normal group, therefore only one entry is considered deleted
+        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
+        QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
+        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
+        QVERIFY(mergedGroup1);
+        QVERIFY(mergedGroup2);
+        QCOMPARE(mergedGroup1->entries().size(), 2);
+        QCOMPARE(mergedGroup2->entries().size(), 2);
+        QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
+        QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
+        QVERIFY(mergedEntry1);
+        QVERIFY(mergedEntry2);
+        QCOMPARE(mergedEntry1->historyItems().count(), 5);
+        QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry1->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(3)->notes(), QString("2 Source"));
+        QCOMPARE(mergedEntry1->historyItems().at(3)->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(4)->notes(), QString("3 Destination"));
+        QCOMPARE(mergedEntry1->historyItems().at(4)->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
+        QCOMPARE(mergedEntry1->notes(), QString("2 Source"));
+        QCOMPARE(mergedEntry1->timeInfo().lastModificationTime(), timestamps["mergeTime"]);
+        QCOMPARE(mergedEntry2->historyItems().count(), 4);
+        QCOMPARE(mergedEntry2->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry2->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(3)->notes(), QString("2 Destination"));
+        QCOMPARE(mergedEntry2->historyItems().at(3)->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
+        QCOMPARE(mergedEntry2->notes(), QString("3 Source"));
+        QCOMPARE(mergedEntry2->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
+        QVERIFY(db->rootGroup()->findEntry("entryDestination"));
+        QVERIFY(db->rootGroup()->findEntry("entrySource"));
+    });
+}
+
+void TestMerge::testResolveConflictExtended_OverwriteUsingLocal()
+{
+    testResolveConflictTemplate(Group::OverwriteUsingLocal, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
+        QPointer<Group> mergedRootGroup = db->rootGroup();
+        QCOMPARE(mergedRootGroup->entries().size(), 0);
+        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
+        // exists as normal group, therefore only one entry is considered deleted
+        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
+        QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
+        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
+        QVERIFY(mergedGroup1);
+        QVERIFY(mergedGroup2);
+        QCOMPARE(mergedGroup1->entries().size(), 2);
+        QCOMPARE(mergedGroup2->entries().size(), 2);
+        QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
+        QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
+        QVERIFY(mergedEntry1);
+        QVERIFY(mergedEntry2);
+        QCOMPARE(mergedEntry1->historyItems().count(), 3);
+        QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry1->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->notes(), QString("3 Destination"));
+        QCOMPARE(mergedEntry1->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().count(), 3);
+        QCOMPARE(mergedEntry2->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry2->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->notes(), QString("2 Destination"));
+        QCOMPARE(mergedEntry2->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
+        QVERIFY(db->rootGroup()->findEntry("entryDestination"));
+        QVERIFY(db->rootGroup()->findEntry("entrySource"));
+    });
+}
+
+void TestMerge::testResolveConflictExtended_OverwriteUsingRemote()
+{
+    testResolveConflictTemplate(Group::OverwriteUsingRemote, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
+        QPointer<Group> mergedRootGroup = db->rootGroup();
+        QCOMPARE(mergedRootGroup->entries().size(), 0);
+        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
+        // exists as normal group, therefore only one entry is considered deleted
+        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
+        QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
+        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
+        QVERIFY(mergedGroup1);
+        QVERIFY(mergedGroup2);
+        QCOMPARE(mergedGroup1->entries().size(), 2);
+        QCOMPARE(mergedGroup2->entries().size(), 2);
+        QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
+        QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
+        QVERIFY(mergedEntry1);
+        QVERIFY(mergedEntry2);
+        QCOMPARE(mergedEntry1->historyItems().count(), 3);
+        QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry1->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->notes(), QString("2 Source"));
+        QCOMPARE(mergedEntry1->timeInfo().lastModificationTime(), timestamps["oldestDivergingHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().count(), 3);
+        QCOMPARE(mergedEntry2->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry2->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->notes(), QString("3 Source"));
+        QCOMPARE(mergedEntry2->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
+        QVERIFY(db->rootGroup()->findEntry("entryDestination"));
+        QVERIFY(db->rootGroup()->findEntry("entrySource"));
+    });
+}
+
+
+void TestMerge::testResolveConflictExtended_OverwriteUsingNewer()
+{
+    testResolveConflictTemplate(Group::OverwriteUsingNewer, [](Database *db, const QMap<const char*, QDateTime> &timestamps){
+        QPointer<Group> mergedRootGroup = db->rootGroup();
+        QCOMPARE(mergedRootGroup->entries().size(), 0);
+        // Both databases contain their own generated recycleBin - just one is considered a real recycleBin, the other
+        // exists as normal group, therefore only one entry is considered deleted
+        QCOMPARE(db->metadata()->recycleBin()->entries().size(), 1);
+        QPointer<Group> mergedGroup1 = mergedRootGroup->children().at(0);
+        QPointer<Group> mergedGroup2 = mergedRootGroup->children().at(1);
+        QVERIFY(mergedGroup1);
+        QVERIFY(mergedGroup2);
+        QCOMPARE(mergedGroup1->entries().size(), 2);
+        QCOMPARE(mergedGroup2->entries().size(), 2);
+        QPointer<Entry> mergedEntry1 = mergedGroup1->entries().at(0);
+        QPointer<Entry> mergedEntry2 = mergedGroup1->entries().at(1);
+        QVERIFY(mergedEntry1);
+        QVERIFY(mergedEntry2);
+        QCOMPARE(mergedEntry1->historyItems().count(), 3);
+        QCOMPARE(mergedEntry1->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry1->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry1->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry1->notes(), QString("3 Destination"));
+        QCOMPARE(mergedEntry1->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().count(), 3);
+        QCOMPARE(mergedEntry2->historyItems().at(0)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(0)->timeInfo().lastModificationTime(), timestamps["initialTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(1)->notes(), QString(""));
+        QCOMPARE(mergedEntry2->historyItems().at(1)->timeInfo().lastModificationTime(), timestamps["oldestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->historyItems().at(2)->notes(), QString("1 Common"));
+        QCOMPARE(mergedEntry2->historyItems().at(2)->timeInfo().lastModificationTime(), timestamps["newestCommonHistoryTime"]);
+        QCOMPARE(mergedEntry2->notes(), QString("3 Source"));
+        QCOMPARE(mergedEntry2->timeInfo().lastModificationTime(), timestamps["newestDivergingHistoryTime"]);
         QVERIFY(db->rootGroup()->findEntry("entryDestination"));
         QVERIFY(db->rootGroup()->findEntry("entrySource"));
     });

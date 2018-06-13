@@ -43,10 +43,14 @@ public:
     };
     enum MergeMode
     {
-        ModeInherit,
-        KeepBoth,
-        KeepNewer,
-        KeepExisting
+        Default, // Determine merge strategy from parent or fallback (Synchronize)
+        OverwriteUsingLocal, // lossy strategy ignoring remote changes
+        OverwriteUsingRemote, // lossy strategy ignoring local changes
+        OverwriteUsingNewer, // lossy strategy using only the most recent entry
+        KeepBoth, // lossy strategy regarding deletions, duplicate older changes in a new entry
+        Synchronize, // merge history keeping most recent as top entry
+        SynchronizeKeepLocal, // merge history forcing local as top regardless of age
+        SynchronizeKeepRemote // merge history forcing remote as top regardless of age
     };
 
     enum CloneFlag
@@ -113,7 +117,7 @@ public:
 
     Group* findChildByName(const QString& name);
     Entry* findEntry(QString entryId);
-    Entry* findEntryByUuid(const Uuid& uuid);
+    Entry* findEntryByUuid(const Uuid& uuid) const;
     Entry* findEntryByPath(QString entryPath, QString basePath = QString(""));
     Group* findGroupByUuid(const Uuid& uuid);
     Group* findGroupByPath(QString groupPath, QString basePath = QString("/"));
