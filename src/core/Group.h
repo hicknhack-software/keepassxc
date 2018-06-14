@@ -44,13 +44,11 @@ public:
     enum MergeMode
     {
         Default, // Determine merge strategy from parent or fallback (Synchronize)
-        OverwriteUsingLocal, // lossy strategy ignoring remote changes
-        OverwriteUsingRemote, // lossy strategy ignoring local changes
-        OverwriteUsingNewer, // lossy strategy using only the most recent entry
-        KeepBoth, // lossy strategy regarding deletions, duplicate older changes in a new entry
-        Synchronize, // merge history keeping most recent as top entry
-        SynchronizeKeepLocal, // merge history forcing local as top regardless of age
-        SynchronizeKeepRemote // merge history forcing remote as top regardless of age
+        Duplicate, // lossy strategy regarding deletions, duplicate older changes in a new entry
+        KeepLocal, // merge history forcing local as top regardless of age
+        KeepRemote, // merge history forcing remote as top regardless of age
+        KeepNewer, // merge history
+        Synchronize, // merge history keeping most recent as top entry and appling deletions
     };
 
     enum CloneFlag

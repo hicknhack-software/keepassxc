@@ -239,7 +239,7 @@ Group::MergeMode Group::mergeMode() const
         if (m_parent) {
             return m_parent->mergeMode();
         }
-        return Group::MergeMode::Synchronize; // fallback
+        return Group::MergeMode::KeepNewer; // fallback
     }
     return m_data.mergeMode;
 }

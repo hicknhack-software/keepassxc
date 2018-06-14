@@ -36,13 +36,16 @@ private slots:
     void testResolveConflictNewer();
     void testResolveConflictExisting();
     void testResolveGroupConflictOlder();
-    void testResolveConflictKeepBoth();
-    void testResolveConflictExtended_Synchronized();
-    void testResolveConflictExtended_SynchronizedKeepLocal();
-    void testResolveConflictExtended_SynchronizedKeepRemote();
-    void testResolveConflictExtended_OverwriteUsingLocal();
-    void testResolveConflictExtended_OverwriteUsingRemote();
-    void testResolveConflictExtended_OverwriteUsingNewer();
+    void testResolveConflictDuplicate();
+    void testResolveConflictEntry_Synchronize();
+    void testResolveConflictEntry_KeepLocal();
+    void testResolveConflictEntry_KeepRemote();
+    void testResolveConflictEntry_KeepNewer();
+    void testDeletionConflictEntry_Duplicate();
+    void testDeletionConflictEntry_Synchronized();
+    void testDeletionConflictEntry_KeepLocal();
+    void testDeletionConflictEntry_KeepRemote();
+    void testDeletionConflictEntry_KeepNewer();
     void testMoveEntry();
     void testMoveEntryPreserveChanges();
     void testMoveEntryIntoNewGroup();
@@ -62,6 +65,7 @@ private:
     Database* createTestDatabase();
     Database* createTestDatabaseStructureClone(Database* source, int entryFlags, int groupFlags);
     void testResolveConflictTemplate(int mergeMode, std::function<void (Database *, const QMap<const char *, QDateTime> &)> verification);
+    void testDeletionConflictTemplate(int mergeMode, std::function<void (Database *, const QMap<QString, Uuid>& )> verification);
 };
 
 #endif // KEEPASSX_TESTMERGE_H

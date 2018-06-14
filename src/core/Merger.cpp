@@ -262,7 +262,7 @@ void Merger::eraseGroup(Group* group)
     database->setDeletedObjects(deletions);
 }
 
-Merger::ChangeList Merger::resolveEntryConflictKeepBoth(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
+Merger::ChangeList Merger::resolveEntryConflict_Duplicate(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
     ChangeList changes;
     const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
@@ -286,8 +286,9 @@ Merger::ChangeList Merger::resolveEntryConflictKeepBoth(const MergeContext& cont
 }
 
 
-Merger::ChangeList Merger::resolveEntryConflictSynchronizeKeepLocal(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
+Merger::ChangeList Merger::resolveEntryConflict_KeepLocal(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
+    Q_UNUSED(context);
     ChangeList changes;
     const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
     if (comparison < 0) {
@@ -303,12 +304,12 @@ Merger::ChangeList Merger::resolveEntryConflictSynchronizeKeepLocal(const MergeC
         Entry* agedTargetEntry = targetEntry->clone(Entry::CloneNoFlags);
         targetEntry->addHistoryItem(agedTargetEntry);
     }
-    changes << resolveEntryConflictSynchronize(context, sourceEntry, targetEntry);
     return changes;
 }
 
-Merger::ChangeList Merger::resolveEntryConflictSynchronizeKeepRemote(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
+Merger::ChangeList Merger::resolveEntryConflict_KeepRemote(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
+    Q_UNUSED(context);
     ChangeList changes;
     const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
     if (comparison > 0) {
@@ -326,12 +327,11 @@ Merger::ChangeList Merger::resolveEntryConflictSynchronizeKeepRemote(const Merge
         targetEntry->endUpdate();
         // History item is created by endUpdate since we should have changes
     }
-    changes << resolveEntryConflictSynchronize(context, sourceEntry, targetEntry);
     return changes;
 }
 
 
-Merger::ChangeList Merger::resolveEntryConflictSynchronize(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
+Merger::ChangeList Merger::resolveEntryConflict_MergeHistories(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
     Q_UNUSED(context);
 
@@ -365,51 +365,6 @@ Merger::ChangeList Merger::resolveEntryConflictSynchronize(const MergeContext& c
     return changes;
 }
 
-Merger::ChangeList Merger::resolveEntryConflictOverwriteUsingLocal(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
-{
-    // nothing to do since we are ignoring remote changes
-    Q_UNUSED(context);
-    Q_UNUSED(sourceEntry);
-    Q_UNUSED(targetEntry);
-    const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
-    if( comparison < 0 ){
-        return ChangeList() << tr("Ignoring changes from newer source %1[%2]")
-                               .arg(targetEntry->title())
-                               .arg(targetEntry->uuid().toHex());
-    }
-    return ChangeList();
-}
-
-Merger::ChangeList Merger::resolveEntryConflictOverwriteUsingRemote(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
-{
-    Q_UNUSED(context);
-    ChangeList changes;
-    // nothing to do since we are ignoring remote changes
-    Group* currentGroup = targetEntry->group();
-    Entry* clonedEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
-    qDebug("Merge %s/%s with alien on top under %s",
-           qPrintable(targetEntry->title()),
-           qPrintable(sourceEntry->title()),
-           qPrintable(currentGroup->name()));
-    changes << tr("Synchronizing from newer source %1 [%2]")
-               .arg(targetEntry->title())
-               .arg(targetEntry->uuid().toHex());
-    moveEntry(clonedEntry, currentGroup);
-    eraseEntry(targetEntry);
-    return changes;
-}
-
-Merger::ChangeList Merger::resolveEntryConflictOverwriteUsingNewer(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
-{
-    const int comparison = compare(targetEntry->timeInfo().lastModificationTime(), sourceEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
-    if( comparison < 0 ){
-        return resolveEntryConflictOverwriteUsingRemote(context, sourceEntry, targetEntry);
-    }
-    if( comparison > 0 ){
-        return resolveEntryConflictOverwriteUsingLocal(context, sourceEntry, targetEntry);
-    }
-    return ChangeList();
-}
 
 Merger::ChangeList Merger::resolveEntryConflict(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
@@ -420,32 +375,24 @@ Merger::ChangeList Merger::resolveEntryConflict(const MergeContext& context, con
 
     Group::MergeMode mergeMode = m_mode == Group::Default ? context.m_targetGroup->mergeMode() : m_mode;
     switch (mergeMode) {
-    case Group::KeepBoth:
-        changes << resolveEntryConflictKeepBoth(context, sourceEntry, targetEntry);
+    case Group::Duplicate:
+        changes << resolveEntryConflict_Duplicate(context, sourceEntry, targetEntry);
         break;
 
-    case Group::OverwriteUsingLocal:
-        changes << resolveEntryConflictOverwriteUsingLocal(context, sourceEntry, targetEntry);
+    case Group::KeepLocal:
+        changes << resolveEntryConflict_KeepLocal(context, sourceEntry, targetEntry);
+        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry);
         break;
 
-    case Group::OverwriteUsingRemote:
-        changes << resolveEntryConflictOverwriteUsingRemote(context, sourceEntry, targetEntry);
-        break;
-
-    case Group::OverwriteUsingNewer:
-        changes << resolveEntryConflictOverwriteUsingNewer(context, sourceEntry, targetEntry);
-        break;
-
-    case Group::SynchronizeKeepLocal:
-        changes << resolveEntryConflictSynchronizeKeepLocal(context, sourceEntry, targetEntry);
-        break;
-
-    case Group::SynchronizeKeepRemote:
-        changes << resolveEntryConflictSynchronizeKeepRemote(context, sourceEntry, targetEntry);
+    case Group::KeepRemote:
+        changes << resolveEntryConflict_KeepRemote(context, sourceEntry, targetEntry);
+        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry);
         break;
 
     case Group::Synchronize:
-        changes << resolveEntryConflictSynchronize(context, sourceEntry, targetEntry);
+    case Group::KeepNewer:
+        // nothing special to do since resolveEntryConflictMergeHistories takes care to use the newest entry
+        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry);
         break;
 
     default:
@@ -540,6 +487,11 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
 Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
 {
     ChangeList changes;
+    Group::MergeMode mergeMode = m_mode == Group::Default ? context.m_targetGroup->mergeMode() : m_mode;
+    if(mergeMode != Group::Synchronize) {
+        return changes;
+    }
+
     const auto targetDeletions = context.m_targetDb->deletedObjects();
     const auto sourceDeletions = context.m_sourceDb->deletedObjects();
 
