@@ -22,7 +22,6 @@
 
 #include <QDateTime>
 
-
 class TestClock : public Clock
 {
 public:
@@ -47,6 +46,5 @@ protected:
 private:
     QDateTime m_utcCurrent;
 };
-
 
 #endif // KEEPASSXC_TESTCLOCK_H

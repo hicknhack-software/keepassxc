@@ -22,7 +22,6 @@
 #include "core/Entry.h"
 #include "core/Metadata.h"
 
-
 Merger::Merger(const Database* sourceDb, Database* targetDb)
     : m_mode(Group::Default)
 {
@@ -94,7 +93,7 @@ Merger::ChangeList Merger::mergeGroup(const MergeContext& context)
             moveEntry(targetEntry, context.m_targetGroup);
         } else {
             // Entry is already present in the database. Update it.
-            bool locationChanged = targetEntry->timeInfo().locationChanged() < sourceEntry->timeInfo().locationChanged();
+            const bool locationChanged = targetEntry->timeInfo().locationChanged() < sourceEntry->timeInfo().locationChanged();
             if (locationChanged && targetEntry->group() != context.m_targetGroup) {
                 changes << tr("Relocating %1 [%2]").arg(sourceEntry->title()).arg(sourceEntry->uuid().toHex());
                 moveEntry(targetEntry, context.m_targetGroup);
@@ -285,7 +284,6 @@ Merger::ChangeList Merger::resolveEntryConflict_Duplicate(const MergeContext& co
     return changes;
 }
 
-
 Merger::ChangeList Merger::resolveEntryConflict_KeepLocal(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
 {
     Q_UNUSED(context);
@@ -331,7 +329,7 @@ Merger::ChangeList Merger::resolveEntryConflict_KeepRemote(const MergeContext& c
 }
 
 
-Merger::ChangeList Merger::resolveEntryConflict_MergeHistories(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry)
+Merger::ChangeList Merger::resolveEntryConflict_MergeHistories(const MergeContext& context, const Entry* sourceEntry, Entry* targetEntry, Group::MergeMode mergeMethod)
 {
     Q_UNUSED(context);
 
@@ -348,14 +346,14 @@ Merger::ChangeList Merger::resolveEntryConflict_MergeHistories(const MergeContex
                    .arg(targetEntry->title())
                    .arg(targetEntry->uuid().toHex());
         moveEntry(clonedEntry, currentGroup);
-        mergeHistory(targetEntry, clonedEntry);
+        mergeHistory(targetEntry, clonedEntry, mergeMethod);
         eraseEntry(targetEntry);
     } else {
         qDebug("Merge %s/%s with local on top/under %s",
                qPrintable(targetEntry->title()),
                qPrintable(sourceEntry->title()),
                qPrintable(targetEntry->group()->name()));
-        const bool changed = mergeHistory(sourceEntry, targetEntry);
+        const bool changed = mergeHistory(sourceEntry, targetEntry, mergeMethod);
         if (changed) {
             changes << tr("Synchronizing from older source %1 [%2]")
                        .arg(targetEntry->title())
@@ -381,18 +379,18 @@ Merger::ChangeList Merger::resolveEntryConflict(const MergeContext& context, con
 
     case Group::KeepLocal:
         changes << resolveEntryConflict_KeepLocal(context, sourceEntry, targetEntry);
-        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry);
+        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry, mergeMode);
         break;
 
     case Group::KeepRemote:
         changes << resolveEntryConflict_KeepRemote(context, sourceEntry, targetEntry);
-        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry);
+        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry, mergeMode);
         break;
 
     case Group::Synchronize:
     case Group::KeepNewer:
         // nothing special to do since resolveEntryConflictMergeHistories takes care to use the newest entry
-        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry);
+        changes << resolveEntryConflict_MergeHistories(context, sourceEntry, targetEntry, mergeMode);
         break;
 
     default:
@@ -402,15 +400,19 @@ Merger::ChangeList Merger::resolveEntryConflict(const MergeContext& context, con
     return changes;
 }
 
-bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
+bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry, Group::MergeMode mergeMethod)
 {
+    Q_UNUSED(mergeMethod);
     const auto targetHistoryItems = targetEntry->historyItems();
     const auto sourceHistoryItems = sourceEntry->historyItems();
+    const int comparison = compare(sourceEntry->timeInfo().lastModificationTime(), targetEntry->timeInfo().lastModificationTime(), CompareItemIgnoreMilliseconds);
+    const bool preferLocal = mergeMethod == Group::KeepLocal || comparison < 0;
+    const bool preferRemote = mergeMethod == Group::KeepRemote || comparison > 0;
 
     QMap<QDateTime, Entry*> merged;
     for (Entry* historyItem : targetHistoryItems) {
         const QDateTime modificationTime = Clock::serialized(historyItem->timeInfo().lastModificationTime());
-        if( merged.contains(modificationTime) && !merged[modificationTime]->equals(historyItem, CompareItemIgnoreMilliseconds)){
+        if (merged.contains(modificationTime) && !merged[modificationTime]->equals(historyItem, CompareItemIgnoreMilliseconds)) {
             ::qWarning("Inconsistent history entry of %s[%s] at %s contains conflicting changes - conflict resolution may lose data!",
                        qPrintable(sourceEntry->title()),
                        qPrintable(sourceEntry->uuid().toHex()),
@@ -421,11 +423,15 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
     for (Entry* historyItem : sourceHistoryItems) {
         // Items with same modification-time changes will be regarded as same (like KeePass2)
         const QDateTime modificationTime = Clock::serialized(historyItem->timeInfo().lastModificationTime());
-        if(merged.contains(modificationTime) && !merged[modificationTime]->equals(historyItem, CompareItemIgnoreMilliseconds) ){
+        if (merged.contains(modificationTime) && !merged[modificationTime]->equals(historyItem, CompareItemIgnoreMilliseconds)) {
             ::qWarning("History entry of %s[%s] at %s contains conflicting changes - conflict resolution may lose data!",
-                       qPrintable(sourceEntry->title()),
-                       qPrintable(sourceEntry->uuid().toHex()),
-                       qPrintable(modificationTime.toString("yyyy-MM-dd HH-mm-ss-zzz")));
+                qPrintable(sourceEntry->title()),
+                qPrintable(sourceEntry->uuid().toHex()),
+                qPrintable(modificationTime.toString("yyyy-MM-dd HH-mm-ss-zzz")));
+        }
+        if (preferRemote && merged.contains(modificationTime)) {
+            // forcefully apply the remote history item
+            delete merged.take(modificationTime);
         }
         if (!merged.contains(modificationTime)) {
             merged[modificationTime] = historyItem->clone(Entry::CloneNoFlags);
@@ -434,16 +440,28 @@ bool Merger::mergeHistory(const Entry* sourceEntry, Entry* targetEntry)
 
     const QDateTime targetModificationTime = Clock::serialized(targetEntry->timeInfo().lastModificationTime());
     const QDateTime sourceModificationTime = Clock::serialized(sourceEntry->timeInfo().lastModificationTime());
-    if(targetModificationTime == sourceModificationTime && !targetEntry->equals(sourceEntry, CompareItemIgnoreMilliseconds | CompareItemIgnoreHistory | CompareItemIgnoreLocation)){
+    if (targetModificationTime == sourceModificationTime && !targetEntry->equals(sourceEntry, CompareItemIgnoreMilliseconds | CompareItemIgnoreHistory | CompareItemIgnoreLocation)) {
         ::qWarning("Entry of %s[%s] contains conflicting changes - conflict resolution may lose data!",
                    qPrintable(sourceEntry->title()),
                    qPrintable(sourceEntry->uuid().toHex()));
     }
 
-    if (targetModificationTime < sourceModificationTime && !merged.contains(targetModificationTime)) {
-        merged[targetModificationTime] = targetEntry->clone(Entry::CloneNoFlags);
-    } else if (targetModificationTime > sourceModificationTime && !merged.contains(sourceModificationTime)) {
-        merged[sourceModificationTime] = sourceEntry->clone(Entry::CloneNoFlags);
+    if (targetModificationTime < sourceModificationTime) {
+        if (preferLocal && merged.contains(targetModificationTime)) {
+            // forcefully apply the local history item
+            delete merged.take(targetModificationTime);
+        }
+        if (!merged.contains(targetModificationTime)) {
+            merged[targetModificationTime] = targetEntry->clone(Entry::CloneNoFlags);
+        }
+    } else if (targetModificationTime > sourceModificationTime) {
+        if (preferRemote && !merged.contains(sourceModificationTime)) {
+            // forcefully apply the remote history item
+            delete merged.take(sourceModificationTime);
+        }
+        if (!merged.contains(sourceModificationTime)) {
+            merged[sourceModificationTime] = sourceEntry->clone(Entry::CloneNoFlags);
+        }
     }
 
     bool changed = false;
@@ -488,7 +506,8 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
 {
     ChangeList changes;
     Group::MergeMode mergeMode = m_mode == Group::Default ? context.m_targetGroup->mergeMode() : m_mode;
-    if(mergeMode != Group::Synchronize) {
+    if (mergeMode != Group::Synchronize) {
+        // no deletions are applied for any other strategy!
         return changes;
     }
 
@@ -499,7 +518,7 @@ Merger::ChangeList Merger::mergeDeletions(const MergeContext& context)
     QMap<Uuid, DeletedObject> mergedDeletions;
     QList<Entry*> entries;
     QList<Group*> groups;
-    // TODO CK: Consider merge strategy for deletion (i.e. ignore deletion when OverwriteUsingLocal or SynchronizeKeepLocal?)
+
     for (const auto& object : (targetDeletions + sourceDeletions)) {
         if (!mergedDeletions.contains(object.uuid)) {
             mergedDeletions[object.uuid] = object;
