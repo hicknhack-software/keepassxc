@@ -32,14 +32,12 @@ private slots:
     void selectPath();
     void setPath(const QString& path);
     void setGeneratedPassword(const QString& password);
-    void setVerificationExporter(const QString& exporter);
     void togglePasswordGeneratorButton(bool checked);
 
 private:
     QScopedPointer<Ui::GroupSharingWidget> m_ui;
     QPointer<const Group> m_currentGroup;
     QPointer<CustomData> m_customData;
-    QScopedPointer<QStandardItemModel> m_verificationModel;
 };
 
 #endif // GROUPSHARINGWIDGET_H

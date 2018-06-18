@@ -23,6 +23,7 @@
 #include <QHash>
 #include <QTabWidget>
 
+#include "config-keepassx.h"
 #include "gui/DatabaseWidget.h"
 #include "gui/MessageWidget.h"
 

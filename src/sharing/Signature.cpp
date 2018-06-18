@@ -62,12 +62,17 @@ struct RSASigner
             Sig
         };
 
+        const QList<QByteArray> parts = key.privateParts();
+        if( parts.count() != 6){
+            raiseError("Unsupported signing key");
+            return QString();
+        }
+
         const QByteArray block = CryptoHash::hash(data, CryptoHash::Sha256);
 
         Tools::Map<Index, gcry_mpi_t, &gcry_mpi_release> mpi;
         Tools::Map<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
         const gcry_mpi_format format = GCRYMPI_FMT_USG;
-        const QList<QByteArray> parts = key.privateParts();
         rc = gcry_mpi_scan(&mpi[N], format, parts[0].data(), parts[0].size(), nullptr);
         if (rc != GPG_ERR_NO_ERROR) {
             raiseError();
@@ -163,11 +168,17 @@ struct RSASigner
             Key,
             Sig
         };
+
+        const QList<QByteArray> parts = key.publicParts();
+        if( parts.count() != 2 ){
+            raiseError("Unsupported verification key");
+            return false;
+        }
+
         const QByteArray block = CryptoHash::hash(data, CryptoHash::Sha256);
 
         Tools::Map<MPI, gcry_mpi_t, &gcry_mpi_release> mpi;
         Tools::Map<SEXP, gcry_sexp_t, &gcry_sexp_release> sexp;
-        const QList<QByteArray> parts = key.publicParts();
 
         rc = gcry_mpi_scan(&mpi[E], format, parts[0].data(), parts[0].size(), nullptr);
         if (rc != GPG_ERR_NO_ERROR) {

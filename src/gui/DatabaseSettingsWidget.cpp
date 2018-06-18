@@ -53,6 +53,7 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
 #ifdef WITH_XC_SHARING
     , m_uiSharing(new Ui::DatabaseSettingsWidgetSharing())
     , m_sharedGroupsModel(new QStandardItemModel())
+    , m_verificationModel(new QStandardItemModel())
 #endif
     , m_uiGeneralPage(new QWidget())
     , m_uiEncryptionPage(new QWidget())
@@ -90,7 +91,11 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
                                     FilePath::instance()->icon("apps", "preferences-system-network-sharing"));
     m_ui->stackedWidget->addWidget(m_uiGeneralPage);
     m_ui->stackedWidget->addWidget(m_uiEncryptionPage);
+
 #ifdef WITH_XC_SHARING
+    connect(m_uiSharing->verificationExporterEdit, SIGNAL(textChanged(QString)), SLOT(setVerificationExporter(QString)));
+    connect(m_uiSharing->generateCerticateButton, SIGNAL(clicked(bool)), SLOT(generateCerticate()));
+    connect(m_uiSharing->clearCertificateButton, SIGNAL(clicked(bool)), SLOT(clearCerticate()));
     m_ui->stackedWidget->addWidget(m_uiSharingPage);
 #endif
 
@@ -167,10 +172,13 @@ void DatabaseSettingsWidget::load(Database* db)
         m_uiEncryption->parallelismSpinBox->setValue(argon2Kdf->parallelism());
     }
 #ifdef WITH_XC_SHARING
-    m_uiSharing->enableExportCheckBox->setChecked(DatabaseSharing::isEnabled(m_db, DatabaseSharing::ExportTo));
-    m_uiSharing->enableImportCheckBox->setChecked(DatabaseSharing::isEnabled(m_db, DatabaseSharing::ImportFrom));
+    DatabaseSharing::Settings settings = DatabaseSharing::settingsOf(m_db);
+    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
+    m_uiSharing->enableExportCheckBox->setChecked((settings.type & DatabaseSharing::ExportTo) != 0);
+    m_uiSharing->enableImportCheckBox->setChecked((settings.type & DatabaseSharing::ImportFrom) != 0);
 
     m_sharedGroupsModel.reset(new QStandardItemModel());
+    m_verificationModel.reset(new QStandardItemModel());
 
     m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path") << tr("Last Signer") << tr("Certificates"));
     const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
@@ -186,10 +194,25 @@ void DatabaseSettingsWidget::load(Database* db)
         row << new QStandardItem(hierarchy.join(" > "));
         row << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference));
         row << new QStandardItem(reference.path);
-        row << new QStandardItem(reference.foreignCertificates.count());
         m_sharedGroupsModel->appendRow(row);
     }
 
+    m_uiSharing->verificationExporterEdit->setText(settings.ownCertificate.signer);
+    m_uiSharing->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
+    m_uiSharing->verificationOwnKeyEdit->setText(settings.ownKey.key);
+    m_uiSharing->verificationOwnFingerprintEdit->setText(DatabaseSharing::fingerprintOf(settings.ownCertificate));
+
+    m_verificationModel->setHorizontalHeaderLabels(QStringList() << tr("Source") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
+
+    for( const DatabaseSharing::Certificate &certificate : settings.foreignCertificates ){
+        QStandardItem* signer = new QStandardItem(certificate.signer);
+        QStandardItem* verified = new QStandardItem(certificate.trusted ? tr("trusted") : tr("untrusted"));
+        QStandardItem* fingerprint = new QStandardItem(DatabaseSharing::fingerprintOf(settings.ownCertificate));
+        QStandardItem* key = new QStandardItem(certificate.key);
+        m_verificationModel->appendRow(QList<QStandardItem*>() << signer << verified << fingerprint << key);
+    }
+
+    m_uiSharing->verificationTableView->setModel(m_verificationModel.data());
     m_uiSharing->sharedGroupsView->setModel(m_sharedGroupsModel.data());
 #endif
     m_uiGeneral->dbNameEdit->setFocus();
@@ -269,33 +292,35 @@ void DatabaseSettingsWidget::save()
     }
 
     m_db->setCipher(Uuid(m_uiEncryption->algorithmComboBox->currentData().toByteArray()));
+
 #ifdef WITH_XC_SHARING
-    int sharing = DatabaseSharing::Inactive;
+    DatabaseSharing::Settings settings = DatabaseSharing::Settings::deserialize(m_sharingInformation);
+    settings.type = DatabaseSharing::Inactive;
     if (m_uiSharing->enableExportCheckBox->isChecked()) {
-        sharing |= DatabaseSharing::ExportTo;
+        settings.type = static_cast<DatabaseSharing::Type>( settings.type | DatabaseSharing::ExportTo);
     }
     if (m_uiSharing->enableImportCheckBox->isChecked()) {
-        if (!m_uiGeneral->historyMaxItemsCheckBox->isChecked() || m_uiGeneral->historyMaxItemsSpinBox->value() < 2) {
-            QMessageBox warning;
-            warning.setIcon(QMessageBox::Warning);
-            warning.setWindowTitle(
-                tr("Synchronization without history", "Title for warning about missing synchronization history"));
-            warning.setText(
-                tr("You are trying to import remote changes to your database without a sufficent history size.\n\n"
-                   "If you do not increase the history size to at least 2 you may suffer data loss!"));
-            auto ok = warning.addButton(tr("Understood, import remote changes"), QMessageBox::ButtonRole::AcceptRole);
-            auto cancel = warning.addButton(tr("Cancel"), QMessageBox::ButtonRole::RejectRole);
-            warning.setDefaultButton(cancel);
-            warning.exec();
-            if (warning.clickedButton() != ok) {
-                return;
-            }
+        settings.type = static_cast<DatabaseSharing::Type>( settings.type | DatabaseSharing::ImportFrom);
+    }
+    if ((settings.type & DatabaseSharing::ImportFrom) != 0
+            && (!m_uiGeneral->historyMaxItemsCheckBox->isChecked() || m_uiGeneral->historyMaxItemsSpinBox->value() < 2)) {
+        QMessageBox warning;
+        warning.setIcon(QMessageBox::Warning);
+        warning.setWindowTitle(
+            tr("Synchronization without history", "Title for warning about missing synchronization history"));
+        warning.setText(
+            tr("You are trying to import remote changes to your database without a sufficent history size.\n\n"
+               "If you do not increase the history size to at least 2 you may suffer data loss!"));
+        auto ok = warning.addButton(tr("Understood, import remote changes"), QMessageBox::ButtonRole::AcceptRole);
+        auto cancel = warning.addButton(tr("Cancel"), QMessageBox::ButtonRole::RejectRole);
+        warning.setDefaultButton(cancel);
+        warning.exec();
+        if (warning.clickedButton() != ok) {
+            return;
         }
     }
-    if (m_uiSharing->enableImportCheckBox->isChecked()) {
-        sharing |= DatabaseSharing::ImportFrom;
-    }
-    DatabaseSharing::enable(m_db, static_cast<DatabaseSharing::Type>(sharing));
+
+    DatabaseSharing::setSettingsTo(m_db, settings);
 #endif
     // Save kdf parameters
     kdf->setRounds(m_uiEncryption->transformRoundsSpinBox->value());
@@ -392,3 +417,32 @@ void DatabaseSettingsWidget::parallelismChanged(int value)
     m_uiEncryption->parallelismSpinBox->setSuffix(
         tr(" thread(s)", "Threads for parallel execution (KDF settings)", value));
 }
+#ifdef WITH_XC_SHARING
+void DatabaseSettingsWidget::setVerificationExporter(const QString &signer)
+{
+    DatabaseSharing::Settings settings = DatabaseSharing::Settings::deserialize(m_sharingInformation);
+    settings.ownCertificate.signer = signer;
+    m_uiSharing->verificationExporterEdit->setText(settings.ownCertificate.signer);
+    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
+}
+
+void DatabaseSettingsWidget::generateCerticate()
+{
+    DatabaseSharing::Settings settings;
+    DatabaseSharing::assignDefaultsTo(settings, m_db);
+    m_uiSharing->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
+    m_uiSharing->verificationOwnKeyEdit->setText(settings.ownKey.key);
+    m_uiSharing->verificationOwnFingerprintEdit->setText(DatabaseSharing::fingerprintOf(settings.ownCertificate));
+    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
+}
+
+void DatabaseSettingsWidget::clearCerticate()
+{
+    DatabaseSharing::Settings settings;
+    m_uiSharing->verificationExporterEdit->clear();
+    m_uiSharing->verificationOwnKeyEdit->clear();
+    m_uiSharing->verificationOwnCertificateEdit->clear();
+    m_uiSharing->verificationOwnFingerprintEdit->clear();
+    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
+}
+#endif

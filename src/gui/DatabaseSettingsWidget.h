@@ -24,6 +24,7 @@
 #include <QStandardItemModel>
 #include <QWidget>
 
+#include "config-keepassx.h"
 #include "crypto/kdf/Kdf.h"
 #include "gui/DialogyWidget.h"
 
@@ -58,6 +59,11 @@ private slots:
     void kdfChanged(int index);
     void memoryChanged(int value);
     void parallelismChanged(int value);
+#ifdef WITH_XC_SHARING
+    void setVerificationExporter(const QString &exporter);
+    void generateCerticate();
+    void clearCerticate();
+#endif
 
 private:
     void truncateHistories();
@@ -67,7 +73,9 @@ private:
     const QScopedPointer<Ui::DatabaseSettingsWidgetEncryption> m_uiEncryption;
 #ifdef WITH_XC_SHARING
     const QScopedPointer<Ui::DatabaseSettingsWidgetSharing> m_uiSharing;
+    QString m_sharingInformation;
     QScopedPointer<QStandardItemModel> m_sharedGroupsModel;
+    QScopedPointer<QStandardItemModel> m_verificationModel;
 #endif
     QWidget* m_uiGeneralPage;
     QWidget* m_uiEncryptionPage;
@@ -76,5 +84,7 @@ private:
 #endif
     Database* m_db;
 };
+
+
 
 #endif // KEEPASSX_DATABASESETTINGSWIDGET_H

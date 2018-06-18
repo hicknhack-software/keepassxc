@@ -23,6 +23,7 @@
 #include <QHash>
 #include <QObject>
 
+#include "config-keepassx.h"
 #include "core/Uuid.h"
 #include "crypto/kdf/Kdf.h"
 #include "keys/CompositeKey.h"

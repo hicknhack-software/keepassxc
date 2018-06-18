@@ -60,7 +60,7 @@ DatabaseSharing::Certificate packCertificate(const OpenSSHKey &key, bool verifie
 {
     DatabaseSharing::Certificate extracted;
     extracted.type = "rsa";
-    extracted.verified = verified;
+    extracted.trusted = verified;
     extracted.signer = signer;
     QStringList parts;
     for( const QByteArray& part : key.publicParts() ){
@@ -221,19 +221,8 @@ void DatabaseSharing::handleDatabaseChanged()
 
 bool DatabaseSharing::isEnabled(const Database* db, DatabaseSharing::Type type)
 {
-    if (!db) {
-        return false;
-    }
-    auto* meta = db->metadata();
-    auto* customData = meta->customData();
-    bool enabled = false;
-    if (type == SynchronizeWith || type == ExportTo) {
-        enabled |= customData->value(KeeShareExt).contains(KeeShareExt_ExportEnabled, Qt::CaseInsensitive);
-    }
-    if (type == SynchronizeWith || type == ImportFrom) {
-        enabled |= customData->value(KeeShareExt).contains(KeeShareExt_ImportEnabled, Qt::CaseInsensitive);
-    }
-    return enabled;
+    const Settings settings = DatabaseSharing::settingsOf(db);
+    return (settings.type & type) != 0;
 }
 
 bool DatabaseSharing::isShared(const Group* group)
@@ -261,6 +250,14 @@ DatabaseSharing::Reference DatabaseSharing::referenceOf(const CustomData* custom
     return reference;
 }
 
+DatabaseSharing::Settings DatabaseSharing::settingsOf(const Database *database)
+{
+    Q_ASSERT(database);
+    const auto* meta = database->metadata();
+    const auto* customData = meta->customData();
+    return Settings::deserialize(customData->value(KeeShareExt));
+}
+
 void DatabaseSharing::setReferenceTo(CustomData* customData, const DatabaseSharing::Reference& reference)
 {
     if (reference.isNull()) {
@@ -271,6 +268,14 @@ void DatabaseSharing::setReferenceTo(CustomData* customData, const DatabaseShari
         customData->set(KeeShareExt, Reference::serialize(reference));
     }
     customData->set(KeeShareExt, Reference::serialize(reference));
+}
+
+void DatabaseSharing::setSettingsTo(Database *database, const DatabaseSharing::Settings &settings)
+{
+    Q_ASSERT( database );
+    auto* metadata = database->metadata();
+    auto* customData = metadata->customData();
+    customData->set(KeeShareExt, Settings::serialize(settings));
 }
 
 QPixmap DatabaseSharing::indicatorBadge(const Group* group, QPixmap pixmap)
@@ -306,13 +311,13 @@ QString DatabaseSharing::referenceTypeLabel(const Reference& reference)
     return "";
 }
 
-void DatabaseSharing::assignDefaultsTo(DatabaseSharing::Reference &reference, const Group *group)
+void DatabaseSharing::assignDefaultsTo(DatabaseSharing::Settings &settings, Database *db)
 {
     OpenSSHKey key = OpenSSHKey::generate(false);
     key.openKey(QString());
 
-    reference.ownKey = packKey(key);
-    reference.ownCertificate = packCertificate(key, true, group->hierarchy().join(" > "));
+    settings.ownKey = packKey(key);
+    settings.ownCertificate = packCertificate(key, true, db->metadata()->name());
 }
 
 QString DatabaseSharing::indicatorSuffix(const Group* group, const QString& text)
@@ -376,10 +381,21 @@ void DatabaseSharing::handleFileRemoved(const QString& path)
     handleFileUpdated(path, Deletion);
 }
 
-bool DatabaseSharing::unsign(Database* db, QByteArray &data, const Reference& reference, const QString &signature)
+bool DatabaseSharing::unsign(Database* sourceDb, const Database  *targetDb, QByteArray &data, const Reference& reference, const QString &signature)
 {
-    QVariantMap map = db->publicCustomData();
-    DatabaseSharing::Certificate importedCertificate = DatabaseSharing::Certificate::deserialize(map[KeeShareExt_Certificate].toString());
+    if( signature.isEmpty() ){
+        auto result = MessageBox::question(nullptr,
+                                           tr("Untrustworthy container without signature"),
+                                           tr("Do you want to import from unsigned container %1")
+                                               .arg(reference.path),
+                                           QMessageBox::Yes | QMessageBox::No,
+                                           QMessageBox::No);
+        return result == QMessageBox::Yes;
+
+    }
+    QVariantMap map = sourceDb->publicCustomData();
+    Certificate importedCertificate = Certificate::deserialize(map[KeeShareExt_Certificate].toString());
+    Settings settings = DatabaseSharing::settingsOf(targetDb);
     OpenSSHKey key = unpackCertificate(importedCertificate);
     key.openKey(QString());
     Signature signer;
@@ -389,11 +405,11 @@ bool DatabaseSharing::unsign(Database* db, QByteArray &data, const Reference& re
         qCritical("Invalid signature for sharing container %s.", qPrintable(info.absoluteFilePath()));
         return false;
     }
-    if( reference.ownCertificate.key == importedCertificate.key ){
+    if( settings.ownCertificate.key == importedCertificate.key ){
         return true;
     }
-    for( const DatabaseSharing::Certificate &certificate : reference.foreignCertificates ){
-        if( certificate.key == importedCertificate.key && certificate.verified ){
+    for( const DatabaseSharing::Certificate &certificate : settings.foreignCertificates ){
+        if( certificate.key == importedCertificate.key && certificate.trusted ){
             return true;
         }
     }
@@ -459,16 +475,17 @@ DatabaseSharing::Result DatabaseSharing::importContainerInto(const Reference& re
         qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));
         return {reference.path, Result::Error, reader.errorString()};
     }
-
-    bool trusted = unsign(sourceDb, payload, reference, signature);
+    Database *targetDb = targetGroup->database();
+    bool trusted = unsign(sourceDb, targetDb, payload, reference, signature);
     Certificate certificate = Certificate::deserialize(sourceDb->publicCustomData()[KeeShareExt_Certificate].toString());
-    if(reference.ownCertificate.key != certificate.key){
-        Reference copy = reference;
+    Settings settings = DatabaseSharing::settingsOf(targetDb);
+    if(settings.ownCertificate.key != certificate.key && !signature.isEmpty()){
+        Settings copy = settings;
         bool found = false;
         for( Certificate &knownCertificate : copy.foreignCertificates ){
             if( knownCertificate.key == certificate.key ){
                 knownCertificate.signer = certificate.signer;
-                knownCertificate.verified = trusted;
+                knownCertificate.trusted = trusted;
                 found = true;
             }
         }
@@ -476,11 +493,11 @@ DatabaseSharing::Result DatabaseSharing::importContainerInto(const Reference& re
             copy.foreignCertificates << certificate;
         }
         // we need to update with the new signer
-        setReferenceTo(targetGroup->customData(), copy);
+        setSettingsTo(targetDb, copy);
     }
     if (!trusted) {
-        qCritical("Invalid signature of database");
-        return {reference.path, Result::Error, tr("Invalid signature") };
+        qCritical("Prevent untrusted import");
+        return {reference.path, Result::Error, tr("Untrusted import prevented") };
     }
 
     qDebug("Synchronize %s %s with %s",
@@ -591,8 +608,9 @@ Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const
             resolveReferenceAttributes(targetEntry, sourceDb);
         }
     }
+    const Settings sourceSettings = DatabaseSharing::settingsOf(sourceDb);
     QVariantMap map = targetDb->publicCustomData();
-    map[KeeShareExt_Certificate] = DatabaseSharing::Certificate::serialize(reference.ownCertificate);
+    map[KeeShareExt_Certificate] = Certificate::serialize(sourceSettings.ownCertificate);
     targetDb->setPublicCustomData(map);
     return targetDb;
 }
@@ -641,6 +659,7 @@ void DatabaseSharing::handleDatabaseOpened()
 QList<DatabaseSharing::Result> DatabaseSharing::exportIntoReferenceContainers()
 {
     QList<Result> results;
+    const Settings sourceSettings = DatabaseSharing::settingsOf(m_db);
     const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
     for (const Group* group : groups) {
         const Reference reference = referenceOf(group->customData());
@@ -673,7 +692,7 @@ QList<DatabaseSharing::Result> DatabaseSharing::exportIntoReferenceContainers()
             continue;
         }
         {
-            OpenSSHKey key = unpackKey(reference.ownKey);
+            OpenSSHKey key = unpackKey(sourceSettings.ownKey);
             key.openKey(QString());
             Signature signer;
             QuaZipFile file(&zip);
@@ -787,18 +806,11 @@ bool DatabaseSharing::Reference::operator==(const DatabaseSharing::Reference& ot
 
 QString DatabaseSharing::Reference::serialize(const Reference &reference)
 {
-    QStringList foreign;
-    for( const DatabaseSharing::Certificate &certificate : reference.foreignCertificates ){
-        foreign << DatabaseSharing::Certificate::serialize(certificate).toLatin1().toBase64();
-    }
     const QStringList raw = QStringList()
             << QString::number(static_cast<int>(reference.type))
             << reference.uuid.toHex()
             << reference.path.toLatin1().toBase64()
-            << reference.password.toLatin1().toBase64()
-            << DatabaseSharing::Key::serialize(reference.ownKey).toLatin1().toBase64()
-            << DatabaseSharing::Certificate::serialize(reference.ownCertificate).toLatin1().toBase64()
-            << foreign.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64();
+            << reference.password.toLatin1().toBase64();
     return raw.join(KeeShareExt_referencePropertyDelimiter);
 }
 
@@ -807,18 +819,14 @@ DatabaseSharing::Reference DatabaseSharing::Reference::deserialize(const QString
     DatabaseSharing::Reference reference;
 
     const auto parts = raw.split(KeeShareExt_referencePropertyDelimiter);
-    if (parts.count() != 7) {
+    if (parts.count() != 4) {
         return reference;
     }
     reference.type = static_cast<Type>(parts[0].toInt());
     reference.uuid = Uuid::fromHex(parts[1]);
     reference.path = QByteArray::fromBase64(parts[2].toLatin1());
     reference.password = QByteArray::fromBase64(parts[3].toLatin1());
-    reference.ownKey = DatabaseSharing::Key::deserialize(QByteArray::fromBase64(parts[4].toLatin1()));
-    reference.ownCertificate = DatabaseSharing::Certificate::deserialize(QByteArray::fromBase64(parts[5].toLatin1()));
-    for( const QString &foreign : QString::fromLatin1(QByteArray::fromBase64(parts[6].toLatin1())).split(KeeShareExt_referencePropertyDelimiter, QString::SkipEmptyParts) ){
-        reference.foreignCertificates << DatabaseSharing::Certificate::deserialize(QByteArray::fromBase64(foreign.toLatin1()));
-    }
+
     return reference;
 }
 
@@ -849,12 +857,17 @@ bool DatabaseSharing::Result::isWarning() const
     return !message.isEmpty() && type == Warning;
 }
 
+bool DatabaseSharing::Certificate::isNull() const
+{
+    return type.isEmpty() && !trusted && key.isEmpty() && signer.isEmpty();
+}
+
 QString DatabaseSharing::Certificate::serialize(const DatabaseSharing::Certificate &certificate)
 {
     const QStringList data = QStringList()
             << certificate.type
             << certificate.signer
-            << (certificate.verified ? "verified" : "unverified")
+            << (certificate.trusted ? "trusted" : "trusted")
             << certificate.key;
     return data.join(KeeShareExt_referencePropertyDelimiter);
 }
@@ -865,9 +878,14 @@ DatabaseSharing::Certificate DatabaseSharing::Certificate::deserialize(const QSt
     DatabaseSharing::Certificate certificate;
     certificate.type = data.value(0);
     certificate.signer = data.value(1);
-    certificate.verified = data.value(2) == "verified";
+    certificate.trusted = data.value(2) == "trusted";
     certificate.key = data.value(3);
     return certificate;
+}
+
+bool DatabaseSharing::Key::isNull() const
+{
+    return type.isEmpty() && key.isEmpty();
 }
 
 QString DatabaseSharing::Key::serialize(const DatabaseSharing::Key &key)
@@ -885,4 +903,42 @@ DatabaseSharing::Key DatabaseSharing::Key::deserialize(const QString &raw)
     key.type = data.value(0);
     key.key = data.value(1);
     return key;
+}
+
+bool DatabaseSharing::Settings::isNull() const
+{
+    return type == Inactive
+            && ownKey.isNull()
+            && ownCertificate.isNull()
+            && foreignCertificates.isEmpty();
+}
+
+QString DatabaseSharing::Settings::serialize(const DatabaseSharing::Settings &settings)
+{
+    QStringList foreign;
+    for( const DatabaseSharing::Certificate &certificate : settings.foreignCertificates ){
+        foreign << DatabaseSharing::Certificate::serialize(certificate).toLatin1().toBase64();
+    }
+    const QStringList serialized = QStringList()
+            << QString::number(static_cast<int>(settings.type))
+            << Key::serialize(settings.ownKey).toLatin1().toBase64()
+            << Certificate::serialize(settings.ownCertificate).toLatin1().toBase64()
+            << foreign.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64();
+    return serialized.join(KeeShareExt_referencePropertyDelimiter);
+}
+
+DatabaseSharing::Settings DatabaseSharing::Settings::deserialize(const QString &raw)
+{
+    Settings settings;
+    const auto parts = raw.split(KeeShareExt_referencePropertyDelimiter);
+    if (parts.count() != 4) {
+        return settings;
+    }
+    settings.type = static_cast<Type>(parts[0].toInt());
+    settings.ownKey = Key::deserialize(QByteArray::fromBase64(parts[1].toLatin1()));
+    settings.ownCertificate = Certificate::deserialize(QByteArray::fromBase64(parts[2].toLatin1()));
+    for( const QString &foreign : QString::fromLatin1(QByteArray::fromBase64(parts[3].toLatin1())).split(KeeShareExt_referencePropertyDelimiter, QString::SkipEmptyParts) ){
+        settings.foreignCertificates << DatabaseSharing::Certificate::deserialize(QByteArray::fromBase64(foreign.toLatin1()));
+    }
+    return settings;
 }
