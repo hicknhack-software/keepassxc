@@ -22,8 +22,9 @@
 #include "core/Metadata.h"
 #include "gui/EditWidgetIcons.h"
 #include "gui/EditWidgetProperties.h"
-#include "gui/group/GroupSharingWidget.h"
-
+#ifdef WITH_XC_SHARING
+#include "sharing/group/GroupSharingWidget.h"
+#endif
 EditGroupWidget::EditGroupWidget(QWidget* parent)
     : EditWidget(parent)
     , m_mainUi(new Ui::EditGroupWidgetMain())
@@ -31,7 +32,9 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
     , m_editGroupWidgetMain(new QWidget())
     , m_editGroupWidgetIcons(new EditWidgetIcons())
     , m_editWidgetProperties(new EditWidgetProperties())
+#ifdef WITH_XC_SHARING
     , m_editWidgetSharing(new GroupSharingWidget())
+#endif
     , m_group(nullptr)
     , m_database(nullptr)
 {
@@ -40,9 +43,10 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
     addPage(tr("Group"), FilePath::instance()->icon("actions", "document-edit"), m_editGroupWidgetMain);
     addPage(tr("Icon"), FilePath::instance()->icon("apps", "preferences-desktop-icons"), m_editGroupWidgetIcons);
     addPage(tr("Properties"), FilePath::instance()->icon("actions", "document-properties"), m_editWidgetProperties);
+#ifdef WITH_XC_SHARING
     addPage(
         tr("Sharing"), FilePath::instance()->icon("apps", "preferences-system-network-sharing"), m_editWidgetSharing);
-
+#endif
     connect(m_mainUi->expireCheck, SIGNAL(toggled(bool)), m_mainUi->expireDatePicker, SLOT(setEnabled(bool)));
     connect(m_mainUi->autoTypeSequenceCustomRadio,
             SIGNAL(toggled(bool)),
@@ -59,7 +63,9 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
     connect(m_editGroupWidgetIcons, SIGNAL(messageEditEntryDismiss()), SLOT(hideMessage()));
 
     m_editWidgetProperties->setCustomData(m_customData.data());
+#ifdef WITH_XC_SHARING
     m_editWidgetSharing->setCustomData(m_customData.data());
+#endif
 }
 
 EditGroupWidget::~EditGroupWidget()
@@ -106,7 +112,9 @@ void EditGroupWidget::loadGroup(Group* group, bool create, Database* database)
     m_customData->copyDataFrom(group->customData());
 
     m_editWidgetProperties->setFields(group->timeInfo(), group->uuid());
+#ifdef WITH_XC_SHARING
     m_editWidgetSharing->setGroup(group);
+#endif
 
     setCurrentPage(0);
 

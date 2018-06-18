@@ -16,10 +16,10 @@
  */
 
 #include "Signature.h"
+#include "core/Tools.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoHash.h"
-#include "crypto/CryptoTool.h"
-#include "crypto/OpenSSHKey.h"
+#include "sshagent/OpenSSHKey.h"
 
 #include <QByteArray>
 #include <gcrypt.h>
@@ -64,8 +64,8 @@ struct RSASigner
 
         const QByteArray block = CryptoHash::hash(data, CryptoHash::Sha256);
 
-        Tool::Map<Index, gcry_mpi_t, &gcry_mpi_release> mpi;
-        Tool::Map<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
+        Tools::Map<Index, gcry_mpi_t, &gcry_mpi_release> mpi;
+        Tools::Map<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
         const gcry_mpi_format format = GCRYMPI_FMT_USG;
         const QList<QByteArray> parts = key.privateParts();
         rc = gcry_mpi_scan(&mpi[N], format, parts[0].data(), parts[0].size(), nullptr);
@@ -137,7 +137,7 @@ struct RSASigner
         // TODO CK: manage memory allocated by gcry (sexp_find, mpi_aprint, ...)
         sexp[S] = gcry_sexp_find_token(sexp[Sig], "s", 1);
         mpi[S] = gcry_sexp_nth_mpi(sexp[S], 1, GCRYMPI_FMT_USG);
-        Tool::Buffer buffer;
+        Tools::Buffer buffer;
         rc = gcry_mpi_aprint(GCRYMPI_FMT_STD, &buffer.raw, &buffer.size, mpi[S]);
         if (rc != GPG_ERR_NO_ERROR) {
             raiseError();
@@ -165,8 +165,8 @@ struct RSASigner
         };
         const QByteArray block = CryptoHash::hash(data, CryptoHash::Sha256);
 
-        Tool::Map<MPI, gcry_mpi_t, &gcry_mpi_release> mpi;
-        Tool::Map<SEXP, gcry_sexp_t, &gcry_sexp_release> sexp;
+        Tools::Map<MPI, gcry_mpi_t, &gcry_mpi_release> mpi;
+        Tools::Map<SEXP, gcry_sexp_t, &gcry_sexp_release> sexp;
         const QList<QByteArray> parts = key.publicParts();
 
         rc = gcry_mpi_scan(&mpi[E], format, parts[0].data(), parts[0].size(), nullptr);

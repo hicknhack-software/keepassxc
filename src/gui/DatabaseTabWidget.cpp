@@ -26,7 +26,6 @@
 #include "core/AsyncTask.h"
 #include "core/Config.h"
 #include "core/Database.h"
-#include "core/DatabaseSharing.h"
 #include "core/Global.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
@@ -40,6 +39,7 @@
 #include "gui/UnlockDatabaseDialog.h"
 #include "gui/entry/EntryView.h"
 #include "gui/group/GroupView.h"
+#include "sharing/DatabaseSharing.h"
 
 DatabaseManagerStruct::DatabaseManagerStruct()
     : dbWidget(nullptr)
@@ -336,10 +336,11 @@ bool DatabaseTabWidget::saveDatabase(Database* db, QString filePath)
             dbStruct.saveAttempts = 0;
             dbStruct.fileInfo = QFileInfo(filePath);
             dbStruct.dbWidget->databaseSaved();
+#ifdef WITH_XC_SHARING
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
             db->sharing()->handleDatabaseSaved();
-
+#endif
             updateTabName(db);
             emit messageDismissTab();
             return true;
@@ -397,11 +398,12 @@ bool DatabaseTabWidget::saveDatabaseAs(Database* db)
                 // Failed to save, try again
                 continue;
             }
+#ifdef WITH_XC_SHARING
             // Since we change to the saved database we should also export
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
             db->sharing()->handleDatabaseSaved();
-
+#endif
             // changes of the current database
             //           SaveAs for non-existing datbase doesn't matter since one has to set the path while creation
             dbStruct.dbWidget->updateFilePath(dbStruct.fileInfo.absoluteFilePath());
@@ -834,21 +836,27 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
 {
     if (oldDb) {
         oldDb->disconnect(this);
+#ifdef WITH_XC_SHARING
         newDb->sharing()->disconnect(this);
+#endif
     }
 
     connect(newDb, SIGNAL(nameTextChanged()), SLOT(updateTabNameFromDbSender()));
     connect(newDb, SIGNAL(modified()), SLOT(modified()));
+#ifdef WITH_XC_SHARING
     // TODO HNH: the messages are database -local - therefor it is needed to display the messages in the database tab
     connect(newDb->sharing(),
             SIGNAL(sharingChanged(QString, MessageWidget::MessageType)),
             SLOT(emitDatabaseSharingChanged(QString, MessageWidget::MessageType)));
+#endif
     // SIGNAL(messageGlobal(QString,MessageWidget::MessageType)));
     newDb->setEmitModified(true);
+#ifdef WITH_XC_SHARING
     // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
     newDb->sharing()->handleDatabaseOpened();
+#endif
 }
-
+#ifdef WITH_XC_SHARING
 void DatabaseTabWidget::emitDatabaseSharingChanged(const QString& message, MessageWidget::MessageType type)
 {
     auto* databaseSharing = qobject_cast<DatabaseSharing*>(sender());
@@ -868,7 +876,7 @@ void DatabaseTabWidget::emitDatabaseSharingChanged(const QString& message, Messa
         emit messageTab(message, type);
     }
 }
-
+#endif
 void DatabaseTabWidget::performGlobalAutoType()
 {
     QList<Database*> unlockedDatabases;

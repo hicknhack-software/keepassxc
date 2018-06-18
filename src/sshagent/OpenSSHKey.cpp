@@ -18,10 +18,10 @@
 
 #include "OpenSSHKey.h"
 
-#include "core/BinaryStream.h"
-#include "crypto/ASN1Key.h"
-#include "crypto/CryptoTool.h"
+#include "core/Tools.h"
 #include "crypto/SymmetricCipher.h"
+#include "sshagent/BinaryStream.h"
+#include "sshagent/ASN1Key.h"
 #include <QCryptographicHash>
 #include <QRegularExpression>
 #include <QStringList>
@@ -55,8 +55,8 @@ OpenSSHKey OpenSSHKey::generate(bool secure)
         Public_E,
     };
 
-    Tool::Map<Index, gcry_mpi_t, &gcry_mpi_release> mpi;
-    Tool::Map<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
+    Tools::Map<Index, gcry_mpi_t, &gcry_mpi_release> mpi;
+    Tools::Map<Index, gcry_sexp_t, &gcry_sexp_release> sexp;
     gcry_error_t rc = GPG_ERR_NO_ERROR;
     rc = gcry_sexp_build(&sexp[Params], NULL, secure ? "(genkey (rsa (nbits 4:2048)))" : "(genkey (rsa (transient-key) (nbits 4:2048)))");
     if (rc != GPG_ERR_NO_ERROR) {
@@ -94,7 +94,7 @@ OpenSSHKey OpenSSHKey::generate(bool secure)
     // TODO HNH Buffer is not handled properly - reduce duplication
     QList<QByteArray> publicParts;
     QList<QByteArray> privateParts;
-    Tool::Buffer buffer;
+    Tools::Buffer buffer;
     gcry_mpi_format format = GCRYMPI_FMT_USG;
     rc = gcry_mpi_aprint(format, &buffer.raw, &buffer.size, mpi[Private_N]);
     if (rc != GPG_ERR_NO_ERROR) {

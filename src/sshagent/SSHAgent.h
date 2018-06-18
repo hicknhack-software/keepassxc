@@ -22,8 +22,8 @@
 #include <QList>
 #include <QtCore>
 
-#include "crypto/OpenSSHKey.h"
 #include "gui/DatabaseWidget.h"
+#include "sshagent/OpenSSHKey.h"
 
 class SSHAgent : public QObject
 {

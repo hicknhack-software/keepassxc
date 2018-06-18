@@ -4,9 +4,12 @@ if(WITH_XC_SSHAGENT)
     set(sshagent_SOURCES
         bcrypt_pbkdf.cpp
         blowfish.c
+	ASN1Key.cpp
         AgentSettingsPage.cpp
         AgentSettingsWidget.cpp
+	BinaryStream.cpp
         KeeAgentSettings.cpp
+	OpenSSHKey.cpp
         SSHAgent.cpp
     )
 

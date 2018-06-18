@@ -20,12 +20,12 @@
 
 #include "core/Config.h"
 #include "core/CustomData.h"
-#include "core/DatabaseSharing.h"
 #include "core/FilePath.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
-#include "crypto/OpenSSHKey.h"
 #include "gui/FileDialog.h"
+#include "sharing/DatabaseSharing.h"
+#include "sshagent/OpenSSHKey.h"
 
 #include <QDir>
 #include <QStandardPaths>

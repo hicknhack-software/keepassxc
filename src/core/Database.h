@@ -31,7 +31,9 @@ class Entry;
 enum class EntryReferenceType;
 class Group;
 class Metadata;
+#ifdef WITH_XC_SHARING
 class DatabaseSharing;
+#endif
 class QTimer;
 class QIODevice;
 
@@ -88,10 +90,10 @@ public:
 
     Metadata* metadata();
     const Metadata* metadata() const;
-
+#ifdef WITH_XC_SHARING
     DatabaseSharing* sharing();
     const DatabaseSharing* sharing() const;
-
+#endif
     Entry* resolveEntry(const Uuid& uuid) const;
     Entry* resolveEntry(const QString& text, EntryReferenceType referenceType);
     Group* resolveGroup(const Uuid& uuid);
@@ -162,7 +164,9 @@ private:
     bool backupDatabase(QString filePath);
 
     Metadata* const m_metadata;
+#ifdef WITH_XC_SHARING
     DatabaseSharing* const m_sharing;
+#endif
     Group* m_rootGroup;
     QList<DeletedObject> m_deletedObjects;
     QTimer* m_timer;

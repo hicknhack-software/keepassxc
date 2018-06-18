@@ -26,17 +26,12 @@
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
-#include "crypto/Random.h"
-#include "format/KdbxXmlWriter.h"
-#include "format/Kdbx4Writer.h"
-#include "format/KeePass2RandomStream.h"
 #include "format/KeePass2Reader.h"
 #include "format/KeePass2Writer.h"
 #include "gui/MessageBox.h"
 #include "keys/PasswordKey.h"
-
-#include <quazip/quazip.h>
-#include <quazip/quazipfile.h>
+#include "sharing/Signature.h"
+#include "sshagent/OpenSSHKey.h"
 
 #include <iostream>
 
@@ -48,9 +43,8 @@
 #include <QStringBuilder>
 
 #include <gcrypt.h>
-
-#include <crypto/OpenSSHKey.h>
-#include <crypto/Signature.h>
+#include <quazip/quazip.h>
+#include <quazip/quazipfile.h>
 
 namespace {
 

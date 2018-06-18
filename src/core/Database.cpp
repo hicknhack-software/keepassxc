@@ -27,7 +27,6 @@
 
 #include "cli/Utils.h"
 #include "core/Clock.h"
-#include "core/DatabaseSharing.h"
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
@@ -37,12 +36,15 @@
 #include "format/KeePass2Writer.h"
 #include "keys/FileKey.h"
 #include "keys/PasswordKey.h"
+#include "sharing/DatabaseSharing.h"
 
 QHash<Uuid, Database*> Database::m_uuidMap;
 
 Database::Database()
     : m_metadata(new Metadata(this))
+#ifdef WITH_XC_SHARING
     , m_sharing(new DatabaseSharing(this, this))
+#endif
     , m_rootGroup(nullptr)
     , m_timer(new QTimer(this))
     , m_emitModified(false)
@@ -101,7 +103,7 @@ const Metadata* Database::metadata() const
 {
     return m_metadata;
 }
-
+#ifdef WITH_XC_SHARING
 DatabaseSharing* Database::sharing()
 {
     return m_sharing;
@@ -111,7 +113,7 @@ const DatabaseSharing* Database::sharing() const
 {
     return m_sharing;
 }
-
+#endif
 Entry* Database::resolveEntry(const Uuid& uuid) const
 {
     return findEntryRecursive(uuid, m_rootGroup);

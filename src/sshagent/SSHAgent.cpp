@@ -18,7 +18,7 @@
 
 #include "SSHAgent.h"
 
-#include "core/BinaryStream.h"
+#include "sshagent/BinaryStream.h"
 #include "sshagent/KeeAgentSettings.h"
 
 #ifndef Q_OS_WIN

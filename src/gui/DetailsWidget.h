@@ -55,7 +55,9 @@ private slots:
     void updateGroupHeaderLine();
     void updateGroupGeneralTab();
     void updateGroupNotesTab();
+#ifdef WITH_XC_SHARING
     void updateGroupSharingTab();
+#endif
 
     void stopTotpTimer();
     void deleteTotpTimer();

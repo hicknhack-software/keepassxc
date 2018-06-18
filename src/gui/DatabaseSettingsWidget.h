@@ -65,11 +65,15 @@ private:
     const QScopedPointer<Ui::DatabaseSettingsWidget> m_ui;
     const QScopedPointer<Ui::DatabaseSettingsWidgetGeneral> m_uiGeneral;
     const QScopedPointer<Ui::DatabaseSettingsWidgetEncryption> m_uiEncryption;
+#ifdef WITH_XC_SHARING
     const QScopedPointer<Ui::DatabaseSettingsWidgetSharing> m_uiSharing;
     QScopedPointer<QStandardItemModel> m_sharedGroupsModel;
+#endif
     QWidget* m_uiGeneralPage;
     QWidget* m_uiEncryptionPage;
+#ifdef WITH_XC_SHARING
     QWidget* m_uiSharingPage;
+#endif
     Database* m_db;
 };
 

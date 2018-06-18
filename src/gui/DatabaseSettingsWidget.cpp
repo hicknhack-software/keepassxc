@@ -32,35 +32,41 @@
 #include <QThread>
 
 #include "FileDialog.h"
-#include "MessageBox.h"
-#include "PasswordEdit.h"
 #include "core/AsyncTask.h"
 #include "core/Clock.h"
 #include "core/Database.h"
-#include "core/DatabaseSharing.h"
 #include "core/FilePath.h"
 #include "core/Global.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "crypto/SymmetricCipher.h"
 #include "crypto/kdf/Argon2Kdf.h"
+#include "gui/MessageBox.h"
+#include "gui/PasswordEdit.h"
+#include "sharing/DatabaseSharing.h"
 
 DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
     : DialogyWidget(parent)
     , m_ui(new Ui::DatabaseSettingsWidget())
     , m_uiGeneral(new Ui::DatabaseSettingsWidgetGeneral())
     , m_uiEncryption(new Ui::DatabaseSettingsWidgetEncryption())
+#ifdef WITH_XC_SHARING
     , m_uiSharing(new Ui::DatabaseSettingsWidgetSharing())
     , m_sharedGroupsModel(new QStandardItemModel())
+#endif
     , m_uiGeneralPage(new QWidget())
     , m_uiEncryptionPage(new QWidget())
+#ifdef WITH_XC_SHARING
     , m_uiSharingPage(new QWidget())
+#endif
     , m_db(nullptr)
 {
     m_ui->setupUi(this);
     m_uiGeneral->setupUi(m_uiGeneralPage);
     m_uiEncryption->setupUi(m_uiEncryptionPage);
+#ifdef WITH_XC_SHARING
     m_uiSharing->setupUi(m_uiSharingPage);
+#endif
 
     connect(m_ui->buttonBox, SIGNAL(accepted()), SLOT(save()));
     connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(reject()));
@@ -84,7 +90,9 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
                                     FilePath::instance()->icon("apps", "preferences-system-network-sharing"));
     m_ui->stackedWidget->addWidget(m_uiGeneralPage);
     m_ui->stackedWidget->addWidget(m_uiEncryptionPage);
+#ifdef WITH_XC_SHARING
     m_ui->stackedWidget->addWidget(m_uiSharingPage);
+#endif
 
     connect(m_ui->categoryList, SIGNAL(categoryChanged(int)), m_ui->stackedWidget, SLOT(setCurrentIndex(int)));
 }
@@ -158,7 +166,7 @@ void DatabaseSettingsWidget::load(Database* db)
         m_uiEncryption->memorySpinBox->setValue(static_cast<int>(argon2Kdf->memory()) / (1 << 10));
         m_uiEncryption->parallelismSpinBox->setValue(argon2Kdf->parallelism());
     }
-
+#ifdef WITH_XC_SHARING
     m_uiSharing->enableExportCheckBox->setChecked(DatabaseSharing::isEnabled(m_db, DatabaseSharing::ExportTo));
     m_uiSharing->enableImportCheckBox->setChecked(DatabaseSharing::isEnabled(m_db, DatabaseSharing::ImportFrom));
 
@@ -183,7 +191,7 @@ void DatabaseSettingsWidget::load(Database* db)
     }
 
     m_uiSharing->sharedGroupsView->setModel(m_sharedGroupsModel.data());
-
+#endif
     m_uiGeneral->dbNameEdit->setFocus();
     m_ui->categoryList->setCurrentCategory(0);
 }
@@ -261,7 +269,7 @@ void DatabaseSettingsWidget::save()
     }
 
     m_db->setCipher(Uuid(m_uiEncryption->algorithmComboBox->currentData().toByteArray()));
-
+#ifdef WITH_XC_SHARING
     int sharing = DatabaseSharing::Inactive;
     if (m_uiSharing->enableExportCheckBox->isChecked()) {
         sharing |= DatabaseSharing::ExportTo;
@@ -288,7 +296,7 @@ void DatabaseSettingsWidget::save()
         sharing |= DatabaseSharing::ImportFrom;
     }
     DatabaseSharing::enable(m_db, static_cast<DatabaseSharing::Type>(sharing));
-
+#endif
     // Save kdf parameters
     kdf->setRounds(m_uiEncryption->transformRoundsSpinBox->value());
     if (kdf->uuid() == KeePass2::KDF_ARGON2) {

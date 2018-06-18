@@ -47,6 +47,7 @@ option(WITH_XC_NETWORKING "Include networking code (e.g. for downlading website 
 option(WITH_XC_BROWSER "Include browser integration with keepassxc-browser." OFF)
 option(WITH_XC_YUBIKEY "Include YubiKey support." OFF)
 option(WITH_XC_SSHAGENT "Include SSH agent support." OFF)
+option(WITH_XC_SHARING "Include Sharing support." OFF)
 
 if(WITH_XC_ALL)
   # Enable all options
@@ -55,6 +56,7 @@ if(WITH_XC_ALL)
   set(WITH_XC_BROWSER ON)
   set(WITH_XC_YUBIKEY ON)
   set(WITH_XC_SSHAGENT ON)
+  set(WITH_XC_SHARING ON)
 endif()
 
 # Process ui files automatically from source files
@@ -339,7 +341,10 @@ if(ZLIB_VERSION_STRING VERSION_LESS "1.2.0")
   message(FATAL_ERROR "zlib 1.2.0 or higher is required to use the gzip format")
 endif()
 
-find_package(QuaZip REQUIRED)
+# Optional
+if(WITH_XC_SHARING)
+    find_package(QuaZip REQUIRED)
+endif()
 
 # Optional
 if(WITH_XC_YUBIKEY)

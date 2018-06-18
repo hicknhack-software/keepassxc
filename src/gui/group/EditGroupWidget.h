@@ -21,13 +21,16 @@
 #include <QComboBox>
 #include <QScopedPointer>
 
+#include "config-keepassx.h"
 #include "core/Group.h"
 #include "gui/EditWidget.h"
 
 class CustomData;
 class EditWidgetIcons;
 class EditWidgetProperties;
+#ifdef WITH_XC_SHARING
 class GroupSharingWidget;
+#endif
 
 namespace Ui
 {
@@ -67,7 +70,9 @@ private:
     QPointer<QWidget> m_editGroupWidgetMain;
     QPointer<EditWidgetIcons> m_editGroupWidgetIcons;
     QPointer<EditWidgetProperties> m_editWidgetProperties;
+#ifdef WITH_XC_SHARING
     QPointer<GroupSharingWidget> m_editWidgetSharing;
+#endif
 
     QPointer<Group> m_group;
     QPointer<Database> m_database;

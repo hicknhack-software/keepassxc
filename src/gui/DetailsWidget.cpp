@@ -24,10 +24,10 @@
 #include <QDir>
 
 #include "core/Config.h"
-#include "core/DatabaseSharing.h"
 #include "core/FilePath.h"
 #include "entry/EntryAttachmentsModel.h"
 #include "gui/Clipboard.h"
+#include "sharing/DatabaseSharing.h"
 
 namespace
 {
@@ -105,8 +105,9 @@ void DetailsWidget::setGroup(Group* selectedGroup)
     updateGroupHeaderLine();
     updateGroupGeneralTab();
     updateGroupNotesTab();
+#ifdef WITH_XC_SHARING
     updateGroupSharingTab();
-
+#endif
     setVisible(!config()->get("GUI/HideDetailsView").toBool());
 
     m_ui->stackedWidget->setCurrentWidget(m_ui->pageGroup);
@@ -277,7 +278,7 @@ void DetailsWidget::updateGroupNotesTab()
     setTabEnabled(m_ui->groupTabWidget, m_ui->groupNotesTab, !notes.isEmpty());
     m_ui->groupNotesEdit->setText(notes);
 }
-
+#ifdef WITH_XC_SHARING
 void DetailsWidget::updateGroupSharingTab()
 {
     Q_ASSERT(m_currentGroup);
@@ -286,7 +287,7 @@ void DetailsWidget::updateGroupSharingTab()
     m_ui->groupShareTypeLabel->setText(DatabaseSharing::referenceTypeLabel(reference));
     m_ui->groupSharePathLabel->setText(reference.path);
 }
-
+#endif
 void DetailsWidget::stopTotpTimer()
 {
     if (m_totpTimer) {

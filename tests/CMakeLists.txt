@@ -130,8 +130,10 @@ add_unit_test(NAME testcryptohash SOURCES TestCryptoHash.cpp
 add_unit_test(NAME testsymmetriccipher SOURCES TestSymmetricCipher.cpp
         LIBS ${TEST_LIBRARIES})
 
-add_unit_test(NAME testsignature SOURCES TestSignature.cpp
-	LIBS ${TEST_LIBRARIES})
+if(WITH_XC_SHARING)
+    add_unit_test(NAME testsignature SOURCES TestSignature.cpp
+	    LIBS ${TEST_LIBRARIES})
+endif()
 
 add_unit_test(NAME testhashedblockstream SOURCES TestHashedBlockStream.cpp
         LIBS testsupport ${TEST_LIBRARIES})
@@ -157,8 +159,10 @@ if(WITH_XC_AUTOTYPE)
   set_target_properties(testautotype PROPERTIES ENABLE_EXPORTS ON)
 endif()
 
+if(WITH_XC_SSHAGENT)
 add_unit_test(NAME testopensshkey SOURCES TestOpenSSHKey.cpp
 	LIBS ${TEST_LIBRARIES})
+endif()
 
 add_unit_test(NAME testentry SOURCES TestEntry.cpp
         LIBS ${TEST_LIBRARIES})
@@ -188,8 +192,10 @@ add_unit_test(NAME testykchallengeresponsekey
         SOURCES TestYkChallengeResponseKey.cpp
         LIBS ${TEST_LIBRARIES})
 
-add_unit_test(NAME testsharing SOURCES TestSharing.cpp
-	LIBS testsupport ${TEST_LIBRARIES})
+if(WITH_XC_SHARING)
+    add_unit_test(NAME testsharing SOURCES TestSharing.cpp
+	    LIBS testsupport ${TEST_LIBRARIES})
+endif()
 
 add_unit_test(NAME testdatabase SOURCES TestDatabase.cpp
         LIBS ${TEST_LIBRARIES})

@@ -40,14 +40,12 @@ set(keepassx_SOURCES
     core/AutoTypeAssociations.cpp
     core/AsyncTask.h
     core/AutoTypeMatch.cpp
-    core/BinaryStream.cpp
     core/Compare.cpp
     core/Config.cpp
     core/CsvParser.cpp
     core/CustomData.cpp
     core/Database.cpp
     core/DatabaseIcons.cpp
-    core/DatabaseSharing.cpp
     core/Entry.cpp
     core/EntryAttachments.cpp
     core/EntryAttributes.cpp
@@ -77,13 +75,9 @@ set(keepassx_SOURCES
     core/Base32.cpp
     cli/Utils.cpp
     cli/Utils.h
-    crypto/ASN1Key.cpp
     crypto/Crypto.cpp
     crypto/CryptoHash.cpp
-    crypto/CryptoTool.cpp
-    crypto/OpenSSHKey.cpp
     crypto/Random.cpp
-    crypto/Signature.cpp
     crypto/SymmetricCipher.cpp
     crypto/SymmetricCipherBackend.h
     crypto/SymmetricCipherGcrypt.cpp
@@ -160,7 +154,6 @@ set(keepassx_SOURCES
     gui/entry/EntryModel.cpp
     gui/entry/EntryView.cpp
     gui/group/EditGroupWidget.cpp
-    gui/group/GroupSharingWidget.cpp
     gui/group/GroupModel.cpp
     gui/group/GroupView.cpp
     keys/ChallengeResponseKey.h
@@ -209,6 +202,7 @@ add_feature_info(Auto-Type WITH_XC_AUTOTYPE "Automatic password typing")
 add_feature_info(Networking WITH_XC_NETWORKING "Compile KeePassXC with network access code (e.g. for downloading website icons)")
 add_feature_info(KeePassXC-Browser WITH_XC_BROWSER "Browser integration with KeePassXC-Browser")
 add_feature_info(SSHAgent WITH_XC_SSHAGENT "SSH agent integration compatible with KeeAgent")
+add_feature_info(Sharing WITH_XC_Sharing "Sharing integration with KeePassXC-Share")
 add_feature_info(YubiKey WITH_XC_YUBIKEY "YubiKey HMAC-SHA1 challenge-response")
 
 set(BROWSER_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/browser)
@@ -220,6 +214,11 @@ endif()
 
 add_subdirectory(autotype)
 add_subdirectory(cli)
+
+add_subdirectory(sharing)
+if(WITH_XC_SHARING)
+    set(sharing_LIB sharing)
+endif()
 
 add_subdirectory(sshagent)
 if(WITH_XC_SSHAGENT)
@@ -271,8 +270,11 @@ target_link_libraries(keepassx_core
                       ${ARGON2_LIBRARIES}
                       ${GCRYPT_LIBRARIES}
                       ${GPGERROR_LIBRARIES}
-		      ${ZLIB_LIBRARIES}
-		      ${QUAZIP_LIBRARIES})
+		      ${ZLIB_LIBRARIES})
+
+if(WITH_XC_SHARING)
+  target_link_libraries(keepassx_core ${sharing_LIB} ${QUAZIP_LIBRARIES})
+endif()
 
 if(APPLE)
     target_link_libraries(keepassx_core "-framework Foundation")

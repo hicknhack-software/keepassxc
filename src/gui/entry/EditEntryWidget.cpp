@@ -44,7 +44,7 @@
 #include "core/TimeDelta.h"
 #include "core/Tools.h"
 #ifdef WITH_XC_SSHAGENT
-#include "crypto/OpenSSHKey.h"
+#include "sshagent/OpenSSHKey.h"
 #include "sshagent/KeeAgentSettings.h"
 #include "sshagent/SSHAgent.h"
 #endif

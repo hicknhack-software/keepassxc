@@ -17,7 +17,8 @@
  */
 
 #include "ASN1Key.h"
-#include "core/BinaryStream.h"
+#include "sshagent/BinaryStream.h"
+
 #include <gcrypt.h>
 
 namespace
