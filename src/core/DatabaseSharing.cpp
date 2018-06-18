@@ -26,10 +26,18 @@
 #include "core/Group.h"
 #include "core/Merger.h"
 #include "core/Metadata.h"
+#include "crypto/Random.h"
 #include "format/KdbxXmlWriter.h"
+#include "format/Kdbx4Writer.h"
 #include "format/KeePass2RandomStream.h"
 #include "format/KeePass2Reader.h"
+#include "format/KeePass2Writer.h"
+#include "gui/MessageBox.h"
 #include "keys/PasswordKey.h"
+
+#include <quazip/quazip.h>
+#include <quazip/quazipfile.h>
+
 #include <iostream>
 
 #include <QBuffer>
@@ -49,35 +57,42 @@ namespace {
 static const QString KeeShareExt_ExportEnabled("Export");
 static const QString KeeShareExt_ImportEnabled("Import");
 static const QString KeeShareExt("KeeShareXC");
-static const QString KeeShareExt_Source("KeeShareXC_Source");
 static const QString KeeShareExt_Certificate("KeeShareXC_Certificate");
-static const QString KeeShareExt_Signature("KeeShareXC_Signature");
+static const QString KeeShareExt_Signature("container.share.signature");
+static const QString KeeShareExt_Container("container.share.kdbx");
 static const QChar KeeShareExt_referencePropertyDelimiter('|');
 
-QString packCertificate(const OpenSSHKey &key, bool verified)
+DatabaseSharing::Certificate packCertificate(const OpenSSHKey &key, bool verified, const QString &signer)
 {
-    QStringList parts = QStringList() << "rsa" << (verified ? "verified" : "unverified");
+    DatabaseSharing::Certificate extracted;
+    extracted.type = "rsa";
+    extracted.verified = verified;
+    extracted.signer = signer;
+    QStringList parts;
     for( const QByteArray& part : key.publicParts() ){
         parts << part.toHex();
     }
-    return QString::fromLatin1(parts.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64());
+    extracted.key = parts.join("|").toLatin1().toBase64();
+    return extracted;
 }
-QString packKey(const OpenSSHKey &key)
+DatabaseSharing::Key packKey(const OpenSSHKey &key)
 {
-    QStringList parts = QStringList() << "rsa";
+    DatabaseSharing::Key extracted;
+    extracted.type = "rsa";
+    QStringList parts;
     for( const QByteArray& part : key.privateParts() ){
         parts << part.toHex();
     }
-    return parts.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64();
+    extracted.key = parts.join("|").toLatin1().toBase64();
+    return extracted;
 }
-OpenSSHKey unpackKey(const QString &raw)
+OpenSSHKey unpackKey(const DatabaseSharing::Key &sign)
 {
     OpenSSHKey key;
-    QString serialized = QByteArray::fromBase64(raw.toLatin1());
-    QStringList privateParts = serialized.split(KeeShareExt_referencePropertyDelimiter);
-    Q_ASSERT(privateParts[0] == "rsa");
+    const QString serialized = QByteArray::fromBase64(sign.key.toLatin1());
+    const QStringList privateParts = serialized.split(KeeShareExt_referencePropertyDelimiter);
     QList<QByteArray> privateData;
-    for( int i = 1; i < privateParts.count(); ++i){
+    for( int i = 0; i < privateParts.count(); ++i){
         privateData << QByteArray::fromHex(privateParts[i].toLatin1());
     }
     key.m_rawType = OpenSSHKey::TYPE_RSA_PRIVATE;
@@ -85,21 +100,17 @@ OpenSSHKey unpackKey(const QString &raw)
     return key;
 }
 
-OpenSSHKey unpackCertificate(const QString& raw)
+OpenSSHKey unpackCertificate(const DatabaseSharing::Certificate& certificate)
 {
     OpenSSHKey key;
-    QString serialized = QString::fromLatin1(QByteArray::fromBase64(raw.toLatin1()));
-    QStringList publicParts = serialized.split(KeeShareExt_referencePropertyDelimiter);
-    Q_ASSERT(publicParts[0] == "rsa");
-    Q_ASSERT(publicParts[1] == "verified" || publicParts[1] == "unverified");
-    if( publicParts[1] == "verified" ){
-        QList<QByteArray> publicData;
-        for( int i = 2; i < publicParts.count(); ++i ){
-            publicData << QByteArray::fromHex(publicParts[i].toLatin1());
-        }
-        key.m_rawType = OpenSSHKey::TYPE_RSA_PUBLIC;
-        key.setPublicData(publicData);
+    const QString serialized = QString::fromLatin1(QByteArray::fromBase64(certificate.key.toLatin1()));
+    const QStringList publicParts = serialized.split(KeeShareExt_referencePropertyDelimiter);
+    QList<QByteArray> publicData;
+    for( int i = 0; i < publicParts.count(); ++i ){
+        publicData << QByteArray::fromHex(publicParts[i].toLatin1());
     }
+    key.m_rawType = OpenSSHKey::TYPE_RSA_PUBLIC;
+    key.setPublicData(publicData);
     return key;
 }
 
@@ -236,14 +247,20 @@ bool DatabaseSharing::isShared(const Group* group)
     return group->customData()->contains(KeeShareExt);
 }
 
+QString DatabaseSharing::fingerprintOf(const DatabaseSharing::Certificate &certificate)
+{
+    const OpenSSHKey key = unpackCertificate(certificate);
+    return key.fingerprint();
+}
+
 DatabaseSharing::Reference DatabaseSharing::referenceOf(const CustomData* customData)
 {
     static const Reference s_emptyReference;
     if (!customData->contains(KeeShareExt)) {
         return s_emptyReference;
     }
-    Reference reference;
-    if( !reference.deserialize(customData->value(KeeShareExt)) ){
+    Reference reference = Reference::deserialize(customData->value(KeeShareExt));
+    if( reference.isNull() ){
         qWarning("Invalid sharing reference detected - sharing disabled");
         return s_emptyReference;
     }
@@ -257,9 +274,9 @@ void DatabaseSharing::setReferenceTo(CustomData* customData, const DatabaseShari
         return;
     }
     if (customData->contains(KeeShareExt)) {
-        customData->set(KeeShareExt, reference.serialized());
+        customData->set(KeeShareExt, Reference::serialize(reference));
     }
-    customData->set(KeeShareExt, reference.serialized());
+    customData->set(KeeShareExt, Reference::serialize(reference));
 }
 
 QPixmap DatabaseSharing::indicatorBadge(const Group* group, QPixmap pixmap)
@@ -295,15 +312,13 @@ QString DatabaseSharing::referenceTypeLabel(const Reference& reference)
     return "";
 }
 
-void DatabaseSharing::assignDefaultsTo(DatabaseSharing::Reference &reference)
+void DatabaseSharing::assignDefaultsTo(DatabaseSharing::Reference &reference, const Group *group)
 {
-    OpenSSHKey key = OpenSSHKey::generate();
+    OpenSSHKey key = OpenSSHKey::generate(false);
     key.openKey(QString());
 
-    reference.ownKey = packCertificate(key, true);
-    reference.ownCertificate = packKey(key);
-    reference.acceptedCertificates << reference.ownKey;
-    reference.exporter = "KeeShare-Signer";
+    reference.ownKey = packKey(key);
+    reference.ownCertificate = packCertificate(key, true, group->hierarchy().join(" > "));
 }
 
 QString DatabaseSharing::indicatorSuffix(const Group* group, const QString& text)
@@ -367,66 +382,109 @@ void DatabaseSharing::handleFileRemoved(const QString& path)
     handleFileUpdated(path, Deletion);
 }
 
-bool DatabaseSharing::unsign(Database* db, const Reference& reference)
+bool DatabaseSharing::unsign(Database* db, QByteArray &data, const Reference& reference, const QString &signature)
 {
     QVariantMap map = db->publicCustomData();
-    const QString certificate = map[KeeShareExt_Certificate].toString();
-    // TODO CK: Let the user decide if the certificate is trustworthy
-    Reference copy = reference;
-    copy.acceptedCertificates << certificate;
-    if( !copy.acceptedCertificates.contains(certificate)){
-        ::qWarning() << "Unverified public key of" << map[KeeShareExt_Source];
-        return false;
-    }
-    const QString signature = QByteArray::fromBase64(map[KeeShareExt_Signature].toString().toLatin1());
-    map[KeeShareExt_Signature] = QString();
-    db->setPublicCustomData(map);
-
-    // TODO HNH is it sufficient to hard code just one algorithm to create a signature?
-    // TODO HNH it would be better to use standard formats like real certificates and ANS1 formats to sign our data -
-    // but that would possibly need an ASN1 lib
-    QByteArray buffer;
-    QBuffer device(&buffer);
-    device.open(QBuffer::ReadWrite);
-    QByteArray headerHash;
-    KeePass2RandomStream randomStream(KeePass2::ProtectedStreamAlgo::ChaCha20);
-    KdbxXmlWriter xmlWriter(KeePass2::FILE_VERSION_4);
-    xmlWriter.writeDatabase(&device, db, &randomStream, headerHash);
-
-    OpenSSHKey key = unpackCertificate(certificate);
+    DatabaseSharing::Certificate importedCertificate = DatabaseSharing::Certificate::deserialize(map[KeeShareExt_Certificate].toString());
+    OpenSSHKey key = unpackCertificate(importedCertificate);
     key.openKey(QString());
     Signature signer;
-    const bool success = signer.verify(buffer, signature, key);
-    map.remove(KeeShareExt_Signature);
-    map.remove(KeeShareExt_Certificate);
-    map.remove(KeeShareExt_Source);
-    db->setPublicCustomData(map);
-    return success;
+    const bool success = signer.verify(data, signature, key);
+    if( ! success ) {
+        const QFileInfo info(reference.path);
+        qCritical("Invalid signature for sharing container %s.", qPrintable(info.absoluteFilePath()));
+        return false;
+    }
+    if( reference.ownCertificate.key == importedCertificate.key ){
+        return true;
+    }
+    for( const DatabaseSharing::Certificate &certificate : reference.foreignCertificates ){
+        if( certificate.key == importedCertificate.key && certificate.verified ){
+            return true;
+        }
+    }
+    auto result = MessageBox::question(nullptr,
+                                       tr("Untrustworthy certificate for sharing container"),
+                                       tr("Do you want to trust %1 signing with the fingerprint of %2")
+                                           .arg(importedCertificate.signer)
+                                           .arg(fingerprintOf(importedCertificate)),
+                                       QMessageBox::Yes | QMessageBox::No,
+                                       QMessageBox::No);
+
+    if( result != QMessageBox::Yes ){
+        qWarning("Prevented import due to untrusted certificate of %s", qPrintable(importedCertificate.signer));
+        return false;
+    }
+    return true;
 }
 
 DatabaseSharing::Result DatabaseSharing::importContainerInto(const Reference& reference, Group* targetGroup)
 {
     const QFileInfo info(reference.path);
     QFile dbFile(info.absoluteFilePath());
-    if (!dbFile.exists()) {
+    if (!info.exists()) {
         qCritical("File %s does not exist.", qPrintable(info.absoluteFilePath()));
         return {reference.path, Result::Warning, tr("File does not exist")};
     }
-    if (!dbFile.open(QIODevice::ReadOnly)) {
+    QuaZip zip(info.absoluteFilePath());
+    if (!zip.open(QuaZip::mdUnzip)) {
         qCritical("Unable to open file %s.", qPrintable(info.absoluteFilePath()));
         return {reference.path, Result::Error, tr("File is not readable")};
     }
+    QSet<QString> expected = QSet<QString>() << KeeShareExt_Signature  << KeeShareExt_Container;
+    const QList<QuaZipFileInfo> files = zip.getFileInfoList();
+    QSet<QString> actual;
+    for( const QuaZipFileInfo& file : files ){
+        actual << file.name;
+    }
+    if( expected != actual ){
+        qCritical("Invalid sharing container %s.", qPrintable(info.absoluteFilePath()));
+        return {reference.path, Result::Error, tr("Invalid sharing container")};
+    }
+
+    zip.setCurrentFile(KeeShareExt_Signature);
+    QuaZipFile signatureFile(&zip);
+    signatureFile.open(QuaZipFile::ReadOnly);
+    QString signature = signatureFile.readAll();
+    signatureFile.close();
+
+
+    zip.setCurrentFile(KeeShareExt_Container);
+    QuaZipFile databaseFile(&zip);
+    databaseFile.open(QuaZipFile::ReadOnly);
+    QByteArray payload = databaseFile.readAll();
+    databaseFile.close();
+    QBuffer buffer(&payload);
+    buffer.open(QIODevice::ReadOnly);
 
     KeePass2Reader reader;
     CompositeKey key;
     key.addKey(PasswordKey(reference.password));
-    Database* sourceDb = reader.readDatabase(&dbFile, key);
+    Database* sourceDb = reader.readDatabase(&buffer, key);
     if (reader.hasError()) {
         qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));
         return {reference.path, Result::Error, reader.errorString()};
     }
 
-    if (!unsign(sourceDb, reference)) {
+    bool trusted = unsign(sourceDb, payload, reference, signature);
+    Certificate certificate = Certificate::deserialize(sourceDb->publicCustomData()[KeeShareExt_Certificate].toString());
+    if(reference.ownCertificate.key != certificate.key){
+        Reference copy = reference;
+        bool found = false;
+        for( Certificate &knownCertificate : copy.foreignCertificates ){
+            if( knownCertificate.key == certificate.key ){
+                knownCertificate.signer = certificate.signer;
+                knownCertificate.verified = trusted;
+                found = true;
+            }
+        }
+        if( ! found ){
+            copy.foreignCertificates << certificate;
+        }
+        // we need to update with the new signer
+        setReferenceTo(targetGroup->customData(), copy);
+    }
+    if (!trusted) {
         qCritical("Invalid signature of database");
         return {reference.path, Result::Error, tr("Invalid signature") };
     }
@@ -493,33 +551,6 @@ void DatabaseSharing::resolveReferenceAttributes(Entry* targetEntry, const Datab
     }
 }
 
-void DatabaseSharing::sign(Database* db, const Reference& reference)
-{
-    QVariantMap map = db->publicCustomData();
-    map[KeeShareExt_Source] = reference.exporter;
-    map[KeeShareExt_Certificate] = reference.ownCertificate;
-    map[KeeShareExt_Signature] = QString();
-    db->setPublicCustomData(map);
-
-    // TODO HNH is it sufficient to hard code just one algorithm to create a signature?
-    // TODO HNH it would be better to use standard formats like real certificates and ANS1 formats to sign our data -
-    // but that would possibly need an ASN1 lib
-    QByteArray buffer;
-    QBuffer device(&buffer);
-    device.open(QBuffer::ReadWrite);
-    QByteArray headerHash;
-    KeePass2RandomStream randomStream(KeePass2::ProtectedStreamAlgo::ChaCha20);
-    KdbxXmlWriter xmlWriter(KeePass2::FILE_VERSION_4);
-    xmlWriter.writeDatabase(&device, db, &randomStream, headerHash);
-
-    OpenSSHKey key = unpackKey(reference.ownCertificate);
-    key.openKey(QString());
-    Signature signer;
-    map[KeeShareExt_Signature] = signer.create(buffer, key).toLatin1().toBase64();
-
-    db->setPublicCustomData(map);
-}
-
 Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const Group* sourceRoot)
 {
     const Database* sourceDb = sourceRoot->database();
@@ -566,7 +597,9 @@ Database* DatabaseSharing::exportIntoContainer(const Reference& reference, const
             resolveReferenceAttributes(targetEntry, sourceDb);
         }
     }
-    sign(targetDb, reference);
+    QVariantMap map = targetDb->publicCustomData();
+    map[KeeShareExt_Certificate] = DatabaseSharing::Certificate::serialize(reference.ownCertificate);
+    targetDb->setPublicCustomData(map);
     return targetDb;
 }
 
@@ -623,14 +656,70 @@ QList<DatabaseSharing::Result> DatabaseSharing::exportIntoReferenceContainers()
 
         m_fileWatcher->ignoreFileChanges(reference.path);
         QScopedPointer<Database> targetDb(exportIntoContainer(reference, group));
-        const QString errorMessage = targetDb->saveToFile(reference.path);
-        m_fileWatcher->observeFileChanges(true);
-
-        if (!errorMessage.isEmpty()) {
-            qWarning("Writing export dabase failed: %s.", errorMessage.toLatin1().data());
-            results << Result{reference.path, Result::Error, errorMessage};
+        QByteArray bytes;
+        {
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            KeePass2Writer writer;
+            writer.writeDatabase(&buffer, targetDb.data());
+            if (writer.hasError()) {
+                qWarning("Serializing export dabase failed: %s.", writer.errorString().toLatin1().data());
+                results << Result{reference.path, Result::Error, writer.errorString()};
+                m_fileWatcher->observeFileChanges(true);
+                continue;
+            }
+        }
+        QuaZip zip(reference.path);
+        zip.setFileNameCodec( "UTF-8" );
+        const bool zipOpened = zip.open(QuaZip::mdCreate);
+        if( !zipOpened ){
+            ::qWarning("Opening export file failed: %d", zip.getZipError());
+            results << Result{reference.path, Result::Error, tr("Could not write export container (%1)").arg(zip.getZipError()) };
+            m_fileWatcher->observeFileChanges(true);
             continue;
         }
+        {
+            OpenSSHKey key = unpackKey(reference.ownKey);
+            key.openKey(QString());
+            Signature signer;
+            QuaZipFile file(&zip);
+            const bool signatureOpened = file.open(QIODevice::WriteOnly, QuaZipNewInfo(KeeShareExt_Signature));
+            if( !signatureOpened ){
+                ::qWarning("Embedding signature failed: %d", zip.getZipError());
+                results << Result{reference.path, Result::Error, tr("Could not embed signature (%1)").arg(file.getZipError()) };
+                m_fileWatcher->observeFileChanges(true);
+                continue;
+            }
+            file.write(signer.create(bytes, key).toLatin1());
+            if( file.getZipError() != ZIP_OK ){
+                ::qWarning("Embedding signature failed: %d", zip.getZipError());
+                results << Result{reference.path, Result::Error, tr("Could not embed signature (%1)").arg(file.getZipError()) };
+                m_fileWatcher->observeFileChanges(true);
+                continue;
+            }
+            file.close();
+        }
+        {
+            QuaZipFile file(&zip);
+            const bool dbOpened = file.open(QIODevice::WriteOnly, QuaZipNewInfo(KeeShareExt_Container));
+            if( !dbOpened ){
+                ::qWarning("Embedding database failed: %d", zip.getZipError());
+                results << Result{reference.path, Result::Error, tr("Could not embed database (%1)").arg(file.getZipError()) };
+                m_fileWatcher->observeFileChanges(true);
+                continue;
+            }
+            if( file.getZipError() != ZIP_OK ){
+                ::qWarning("Embedding database failed: %d", zip.getZipError());
+                results << Result{reference.path, Result::Error, tr("Could not embed database (%1)").arg(file.getZipError()) };
+                m_fileWatcher->observeFileChanges(true);
+                continue;
+            }
+            file.write(bytes);
+            file.close();
+        }
+        zip.close();
+
+        m_fileWatcher->observeFileChanges(true);
         results << Result{reference.path};
     }
     return results;
@@ -702,35 +791,41 @@ bool DatabaseSharing::Reference::operator==(const DatabaseSharing::Reference& ot
     return path == other.path && uuid == other.uuid && password == other.password && type == other.type;
 }
 
-QString DatabaseSharing::Reference::serialized() const
+QString DatabaseSharing::Reference::serialize(const Reference &reference)
 {
+    QStringList foreign;
+    for( const DatabaseSharing::Certificate &certificate : reference.foreignCertificates ){
+        foreign << DatabaseSharing::Certificate::serialize(certificate).toLatin1().toBase64();
+    }
     const QStringList raw = QStringList()
-            << QString::number(static_cast<int>(type))
-            << uuid.toHex()
-            << path.toLatin1().toBase64()
-            << password.toLatin1().toBase64()
-            << ownKey.toLatin1().toBase64()
-            << ownCertificate.toLatin1().toBase64()
-            << acceptedCertificates.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64()
-            << exporter.toLatin1().toBase64();
+            << QString::number(static_cast<int>(reference.type))
+            << reference.uuid.toHex()
+            << reference.path.toLatin1().toBase64()
+            << reference.password.toLatin1().toBase64()
+            << DatabaseSharing::Key::serialize(reference.ownKey).toLatin1().toBase64()
+            << DatabaseSharing::Certificate::serialize(reference.ownCertificate).toLatin1().toBase64()
+            << foreign.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64();
     return raw.join(KeeShareExt_referencePropertyDelimiter);
 }
 
-bool DatabaseSharing::Reference::deserialize(const QString &serialized)
+DatabaseSharing::Reference DatabaseSharing::Reference::deserialize(const QString &raw)
 {
-    const auto parts = serialized.split(KeeShareExt_referencePropertyDelimiter);
+    DatabaseSharing::Reference reference;
+
+    const auto parts = raw.split(KeeShareExt_referencePropertyDelimiter);
     if (parts.count() != 7) {
-        return false;
+        return reference;
     }
-    type = static_cast<Type>(parts[0].toInt());
-    uuid = Uuid::fromHex(parts[1]);
-    path = QByteArray::fromBase64(parts[2].toLatin1());
-    password = QByteArray::fromBase64(parts[3].toLatin1());
-    ownKey = QByteArray::fromBase64(parts[4].toLatin1());
-    ownCertificate = QByteArray::fromBase64(parts[5].toLatin1());
-    acceptedCertificates = QString::fromLatin1(QByteArray::fromBase64(parts[6].toLatin1())).split(KeeShareExt_referencePropertyDelimiter);
-    exporter = QByteArray::fromBase64(parts[6].toLatin1());
-    return true;
+    reference.type = static_cast<Type>(parts[0].toInt());
+    reference.uuid = Uuid::fromHex(parts[1]);
+    reference.path = QByteArray::fromBase64(parts[2].toLatin1());
+    reference.password = QByteArray::fromBase64(parts[3].toLatin1());
+    reference.ownKey = DatabaseSharing::Key::deserialize(QByteArray::fromBase64(parts[4].toLatin1()));
+    reference.ownCertificate = DatabaseSharing::Certificate::deserialize(QByteArray::fromBase64(parts[5].toLatin1()));
+    for( const QString &foreign : QString::fromLatin1(QByteArray::fromBase64(parts[6].toLatin1())).split(KeeShareExt_referencePropertyDelimiter, QString::SkipEmptyParts) ){
+        reference.foreignCertificates << DatabaseSharing::Certificate::deserialize(QByteArray::fromBase64(foreign.toLatin1()));
+    }
+    return reference;
 }
 
 DatabaseSharing::Result::Result(const QString& path, DatabaseSharing::Result::Type type, const QString& message)
@@ -758,4 +853,42 @@ bool DatabaseSharing::Result::isInfo() const
 bool DatabaseSharing::Result::isWarning() const
 {
     return !message.isEmpty() && type == Warning;
+}
+
+QString DatabaseSharing::Certificate::serialize(const DatabaseSharing::Certificate &certificate)
+{
+    const QStringList data = QStringList()
+            << certificate.type
+            << certificate.signer
+            << (certificate.verified ? "verified" : "unverified")
+            << certificate.key;
+    return data.join(KeeShareExt_referencePropertyDelimiter);
+}
+
+DatabaseSharing::Certificate DatabaseSharing::Certificate::deserialize(const QString &raw)
+{
+    const QStringList data = raw.split(KeeShareExt_referencePropertyDelimiter);
+    DatabaseSharing::Certificate certificate;
+    certificate.type = data.value(0);
+    certificate.signer = data.value(1);
+    certificate.verified = data.value(2) == "verified";
+    certificate.key = data.value(3);
+    return certificate;
+}
+
+QString DatabaseSharing::Key::serialize(const DatabaseSharing::Key &key)
+{
+    const QStringList data = QStringList()
+            << key.type
+            << key.key;
+    return data.join(KeeShareExt_referencePropertyDelimiter).toLatin1();
+}
+
+DatabaseSharing::Key DatabaseSharing::Key::deserialize(const QString &raw)
+{
+    const QStringList data = raw.split(KeeShareExt_referencePropertyDelimiter);
+    DatabaseSharing::Key key;
+    key.type = data.value(0);
+    key.key = data.value(1);
+    return key;
 }

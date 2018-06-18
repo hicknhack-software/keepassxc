@@ -174,13 +174,11 @@ void DatabaseSettingsWidget::load(Database* db)
 
         QStringList hierarchy = group->hierarchy();
         hierarchy.removeFirst();
-        QList<QStandardItem*> row = QList<QStandardItem*>()
-                                    << new QStandardItem(hierarchy.join(" / "))
-                                    << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference))
-                                    << new QStandardItem(reference.path)
-                                    << new QStandardItem(reference.exporter)
-                                    << new QStandardItem(reference.acceptedCertificates.join(" "))
-                                       ;
+        QList<QStandardItem*> row = QList<QStandardItem*>();
+        row << new QStandardItem(hierarchy.join(" > "));
+        row << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference));
+        row << new QStandardItem(reference.path);
+        row << new QStandardItem(reference.foreignCertificates.count());
         m_sharedGroupsModel->appendRow(row);
     }
 

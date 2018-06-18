@@ -46,16 +46,35 @@ public:
         SynchronizeWith = ImportFrom | ExportTo
     };
 
+    struct Certificate
+    {
+        QString type;
+        bool verified;
+        QString key;
+        QString signer;
+
+        static QString serialize(const Certificate &certificate);
+        static Certificate deserialize(const QString &raw);
+    };
+
+    struct Key
+    {
+        QString type;
+        QString key;
+
+        static QString serialize(const Key &key);
+        static Key deserialize(const QString &raw);
+    };
+
     struct Reference
     {
-        Type type; // Type of reference
+        Type type;
         Uuid uuid;
         QString path;
         QString password;
-        QStringList acceptedCertificates;
-        QString ownCertificate;
-        QString ownKey;
-        QString exporter;
+        Certificate ownCertificate;
+        Key ownKey;
+        QList<Certificate> foreignCertificates;
 
         Reference();
         bool isNull() const;
@@ -65,14 +84,15 @@ public:
         bool operator<(const Reference& other) const;
         bool operator==(const Reference& other) const;
 
-        QString serialized() const;
-        bool deserialize(const QString &serialized);
+        static QString serialize(const Reference &reference);
+        static Reference deserialize(const QString &raw);
     };
 
+    static QString fingerprintOf(const Certificate &certificate);
     static Reference referenceOf(const CustomData* customData);
     static void setReferenceTo(CustomData* customData, const Reference& reference);
     static QString referenceTypeLabel(const Reference& reference);
-    static void assignDefaultsTo(Reference &reference);
+    static void assignDefaultsTo(Reference &reference, const Group *group);
 
     static QString indicatorSuffix(const Group* group, const QString& text);
     static QPixmap indicatorBadge(const Group* group, QPixmap pixmap);
@@ -133,10 +153,9 @@ private:
     static void resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb);
 
     static Database* exportIntoContainer(const Reference& reference, const Group* sourceRoot);
-    static Result importContainerInto(const Reference& reference, Group* targetGroup);
+    static Result importContainerInto(const Reference &reference, Group* targetGroup);
 
-    static void sign(Database* db, const Reference& reference);
-    static bool unsign(Database* db, const Reference& reference);
+    static bool unsign(Database* db, QByteArray &data, const Reference& reference, const QString &signature);
 
     Result importFromReferenceContainer(const QString& path);
     QList<DatabaseSharing::Result> exportIntoReferenceContainers();

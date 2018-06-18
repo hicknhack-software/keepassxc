@@ -271,7 +271,8 @@ target_link_libraries(keepassx_core
                       ${ARGON2_LIBRARIES}
                       ${GCRYPT_LIBRARIES}
                       ${GPGERROR_LIBRARIES}
-                      ${ZLIB_LIBRARIES})
+		      ${ZLIB_LIBRARIES}
+		      ${QUAZIP_LIBRARIES})
 
 if(APPLE)
     target_link_libraries(keepassx_core "-framework Foundation")

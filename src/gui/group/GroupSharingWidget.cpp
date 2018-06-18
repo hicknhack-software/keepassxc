@@ -24,6 +24,7 @@
 #include "core/FilePath.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
+#include "crypto/OpenSSHKey.h"
 #include "gui/FileDialog.h"
 
 #include <QDir>
@@ -32,7 +33,7 @@
 GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     : QWidget(parent)
     , m_ui(new Ui::GroupSharingWidget())
-    , m_verificationModel(new GroupSharingVerificationModel(this))
+    , m_verificationModel(new QStandardItemModel())
 {
     m_ui->setupUi(this);
 
@@ -45,6 +46,8 @@ GroupSharingWidget::GroupSharingWidget(QWidget* parent)
 
     m_ui->messageWidget->hide();
 
+    m_ui->verificationTableView->setModel(m_verificationModel.data());
+
     connect(m_ui->togglePasswordButton, SIGNAL(toggled(bool)), m_ui->passwordEdit, SLOT(setShowPassword(bool)));
     connect(m_ui->togglePasswordGeneratorButton, SIGNAL(toggled(bool)), SLOT(togglePasswordGeneratorButton(bool)));
     connect(m_ui->passwordEdit, SIGNAL(textChanged(QString)), SLOT(selectPassword()));
@@ -52,6 +55,7 @@ GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     connect(m_ui->pathEdit, SIGNAL(textChanged(QString)), SLOT(setPath(QString)));
     connect(m_ui->pathSelectionButton, SIGNAL(pressed()), SLOT(selectPath()));
     connect(m_ui->typeComboBox, SIGNAL(currentIndexChanged(int)), SLOT(selectType()));
+    connect(m_ui->verificationExporterEdit, SIGNAL(textChanged(QString)), SLOT(setVerificationExporter(QString)));
     const auto types = QList<DatabaseSharing::Type>() << DatabaseSharing::Inactive << DatabaseSharing::ImportFrom
                                                       << DatabaseSharing::ExportTo << DatabaseSharing::SynchronizeWith;
     for (const DatabaseSharing::Type& type : types) {
@@ -117,11 +121,17 @@ void GroupSharingWidget::showSharingState()
 
 void GroupSharingWidget::update()
 {
+    m_verificationModel.reset(new QStandardItemModel());
     if (!m_customData || !m_currentGroup) {
         m_ui->passwordEdit->clear();
         m_ui->pathEdit->clear();
         m_ui->passwordGenerator->hide();
         m_ui->togglePasswordGeneratorButton->setChecked(false);
+
+        m_ui->verificationExporterEdit->clear();
+        m_ui->verificationOwnCertificateEdit->clear();
+        m_ui->verificationOwnKeyEdit->clear();
+        m_ui->verificationOwnFingerprintEdit->clear();
 
     } else {
         const DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
@@ -130,8 +140,27 @@ void GroupSharingWidget::update()
         m_ui->passwordEdit->setText(reference.password);
         m_ui->pathEdit->setText(reference.path);
 
+        m_ui->verificationGroupBox->setEnabled(!reference.isNull());
+
+        m_ui->verificationExporterEdit->setText(reference.ownCertificate.signer);
+        m_ui->verificationOwnCertificateEdit->setText(reference.ownCertificate.key);
+        m_ui->verificationOwnKeyEdit->setText(reference.ownKey.key);
+        m_ui->verificationOwnFingerprintEdit->setText(DatabaseSharing::fingerprintOf(reference.ownCertificate));
+
+        m_verificationModel->setHorizontalHeaderLabels(QStringList() << tr("Source") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
+
+        for( const DatabaseSharing::Certificate &certificate : reference.foreignCertificates ){
+            QStandardItem* signer = new QStandardItem(certificate.signer);
+            QStandardItem* verified = new QStandardItem(certificate.verified ? tr("trusted") : tr("untrusted"));
+            QStandardItem* fingerprint = new QStandardItem(DatabaseSharing::fingerprintOf(reference.ownCertificate));
+            QStandardItem* key = new QStandardItem(certificate.key);
+            m_verificationModel->appendRow(QList<QStandardItem*>() << signer << verified << fingerprint << key);
+        }
+
         showSharingState();
     }
+
+    m_ui->verificationTableView->setModel(m_verificationModel.data());
 }
 
 void GroupSharingWidget::togglePasswordGeneratorButton(bool checked)
@@ -147,11 +176,24 @@ void GroupSharingWidget::setGeneratedPassword(const QString& password)
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     if( reference.isNull() ){
-        DatabaseSharing::assignDefaultsTo(reference);
+        DatabaseSharing::assignDefaultsTo(reference, m_currentGroup);
     }
     reference.password = password;
     DatabaseSharing::setReferenceTo(m_customData, reference);
     m_ui->togglePasswordGeneratorButton->setChecked(false);
+}
+
+void GroupSharingWidget::setVerificationExporter(const QString &exporter)
+{
+    if (!m_customData) {
+        return;
+    }
+    DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    if( reference.isNull() ){
+        DatabaseSharing::assignDefaultsTo(reference, m_currentGroup);
+    }
+    reference.ownCertificate.signer = exporter;
+    DatabaseSharing::setReferenceTo(m_customData, reference);
 }
 
 void GroupSharingWidget::setPath(const QString& path)
@@ -161,7 +203,7 @@ void GroupSharingWidget::setPath(const QString& path)
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     if( reference.isNull() ){
-        DatabaseSharing::assignDefaultsTo(reference);
+        DatabaseSharing::assignDefaultsTo(reference, m_currentGroup);
     }
     reference.path = path;
     DatabaseSharing::setReferenceTo(m_customData, reference);
@@ -179,13 +221,13 @@ void GroupSharingWidget::selectPath()
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     if( reference.isNull() ){
-        DatabaseSharing::assignDefaultsTo(reference);
+        DatabaseSharing::assignDefaultsTo(reference, m_currentGroup);
     }
-    QString filetype = tr("kdbx", "Filetype for sharing container");
+    QString filetype = tr("kdbx.share", "Filetype for sharing container");
     QString filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeePass2 Sharing Container"), tr("All files"));
     QString filename = reference.path;
     if (filename.isEmpty()) {
-        filename = tr("%1.share.%2", "Template for sharing container").arg(m_currentGroup->name()).arg(filetype);
+        filename = tr("%1.%2", "Template for sharing container").arg(m_currentGroup->name()).arg(filetype);
     }
     switch (reference.type) {
     case DatabaseSharing::ImportFrom:
@@ -224,7 +266,7 @@ void GroupSharingWidget::selectPassword()
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     if( reference.isNull() ){
-        DatabaseSharing::assignDefaultsTo(reference);
+        DatabaseSharing::assignDefaultsTo(reference, m_currentGroup);
     }
     reference.password = m_ui->passwordEdit->text();
     DatabaseSharing::setReferenceTo(m_customData, reference);
@@ -237,50 +279,9 @@ void GroupSharingWidget::selectType()
     }
     DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
     if( reference.isNull() ){
-        DatabaseSharing::assignDefaultsTo(reference);
+        DatabaseSharing::assignDefaultsTo(reference, m_currentGroup);
     }
     reference.type = static_cast<DatabaseSharing::Type>(m_ui->typeComboBox->currentData().toInt());
 
     DatabaseSharing::setReferenceTo(m_customData, reference);
-}
-
-GroupSharingVerificationModel::GroupSharingVerificationModel(QObject *parent)
-    : QAbstractItemModel(parent)
-{
-
-}
-
-QModelIndex GroupSharingVerificationModel::index(int row, int column, const QModelIndex &parent) const
-{
-    if( parent.isValid() ){
-        return QModelIndex();
-    }
-    return this->createIndex(row, column);
-}
-
-QModelIndex GroupSharingVerificationModel::parent(const QModelIndex &child) const
-{
-    Q_UNUSED(child);
-    return QModelIndex();
-}
-
-int GroupSharingVerificationModel::rowCount(const QModelIndex &parent) const
-{
-    if(parent.isValid()){
-        return 0;
-    }
-    return 0;
-}
-
-int GroupSharingVerificationModel::columnCount(const QModelIndex &parent) const
-{
-    Q_UNUSED(parent);
-    return 0;
-}
-
-QVariant GroupSharingVerificationModel::data(const QModelIndex &index, int role) const
-{
-    Q_UNUSED(index);
-    Q_UNUSED(role);
-    return QVariant();
 }
