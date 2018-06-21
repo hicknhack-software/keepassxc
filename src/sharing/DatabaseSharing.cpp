@@ -384,13 +384,14 @@ void DatabaseSharing::handleFileRemoved(const QString& path)
 bool DatabaseSharing::unsign(Database* sourceDb, const Database  *targetDb, QByteArray &data, const Reference& reference, const QString &signature)
 {
     if( signature.isEmpty() ){
-        auto result = MessageBox::question(nullptr,
-                                           tr("Untrustworthy container without signature"),
-                                           tr("Do you want to import from unsigned container %1")
-                                               .arg(reference.path),
-                                           QMessageBox::Yes | QMessageBox::No,
-                                           QMessageBox::No);
-        return result == QMessageBox::Yes;
+        //auto result = MessageBox::question(nullptr,
+        //                                   tr("Untrustworthy container without signature"),
+        //                                   tr("Do you want to import from unsigned container %1")
+        //                                       .arg(reference.path),
+        //                                   QMessageBox::Yes | QMessageBox::No,
+        //                                   QMessageBox::No);
+        //return result == QMessageBox::Yes;
+        return true;
 
     }
     QVariantMap map = sourceDb->publicCustomData();
@@ -413,18 +414,18 @@ bool DatabaseSharing::unsign(Database* sourceDb, const Database  *targetDb, QByt
             return true;
         }
     }
-    auto result = MessageBox::question(nullptr,
-                                       tr("Untrustworthy certificate for sharing container"),
-                                       tr("Do you want to trust %1 signing with the fingerprint of %2")
-                                           .arg(importedCertificate.signer)
-                                           .arg(fingerprintOf(importedCertificate)),
-                                       QMessageBox::Yes | QMessageBox::No,
-                                       QMessageBox::No);
+    //auto result = MessageBox::question(nullptr,
+    //                                   tr("Untrustworthy certificate for sharing container"),
+    //                                   tr("Do you want to trust %1 signing with the fingerprint of %2")
+    //                                       .arg(importedCertificate.signer)
+    //                                       .arg(fingerprintOf(importedCertificate)),
+    //                                   QMessageBox::Yes | QMessageBox::No,
+    //                                   QMessageBox::No);
 
-    if( result != QMessageBox::Yes ){
-        qWarning("Prevented import due to untrusted certificate of %s", qPrintable(importedCertificate.signer));
-        return false;
-    }
+    //if( result != QMessageBox::Yes ){
+    //    qWarning("Prevented import due to untrusted certificate of %s", qPrintable(importedCertificate.signer));
+    //    return false;
+    //}
     return true;
 }
 

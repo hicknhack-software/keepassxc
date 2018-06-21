@@ -8,5 +8,5 @@ if(WITH_XC_SHARING)
     )
 
     add_library(sharing STATIC ${sharing_SOURCES})
-    target_link_libraries(sharing Qt5::Core Qt5::Widgets Qt5::Network ${GCRYPT_LIBRARIES})
+    target_link_libraries(sharing Qt5::Core Qt5::Widgets Qt5::Network ${GCRYPT_LIBRARIES} ${QUAZIP_LIBRARIES})
 endif()

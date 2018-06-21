@@ -344,7 +344,8 @@ endif()
 # Optional
 if(WITH_XC_SHARING)
     find_package(QuaZip REQUIRED)
-    set(CMAKE_REQUIRED_INCLUDES ${QUAZIP_INCLUDE_DIR})
+
+    include_directories(SYSTEM ${QUAZIP_INCLUDE_DIR})
 endif()
 
 # Optional
@@ -394,3 +395,9 @@ else()
   feature_summary(WHAT ENABLED_FEATURES DESCRIPTION "Enabled features:")
   feature_summary(WHAT DISABLED_FEATURES DESCRIPTION "Disabled features:")
 endif()
+
+#get_cmake_property(_variableNames VARIABLES)
+#list (SORT _variableNames)
+#foreach (_variableName ${_variableNames})
+#    message(STATUS "${_variableName}=${${_variableName}}")
+#endforeach()
