@@ -69,8 +69,8 @@ private:
     static void assertDeletionNewerOnly(Database *db, const QMap<QString, Uuid> &identifiers);
     static void assertDeletionLocalOnly(Database *db, const QMap<QString, Uuid> &identifiers);
     static void assertUpdateMergedEntry1(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
-    static void assertUpdate_5_Entry2(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
-    static void assertUpdate_5_Entry1(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdateReappliedEntry2(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdateReappliedEntry1(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
     static void assertUpdateMergedEntry2(Entry *entry, const QMap<const char *, QDateTime> &timestamps);
 
 };
