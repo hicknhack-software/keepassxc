@@ -51,6 +51,8 @@ RUN set -x \
         zlib1g-dev \
         libxi-dev \
         libxtst-dev \
+	libquazip5-headers \
+	libquazip5-dev \
         mesa-common-dev \
         libyubikey-dev \
         libykpers-1-dev
