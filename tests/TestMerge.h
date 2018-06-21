@@ -68,6 +68,11 @@ private:
     void testDeletionConflictTemplate(int mergeMode, std::function<void(Database*, const QMap<QString, Uuid>&)> verification);
     static void assertDeletionNewerOnly(Database *db, const QMap<QString, Uuid> &identifiers);
     static void assertDeletionLocalOnly(Database *db, const QMap<QString, Uuid> &identifiers);
+    static void assertUpdateMergedEntry1(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdate_5_Entry2(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdate_5_Entry1(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdateMergedEntry2(Entry *entry, const QMap<const char *, QDateTime> &timestamps);
+
 };
 
 #endif // KEEPASSX_TESTMERGE_H
