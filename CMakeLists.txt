@@ -344,6 +344,7 @@ endif()
 # Optional
 if(WITH_XC_SHARING)
     find_package(QuaZip REQUIRED)
+    set(CMAKE_REQUIRED_INCLUDES ${QUAZIP_INCLUDE_DIR})
 endif()
 
 # Optional
