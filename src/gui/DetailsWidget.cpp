@@ -27,7 +27,7 @@
 #include "core/FilePath.h"
 #include "entry/EntryAttachmentsModel.h"
 #include "gui/Clipboard.h"
-#include "sharing/DatabaseSharing.h"
+#include "sharing/Sharing.h"
 
 namespace
 {
@@ -282,9 +282,9 @@ void DetailsWidget::updateGroupNotesTab()
 void DetailsWidget::updateGroupSharingTab()
 {
     Q_ASSERT(m_currentGroup);
-    setTabEnabled(m_ui->groupTabWidget, m_ui->groupShareTab, DatabaseSharing::isShared(m_currentGroup));
-    DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_currentGroup->customData());
-    m_ui->groupShareTypeLabel->setText(DatabaseSharing::referenceTypeLabel(reference));
+    setTabEnabled(m_ui->groupTabWidget, m_ui->groupShareTab, Sharing::isShared(m_currentGroup));
+    Sharing::Reference reference = Sharing::referenceOf(m_currentGroup->customData());
+    m_ui->groupShareTypeLabel->setText(Sharing::referenceTypeLabel(reference));
     m_ui->groupSharePathLabel->setText(reference.path);
 }
 #endif

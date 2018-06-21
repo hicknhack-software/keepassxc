@@ -43,7 +43,9 @@
 #include "sshagent/AgentSettingsPage.h"
 #include "sshagent/SSHAgent.h"
 #endif
-
+#ifdef WITH_XC_SHARING
+#include "sharing/Sharing.h"
+#endif
 #ifdef WITH_XC_BROWSER
 #include "browser/BrowserOptionDialog.h"
 #include "browser/BrowserSettings.h"
@@ -152,7 +154,9 @@ MainWindow::MainWindow()
     connect(SSHAgent::instance(), SIGNAL(error(QString)), this, SLOT(showErrorMessage(QString)));
     m_ui->settingsWidget->addSettingsPage(new AgentSettingsPage(m_ui->tabWidget));
 #endif
-
+#ifdef WITH_XC_SHARING
+    Sharing::init(this);
+#endif
     setWindowIcon(filePath()->applicationIcon());
     m_ui->globalMessageWidget->setHidden(true);
     connect(m_ui->globalMessageWidget, &MessageWidget::linkActivated, &MessageWidget::openHttpUrl);

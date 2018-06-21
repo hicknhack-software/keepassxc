@@ -103,14 +103,14 @@ private slots:
     void emitActivateDatabaseChanged();
     void emitDatabaseUnlockedFromDbWidgetSender();
 #ifdef WITH_XC_SHARING
-    void emitDatabaseSharingChanged(const QString& message, MessageWidget::MessageType type);
+    void handleDatabaseMessage(const Database *db, const QString& message, MessageWidget::MessageType type);
 #endif
 private:
     bool saveDatabase(Database* db, QString filePath = "");
     bool saveDatabaseAs(Database* db);
     bool closeDatabase(Database* db);
     void deleteDatabase(Database* db);
-    int databaseIndex(Database* db);
+    int databaseIndex(const Database *db);
     Database* indexDatabase(int index);
     DatabaseManagerStruct indexDatabaseManagerStruct(int index);
     Database* databaseFromDatabaseWidget(DatabaseWidget* dbWidget);

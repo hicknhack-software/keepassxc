@@ -39,7 +39,7 @@
 #include "gui/UnlockDatabaseDialog.h"
 #include "gui/entry/EntryView.h"
 #include "gui/group/GroupView.h"
-#include "sharing/DatabaseSharing.h"
+#include "sharing/Sharing.h"
 
 DatabaseManagerStruct::DatabaseManagerStruct()
     : dbWidget(nullptr)
@@ -339,7 +339,7 @@ bool DatabaseTabWidget::saveDatabase(Database* db, QString filePath)
 #ifdef WITH_XC_SHARING
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
-            db->sharing()->handleDatabaseSaved();
+            Sharing::instance()->handleDatabaseSaved(db);
 #endif
             updateTabName(db);
             emit messageDismissTab();
@@ -402,7 +402,7 @@ bool DatabaseTabWidget::saveDatabaseAs(Database* db)
             // Since we change to the saved database we should also export
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
-            db->sharing()->handleDatabaseSaved();
+            Sharing::instance()->handleDatabaseSaved(db);
 #endif
             // changes of the current database
             //           SaveAs for non-existing datbase doesn't matter since one has to set the path while creation
@@ -604,9 +604,9 @@ void DatabaseTabWidget::updateTabNameFromDbWidgetSender()
     }
 }
 
-int DatabaseTabWidget::databaseIndex(Database* db)
+int DatabaseTabWidget::databaseIndex(const Database* db)
 {
-    QWidget* dbWidget = m_dbList.value(db).dbWidget;
+    QWidget* dbWidget = m_dbList.value(const_cast<Database*>(db)).dbWidget;
     return indexOf(dbWidget);
 }
 
@@ -836,47 +836,41 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
 {
     if (oldDb) {
         oldDb->disconnect(this);
-#ifdef WITH_XC_SHARING
-        newDb->sharing()->disconnect(this);
-#endif
     }
 
     connect(newDb, SIGNAL(nameTextChanged()), SLOT(updateTabNameFromDbSender()));
     connect(newDb, SIGNAL(modified()), SLOT(modified()));
-#ifdef WITH_XC_SHARING
-    // TODO HNH: the messages are database -local - therefor it is needed to display the messages in the database tab
-    connect(newDb->sharing(),
-            SIGNAL(sharingChanged(QString, MessageWidget::MessageType)),
-            SLOT(emitDatabaseSharingChanged(QString, MessageWidget::MessageType)));
-#endif
-    // SIGNAL(messageGlobal(QString,MessageWidget::MessageType)));
     newDb->setEmitModified(true);
+
 #ifdef WITH_XC_SHARING
-    // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper architecture
-    newDb->sharing()->handleDatabaseOpened();
+    Sharing::instance()->connectDatabase(newDb, oldDb);
+    connect(Sharing::instance(),
+            SIGNAL(sharingChanged(Database*, QString, MessageWidget::MessageType)),
+            SLOT(handleDatabaseMessage(Database*, QString, MessageWidget::MessageType)),
+            Qt::UniqueConnection);
+    Sharing::instance()->handleDatabaseOpened(newDb);
 #endif
 }
-#ifdef WITH_XC_SHARING
-void DatabaseTabWidget::emitDatabaseSharingChanged(const QString& message, MessageWidget::MessageType type)
+
+void DatabaseTabWidget::handleDatabaseMessage(const Database* db, const QString& message, MessageWidget::MessageType type)
 {
-    auto* databaseSharing = qobject_cast<DatabaseSharing*>(sender());
     auto* databaseWidget = currentDatabaseWidget();
     if (!databaseWidget) {
         return;
     }
-    auto* database = currentDatabaseWidget()->database();
-    if (!database) {
+    auto* currentDb = currentDatabaseWidget()->database();
+    if (!currentDb) {
         return;
     }
-    if (database->sharing() != databaseSharing) {
-        auto index = databaseIndex(databaseSharing->database());
+    if (currentDb != db) {
+        auto index = databaseIndex(db);
         emit messageGlobal(tr("Sharing update in background database %1:\n%2").arg(tabText(index)).arg(message), type);
 
     } else {
         emit messageTab(message, type);
     }
 }
-#endif
+
 void DatabaseTabWidget::performGlobalAutoType()
 {
     QList<Database*> unlockedDatabases;

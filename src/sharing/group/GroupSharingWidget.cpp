@@ -24,7 +24,7 @@
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "gui/FileDialog.h"
-#include "sharing/DatabaseSharing.h"
+#include "sharing/Sharing.h"
 #include "sshagent/OpenSSHKey.h"
 
 #include <QDir>
@@ -52,21 +52,21 @@ GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     connect(m_ui->pathEdit, SIGNAL(textChanged(QString)), SLOT(setPath(QString)));
     connect(m_ui->pathSelectionButton, SIGNAL(pressed()), SLOT(selectPath()));
     connect(m_ui->typeComboBox, SIGNAL(currentIndexChanged(int)), SLOT(selectType()));
-    const auto types = QList<DatabaseSharing::Type>() << DatabaseSharing::Inactive << DatabaseSharing::ImportFrom
-                                                      << DatabaseSharing::ExportTo << DatabaseSharing::SynchronizeWith;
-    for (const DatabaseSharing::Type& type : types) {
+    const auto types = QList<Sharing::Type>() << Sharing::Inactive << Sharing::ImportFrom
+                                              << Sharing::ExportTo << Sharing::SynchronizeWith;
+    for (const Sharing::Type& type : types) {
         QString name;
         switch (type) {
-        case DatabaseSharing::Inactive:
+        case Sharing::Inactive:
             name = tr("Inactive");
             break;
-        case DatabaseSharing::ImportFrom:
+        case Sharing::ImportFrom:
             name = tr("Import from path");
             break;
-        case DatabaseSharing::ExportTo:
+        case Sharing::ExportTo:
             name = tr("Export to path");
             break;
-        case DatabaseSharing::SynchronizeWith:
+        case Sharing::SynchronizeWith:
             name = tr("Synchronize with path");
             break;
         }
@@ -105,8 +105,8 @@ void GroupSharingWidget::showSharingState()
     if(!m_currentGroup->database()){
         return;
     }
-    const bool importEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ImportFrom);
-    const bool exportEnabled = DatabaseSharing::isEnabled(m_currentGroup->database(), DatabaseSharing::ExportTo);
+    const bool importEnabled = Sharing::isEnabled(m_currentGroup->database(), Sharing::ImportFrom);
+    const bool exportEnabled = Sharing::isEnabled(m_currentGroup->database(), Sharing::ExportTo);
     if (!importEnabled && !exportEnabled) {
         m_ui->messageWidget->showMessage(tr("Database sharing is disabled"), MessageWidget::Information);
     }
@@ -127,7 +127,7 @@ void GroupSharingWidget::update()
         m_ui->togglePasswordGeneratorButton->setChecked(false);
 
     } else {
-        const DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+        const Sharing::Reference reference = Sharing::referenceOf(m_customData);
 
         m_ui->typeComboBox->setCurrentIndex(reference.type);
         m_ui->passwordEdit->setText(reference.password);
@@ -148,9 +148,9 @@ void GroupSharingWidget::setGeneratedPassword(const QString& password)
     if (!m_customData) {
         return;
     }
-    DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_customData);
     reference.password = password;
-    DatabaseSharing::setReferenceTo(m_customData, reference);
+    Sharing::setReferenceTo(m_customData, reference);
     m_ui->togglePasswordGeneratorButton->setChecked(false);
 }
 
@@ -159,9 +159,9 @@ void GroupSharingWidget::setPath(const QString& path)
     if (!m_customData) {
         return;
     }
-    DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_customData);
     reference.path = path;
-    DatabaseSharing::setReferenceTo(m_customData, reference);
+    Sharing::setReferenceTo(m_customData, reference);
 }
 
 void GroupSharingWidget::selectPath()
@@ -174,7 +174,7 @@ void GroupSharingWidget::selectPath()
     if (!dirExists) {
         defaultDirPath = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first();
     }
-    DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_customData);
     QString filetype = tr("kdbx.share", "Filetype for sharing container");
     QString filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeePass2 Sharing Container"), tr("All files"));
     QString filename = reference.path;
@@ -182,7 +182,7 @@ void GroupSharingWidget::selectPath()
         filename = tr("%1.%2", "Template for sharing container").arg(m_currentGroup->name()).arg(filetype);
     }
     switch (reference.type) {
-    case DatabaseSharing::ImportFrom:
+    case Sharing::ImportFrom:
         filename = fileDialog()->getFileName(this,
                                              tr("Select import source"),
                                              defaultDirPath,
@@ -192,12 +192,12 @@ void GroupSharingWidget::selectPath()
                                              filetype,
                                              filename);
         break;
-    case DatabaseSharing::ExportTo:
+    case Sharing::ExportTo:
         filename = fileDialog()->getFileName(
             this, tr("Select export target"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
-    case DatabaseSharing::SynchronizeWith:
-    case DatabaseSharing::Inactive:
+    case Sharing::SynchronizeWith:
+    case Sharing::Inactive:
         filename = fileDialog()->getFileName(
             this, tr("Select import/export file"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
@@ -216,9 +216,9 @@ void GroupSharingWidget::selectPassword()
     if (!m_customData) {
         return;
     }
-    DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_customData);
     reference.password = m_ui->passwordEdit->text();
-    DatabaseSharing::setReferenceTo(m_customData, reference);
+    Sharing::setReferenceTo(m_customData, reference);
 }
 
 void GroupSharingWidget::selectType()
@@ -226,7 +226,7 @@ void GroupSharingWidget::selectType()
     if (!m_customData) {
         return;
     }
-    DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(m_customData);
-    reference.type = static_cast<DatabaseSharing::Type>(m_ui->typeComboBox->currentData().toInt());
-    DatabaseSharing::setReferenceTo(m_customData, reference);
+    Sharing::Reference reference = Sharing::referenceOf(m_customData);
+    reference.type = static_cast<Sharing::Type>(m_ui->typeComboBox->currentData().toInt());
+    Sharing::setReferenceTo(m_customData, reference);
 }

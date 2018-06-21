@@ -43,7 +43,7 @@
 #include "crypto/kdf/Argon2Kdf.h"
 #include "gui/MessageBox.h"
 #include "gui/PasswordEdit.h"
-#include "sharing/DatabaseSharing.h"
+#include "sharing/Sharing.h"
 
 DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
     : DialogyWidget(parent)
@@ -172,10 +172,10 @@ void DatabaseSettingsWidget::load(Database* db)
         m_uiEncryption->parallelismSpinBox->setValue(argon2Kdf->parallelism());
     }
 #ifdef WITH_XC_SHARING
-    DatabaseSharing::Settings settings = DatabaseSharing::settingsOf(m_db);
-    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
-    m_uiSharing->enableExportCheckBox->setChecked((settings.type & DatabaseSharing::ExportTo) != 0);
-    m_uiSharing->enableImportCheckBox->setChecked((settings.type & DatabaseSharing::ImportFrom) != 0);
+    Sharing::Settings settings = Sharing::settingsOf(m_db);
+    m_sharingInformation = Sharing::Settings::serialize(settings);
+    m_uiSharing->enableExportCheckBox->setChecked((settings.type & Sharing::ExportTo) != 0);
+    m_uiSharing->enableImportCheckBox->setChecked((settings.type & Sharing::ImportFrom) != 0);
 
     m_sharedGroupsModel.reset(new QStandardItemModel());
     m_verificationModel.reset(new QStandardItemModel());
@@ -183,16 +183,16 @@ void DatabaseSettingsWidget::load(Database* db)
     m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path") << tr("Last Signer") << tr("Certificates"));
     const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
     for (const Group* group : groups) {
-        if (!DatabaseSharing::isShared(group)) {
+        if (!Sharing::isShared(group)) {
             continue;
         }
-        const DatabaseSharing::Reference reference = DatabaseSharing::referenceOf(group->customData());
+        const Sharing::Reference reference = Sharing::referenceOf(group->customData());
 
         QStringList hierarchy = group->hierarchy();
         hierarchy.removeFirst();
         QList<QStandardItem*> row = QList<QStandardItem*>();
         row << new QStandardItem(hierarchy.join(" > "));
-        row << new QStandardItem(DatabaseSharing::referenceTypeLabel(reference));
+        row << new QStandardItem(Sharing::referenceTypeLabel(reference));
         row << new QStandardItem(reference.path);
         m_sharedGroupsModel->appendRow(row);
     }
@@ -200,14 +200,14 @@ void DatabaseSettingsWidget::load(Database* db)
     m_uiSharing->verificationExporterEdit->setText(settings.ownCertificate.signer);
     m_uiSharing->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
     m_uiSharing->verificationOwnKeyEdit->setText(settings.ownKey.key);
-    m_uiSharing->verificationOwnFingerprintEdit->setText(DatabaseSharing::fingerprintOf(settings.ownCertificate));
+    m_uiSharing->verificationOwnFingerprintEdit->setText(Sharing::fingerprintOf(settings.ownCertificate));
 
     m_verificationModel->setHorizontalHeaderLabels(QStringList() << tr("Source") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
 
-    for( const DatabaseSharing::Certificate &certificate : settings.foreignCertificates ){
+    for( const Sharing::Certificate &certificate : settings.foreignCertificates ){
         QStandardItem* signer = new QStandardItem(certificate.signer);
         QStandardItem* verified = new QStandardItem(certificate.trusted ? tr("trusted") : tr("untrusted"));
-        QStandardItem* fingerprint = new QStandardItem(DatabaseSharing::fingerprintOf(settings.ownCertificate));
+        QStandardItem* fingerprint = new QStandardItem(Sharing::fingerprintOf(settings.ownCertificate));
         QStandardItem* key = new QStandardItem(certificate.key);
         m_verificationModel->appendRow(QList<QStandardItem*>() << signer << verified << fingerprint << key);
     }
@@ -294,15 +294,15 @@ void DatabaseSettingsWidget::save()
     m_db->setCipher(Uuid(m_uiEncryption->algorithmComboBox->currentData().toByteArray()));
 
 #ifdef WITH_XC_SHARING
-    DatabaseSharing::Settings settings = DatabaseSharing::Settings::deserialize(m_sharingInformation);
-    settings.type = DatabaseSharing::Inactive;
+    Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
+    settings.type = Sharing::Inactive;
     if (m_uiSharing->enableExportCheckBox->isChecked()) {
-        settings.type = static_cast<DatabaseSharing::Type>( settings.type | DatabaseSharing::ExportTo);
+        settings.type = static_cast<Sharing::Type>( settings.type | Sharing::ExportTo);
     }
     if (m_uiSharing->enableImportCheckBox->isChecked()) {
-        settings.type = static_cast<DatabaseSharing::Type>( settings.type | DatabaseSharing::ImportFrom);
+        settings.type = static_cast<Sharing::Type>( settings.type | Sharing::ImportFrom);
     }
-    if ((settings.type & DatabaseSharing::ImportFrom) != 0
+    if ((settings.type & Sharing::ImportFrom) != 0
             && (!m_uiGeneral->historyMaxItemsCheckBox->isChecked() || m_uiGeneral->historyMaxItemsSpinBox->value() < 2)) {
         QMessageBox warning;
         warning.setIcon(QMessageBox::Warning);
@@ -320,7 +320,7 @@ void DatabaseSettingsWidget::save()
         }
     }
 
-    DatabaseSharing::setSettingsTo(m_db, settings);
+    Sharing::setSettingsTo(m_db, settings);
 #endif
     // Save kdf parameters
     kdf->setRounds(m_uiEncryption->transformRoundsSpinBox->value());
@@ -420,29 +420,28 @@ void DatabaseSettingsWidget::parallelismChanged(int value)
 #ifdef WITH_XC_SHARING
 void DatabaseSettingsWidget::setVerificationExporter(const QString &signer)
 {
-    DatabaseSharing::Settings settings = DatabaseSharing::Settings::deserialize(m_sharingInformation);
+    Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
     settings.ownCertificate.signer = signer;
     m_uiSharing->verificationExporterEdit->setText(settings.ownCertificate.signer);
-    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
+    m_sharingInformation = Sharing::Settings::serialize(settings);
 }
 
 void DatabaseSettingsWidget::generateCerticate()
 {
-    DatabaseSharing::Settings settings;
-    DatabaseSharing::assignDefaultsTo(settings, m_db);
+    Sharing::Settings settings = Sharing::encryptionSettingsFor(m_db);
     m_uiSharing->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
     m_uiSharing->verificationOwnKeyEdit->setText(settings.ownKey.key);
-    m_uiSharing->verificationOwnFingerprintEdit->setText(DatabaseSharing::fingerprintOf(settings.ownCertificate));
-    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
+    m_uiSharing->verificationOwnFingerprintEdit->setText(Sharing::fingerprintOf(settings.ownCertificate));
+    m_sharingInformation = Sharing::Settings::serialize(settings);
 }
 
 void DatabaseSettingsWidget::clearCerticate()
 {
-    DatabaseSharing::Settings settings;
+    Sharing::Settings settings;
     m_uiSharing->verificationExporterEdit->clear();
     m_uiSharing->verificationOwnKeyEdit->clear();
     m_uiSharing->verificationOwnCertificateEdit->clear();
     m_uiSharing->verificationOwnFingerprintEdit->clear();
-    m_sharingInformation = DatabaseSharing::Settings::serialize(settings);
+    m_sharingInformation = Sharing::Settings::serialize(settings);
 }
 #endif
