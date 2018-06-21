@@ -66,6 +66,13 @@ private:
     Database* createTestDatabaseStructureClone(Database* source, int entryFlags, int groupFlags);
     void testResolveConflictTemplate(int mergeMode, std::function<void(Database*, const QMap<const char*, QDateTime>&)> verification);
     void testDeletionConflictTemplate(int mergeMode, std::function<void(Database*, const QMap<QString, Uuid>&)> verification);
+    static void assertDeletionNewerOnly(Database *db, const QMap<QString, Uuid> &identifiers);
+    static void assertDeletionLocalOnly(Database *db, const QMap<QString, Uuid> &identifiers);
+    static void assertUpdateMergedEntry1(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdateReappliedEntry2(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdateReappliedEntry1(Entry *entry, const QMap<const char*, QDateTime> &timestamps);
+    static void assertUpdateMergedEntry2(Entry *entry, const QMap<const char *, QDateTime> &timestamps);
+
 };
 
 #endif // KEEPASSX_TESTMERGE_H
