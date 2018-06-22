@@ -21,12 +21,13 @@
 #include "core/DatabaseIcons.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
-#include "gui/MessageBox.h"
 #include "sharing/Signature.h"
 #include "sharing/SharingObserver.h"
 #include "sshagent/OpenSSHKey.h"
 
 #include <QPainter>
+#include <QPushButton>
+#include <QMessageBox>
 
 namespace {
 
@@ -49,6 +50,7 @@ Sharing::Certificate packCertificate(const OpenSSHKey &key, bool verified, const
     extracted.key = parts.join("|").toLatin1().toBase64();
     return extracted;
 }
+
 Sharing::Key packKey(const OpenSSHKey &key)
 {
     Sharing::Key extracted;
@@ -60,6 +62,7 @@ Sharing::Key packKey(const OpenSSHKey &key)
     extracted.key = parts.join("|").toLatin1().toBase64();
     return extracted;
 }
+
 OpenSSHKey unpackKey(const Sharing::Key &sign)
 {
     OpenSSHKey key;
@@ -87,9 +90,9 @@ OpenSSHKey unpackCertificate(const Sharing::Certificate& certificate)
     key.setPublicData(publicData);
     return key;
 }
-
 }
-Sharing* Sharing::m_instance;
+
+Sharing* Sharing::m_instance = nullptr;
 
 Sharing* Sharing::instance()
 {
@@ -368,13 +371,16 @@ QString Sharing::referenceTypeLabel(const Reference& reference)
 QPair<Sharing::Trust, Sharing::Certificate> Sharing::unsign(Database *sourceDb, const Database *targetDb, QByteArray &data, const Sharing::Reference &reference, const QString &signature)
 {
     if( signature.isEmpty() ){
-        auto result = MessageBox::question(nullptr,
-                                           tr("Untrustworthy container without signature"),
-                                           tr("Do you want to import from unsigned container %1")
-                                               .arg(reference.path),
-                                           QMessageBox::Yes | QMessageBox::No,
-                                           QMessageBox::No);
-        Trust trust = result == QMessageBox::Yes ? Single : None;
+        QMessageBox warning;
+        warning.setIcon(QMessageBox::Warning);
+        warning.setWindowTitle( tr("Untrustworthy container without signature"));
+        warning.setText(tr("Do you want to import from unsigned container %1")
+                        .arg(reference.path));
+        auto yes = warning.addButton(tr("Import once"), QMessageBox::ButtonRole::YesRole);
+        auto no = warning.addButton(tr("No"), QMessageBox::ButtonRole::NoRole);
+        warning.setDefaultButton(no);
+        warning.exec();
+        const Trust trust = warning.clickedButton() == yes ? Single : None;
         return qMakePair( trust, Certificate() );
     }
     QVariantMap map = sourceDb->publicCustomData();
@@ -397,15 +403,18 @@ QPair<Sharing::Trust, Sharing::Certificate> Sharing::unsign(Database *sourceDb, 
             return qMakePair( Known, importedCertificate );
         }
     }
-    auto result = MessageBox::question(nullptr,
-                                       tr("Untrustworthy certificate for sharing container"),
-                                       tr("Do you want to trust %1 signing with the fingerprint of %2")
-                                           .arg(importedCertificate.signer)
-                                           .arg(fingerprintOf(importedCertificate)),
-                                       QMessageBox::Yes | QMessageBox::No,
-                                       QMessageBox::No);
 
-    if( result != QMessageBox::Yes ){
+    QMessageBox warning;
+    warning.setIcon(QMessageBox::Question);
+    warning.setWindowTitle(tr("Import from untrustworthy certificate for sharing container"));
+    warning.setText(tr("Do you want to trust %1 with the fingerprint of %2")
+                    .arg(importedCertificate.signer)
+                    .arg(fingerprintOf(importedCertificate)));
+    auto yes = warning.addButton(tr("Import and trust"), QMessageBox::ButtonRole::YesRole);
+    auto no = warning.addButton(tr("No"), QMessageBox::ButtonRole::NoRole);
+    warning.setDefaultButton(no);
+    warning.exec();
+    if( warning.clickedButton() != yes ){
         qWarning("Prevented import due to untrusted certificate of %s", qPrintable(importedCertificate.signer));
         return qMakePair( None, importedCertificate );
     }
