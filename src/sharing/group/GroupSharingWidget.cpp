@@ -78,35 +78,28 @@ GroupSharingWidget::~GroupSharingWidget()
 {
 }
 
-void GroupSharingWidget::setGroup(const Group* group)
+void GroupSharingWidget::setGroup(Group* temporaryGroup, Database *database)
 {
-    m_currentGroup = group;
-
-    update();
-}
-
-void GroupSharingWidget::setCustomData(CustomData* customData)
-{
-    if (m_customData) {
-        m_customData->disconnect(this);
+    if (m_temporaryGroup) {
+        m_temporaryGroup->disconnect(this);
     }
 
-    m_customData = customData;
+    m_database = database;
+    m_temporaryGroup = temporaryGroup;
 
-    if (m_customData) {
-        connect(m_customData, SIGNAL(modified()), SLOT(update()));
+    if (m_temporaryGroup) {
+        connect(m_temporaryGroup, SIGNAL(modified()), SLOT(update()));
     }
-
     update();
 }
 
 void GroupSharingWidget::showSharingState()
 {
-    if(!m_currentGroup->database()){
+    if(!m_temporaryGroup || !m_database){
         return;
     }
-    const bool importEnabled = Sharing::isEnabled(m_currentGroup->database(), Sharing::ImportFrom);
-    const bool exportEnabled = Sharing::isEnabled(m_currentGroup->database(), Sharing::ExportTo);
+    const bool importEnabled = Sharing::isEnabled(m_database, Sharing::ImportFrom);
+    const bool exportEnabled = Sharing::isEnabled(m_database, Sharing::ExportTo);
     if (!importEnabled && !exportEnabled) {
         m_ui->messageWidget->showMessage(tr("Database sharing is disabled"), MessageWidget::Information);
     }
@@ -120,14 +113,14 @@ void GroupSharingWidget::showSharingState()
 
 void GroupSharingWidget::update()
 {
-    if (!m_customData || !m_currentGroup) {
+    if (!m_temporaryGroup) {
         m_ui->passwordEdit->clear();
         m_ui->pathEdit->clear();
         m_ui->passwordGenerator->hide();
         m_ui->togglePasswordGeneratorButton->setChecked(false);
 
     } else {
-        const Sharing::Reference reference = Sharing::referenceOf(m_customData);
+        const Sharing::Reference reference = Sharing::referenceOf(m_temporaryGroup->customData());
 
         m_ui->typeComboBox->setCurrentIndex(reference.type);
         m_ui->passwordEdit->setText(reference.password);
@@ -145,28 +138,28 @@ void GroupSharingWidget::togglePasswordGeneratorButton(bool checked)
 
 void GroupSharingWidget::setGeneratedPassword(const QString& password)
 {
-    if (!m_customData) {
+    if (!m_temporaryGroup) {
         return;
     }
-    Sharing::Reference reference = Sharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_temporaryGroup->customData());
     reference.password = password;
-    Sharing::setReferenceTo(m_customData, reference);
+    Sharing::setReferenceTo(m_temporaryGroup->customData(), reference);
     m_ui->togglePasswordGeneratorButton->setChecked(false);
 }
 
 void GroupSharingWidget::setPath(const QString& path)
 {
-    if (!m_customData) {
+    if (!m_temporaryGroup) {
         return;
     }
-    Sharing::Reference reference = Sharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_temporaryGroup->customData());
     reference.path = path;
-    Sharing::setReferenceTo(m_customData, reference);
+    Sharing::setReferenceTo(m_temporaryGroup->customData(), reference);
 }
 
 void GroupSharingWidget::selectPath()
 {
-    if (!m_customData) {
+    if (!m_temporaryGroup) {
         return;
     }
     QString defaultDirPath = config()->get("Sharing/LastSharingDir").toString();
@@ -174,12 +167,12 @@ void GroupSharingWidget::selectPath()
     if (!dirExists) {
         defaultDirPath = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first();
     }
-    Sharing::Reference reference = Sharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_temporaryGroup->customData());
     QString filetype = tr("kdbx.share", "Filetype for sharing container");
     QString filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeePass2 Sharing Container"), tr("All files"));
     QString filename = reference.path;
     if (filename.isEmpty()) {
-        filename = tr("%1.%2", "Template for sharing container").arg(m_currentGroup->name()).arg(filetype);
+        filename = tr("%1.%2", "Template for sharing container").arg(m_temporaryGroup->name()).arg(filetype);
     }
     switch (reference.type) {
     case Sharing::ImportFrom:
@@ -213,20 +206,53 @@ void GroupSharingWidget::selectPath()
 
 void GroupSharingWidget::selectPassword()
 {
-    if (!m_customData) {
+    if (!m_temporaryGroup) {
         return;
     }
-    Sharing::Reference reference = Sharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_temporaryGroup->customData());
     reference.password = m_ui->passwordEdit->text();
-    Sharing::setReferenceTo(m_customData, reference);
+    Sharing::setReferenceTo(m_temporaryGroup->customData(), reference);
 }
 
 void GroupSharingWidget::selectType()
 {
-    if (!m_customData) {
+    if (!m_temporaryGroup) {
         return;
     }
-    Sharing::Reference reference = Sharing::referenceOf(m_customData);
+    Sharing::Reference reference = Sharing::referenceOf(m_temporaryGroup->customData());
     reference.type = static_cast<Sharing::Type>(m_ui->typeComboBox->currentData().toInt());
-    Sharing::setReferenceTo(m_customData, reference);
+    Sharing::setReferenceTo(m_temporaryGroup->customData(), reference);
 }
+
+GroupSharingPage::GroupSharingPage(EditGroupWidget *widget)
+{
+    Q_UNUSED(widget);
+}
+
+QString GroupSharingPage::name()
+{
+    return QApplication::tr("Sharing");
+}
+
+QIcon GroupSharingPage::icon()
+{
+    return FilePath::instance()->icon("apps", "preferences-system-network-sharing");
+}
+
+QWidget *GroupSharingPage::createWidget()
+{
+    return  new GroupSharingWidget();
+}
+
+void GroupSharingPage::set(QWidget *widget, Group *temporaryGroup, Database *database)
+{
+    GroupSharingWidget *settingsWidget = reinterpret_cast<GroupSharingWidget*>(widget);
+    settingsWidget->setGroup(temporaryGroup, database);
+}
+
+void GroupSharingPage::assign(QWidget *widget)
+{
+    Q_UNUSED(widget);
+    // everything is saved directly
+}
+

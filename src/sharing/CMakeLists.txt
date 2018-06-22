@@ -2,6 +2,8 @@ if(WITH_XC_SHARING)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
     set(sharing_SOURCES
+	DatabaseSettingsSharingPage.cpp
+	DatabaseSettingsSharingWidget.cpp
 	Sharing.cpp
 	SharingObserver.cpp
 	Signature.cpp

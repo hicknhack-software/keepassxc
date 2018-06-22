@@ -35,8 +35,21 @@ namespace Ui
     class DatabaseSettingsWidget;
     class DatabaseSettingsWidgetGeneral;
     class DatabaseSettingsWidgetEncryption;
-    class DatabaseSettingsWidgetSharing;
 }
+
+class IDatabaseSettingsPage
+{
+public:
+    virtual ~IDatabaseSettingsPage()
+    {
+
+    }
+    virtual QString name() = 0;
+    virtual QIcon icon() = 0;
+    virtual QWidget* createWidget() = 0;
+    virtual void loadSettings(QWidget* widget, Database *db) = 0;
+    virtual bool saveSettings(QWidget* widget) = 0;
+};
 
 class DatabaseSettingsWidget : public DialogyWidget
 {
@@ -48,6 +61,7 @@ public:
     Q_DISABLE_COPY(DatabaseSettingsWidget)
 
     void load(Database* db);
+    void addSettingsPage(IDatabaseSettingsPage *page);
 
 signals:
     void editFinished(bool accepted);
@@ -59,11 +73,6 @@ private slots:
     void kdfChanged(int index);
     void memoryChanged(int value);
     void parallelismChanged(int value);
-#ifdef WITH_XC_SHARING
-    void setVerificationExporter(const QString &exporter);
-    void generateCerticate();
-    void clearCerticate();
-#endif
 
 private:
     void truncateHistories();
@@ -71,17 +80,13 @@ private:
     const QScopedPointer<Ui::DatabaseSettingsWidget> m_ui;
     const QScopedPointer<Ui::DatabaseSettingsWidgetGeneral> m_uiGeneral;
     const QScopedPointer<Ui::DatabaseSettingsWidgetEncryption> m_uiEncryption;
-#ifdef WITH_XC_SHARING
-    const QScopedPointer<Ui::DatabaseSettingsWidgetSharing> m_uiSharing;
-    QString m_sharingInformation;
-    QScopedPointer<QStandardItemModel> m_sharedGroupsModel;
-    QScopedPointer<QStandardItemModel> m_verificationModel;
-#endif
+
     QWidget* m_uiGeneralPage;
     QWidget* m_uiEncryptionPage;
-#ifdef WITH_XC_SHARING
-    QWidget* m_uiSharingPage;
-#endif
+
+    class ExtraPage;
+    QList<ExtraPage> m_extraPages;
+
     Database* m_db;
 };
 

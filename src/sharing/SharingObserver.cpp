@@ -28,12 +28,7 @@
 #include "core/Metadata.h"
 #include "format/KeePass2Reader.h"
 #include "format/KeePass2Writer.h"
-#include "gui/MessageBox.h"
 #include "keys/PasswordKey.h"
-#include "sharing/Signature.h"
-#include "sshagent/OpenSSHKey.h"
-
-#include <iostream>
 
 #include <QBuffer>
 #include <QDebug>
@@ -42,7 +37,6 @@
 #include <QPainter>
 #include <QStringBuilder>
 
-#include <gcrypt.h>
 #include <quazip5/quazip.h>
 #include <quazip5/quazipfile.h>
 

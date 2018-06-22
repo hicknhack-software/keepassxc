@@ -20,7 +20,6 @@
 #include "ui_DatabaseSettingsWidget.h"
 #include "ui_DatabaseSettingsWidgetEncryption.h"
 #include "ui_DatabaseSettingsWidgetGeneral.h"
-#include "ui_DatabaseSettingsWidgetSharing.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -43,31 +42,45 @@
 #include "crypto/kdf/Argon2Kdf.h"
 #include "gui/MessageBox.h"
 #include "gui/PasswordEdit.h"
-#include "sharing/Sharing.h"
+
+
+class DatabaseSettingsWidget::ExtraPage
+{
+public:
+    ExtraPage(IDatabaseSettingsPage* page, QWidget* widget)
+        : settingsPage(page)
+        , widget(widget)
+    {
+    }
+
+    void loadSettings(Database *db) const
+    {
+        settingsPage->loadSettings(widget, db);
+    }
+
+    bool saveSettings() const
+    {
+        return settingsPage->saveSettings(widget);
+    }
+
+private:
+    QSharedPointer<IDatabaseSettingsPage> settingsPage;
+    QWidget* widget;
+};
+
 
 DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
     : DialogyWidget(parent)
     , m_ui(new Ui::DatabaseSettingsWidget())
     , m_uiGeneral(new Ui::DatabaseSettingsWidgetGeneral())
     , m_uiEncryption(new Ui::DatabaseSettingsWidgetEncryption())
-#ifdef WITH_XC_SHARING
-    , m_uiSharing(new Ui::DatabaseSettingsWidgetSharing())
-    , m_sharedGroupsModel(new QStandardItemModel())
-    , m_verificationModel(new QStandardItemModel())
-#endif
     , m_uiGeneralPage(new QWidget())
     , m_uiEncryptionPage(new QWidget())
-#ifdef WITH_XC_SHARING
-    , m_uiSharingPage(new QWidget())
-#endif
     , m_db(nullptr)
 {
     m_ui->setupUi(this);
     m_uiGeneral->setupUi(m_uiGeneralPage);
     m_uiEncryption->setupUi(m_uiEncryptionPage);
-#ifdef WITH_XC_SHARING
-    m_uiSharing->setupUi(m_uiSharingPage);
-#endif
 
     connect(m_ui->buttonBox, SIGNAL(accepted()), SLOT(save()));
     connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(reject()));
@@ -87,17 +100,9 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
 
     m_ui->categoryList->addCategory(tr("General"), FilePath::instance()->icon("categories", "preferences-other"));
     m_ui->categoryList->addCategory(tr("Encryption"), FilePath::instance()->icon("actions", "document-encrypt"));
-    m_ui->categoryList->addCategory(tr("Sharing"),
-                                    FilePath::instance()->icon("apps", "preferences-system-network-sharing"));
+
     m_ui->stackedWidget->addWidget(m_uiGeneralPage);
     m_ui->stackedWidget->addWidget(m_uiEncryptionPage);
-
-#ifdef WITH_XC_SHARING
-    connect(m_uiSharing->verificationExporterEdit, SIGNAL(textChanged(QString)), SLOT(setVerificationExporter(QString)));
-    connect(m_uiSharing->generateCerticateButton, SIGNAL(clicked(bool)), SLOT(generateCerticate()));
-    connect(m_uiSharing->clearCertificateButton, SIGNAL(clicked(bool)), SLOT(clearCerticate()));
-    m_ui->stackedWidget->addWidget(m_uiSharingPage);
-#endif
 
     connect(m_ui->categoryList, SIGNAL(categoryChanged(int)), m_ui->stackedWidget, SLOT(setCurrentIndex(int)));
 }
@@ -171,52 +176,27 @@ void DatabaseSettingsWidget::load(Database* db)
         m_uiEncryption->memorySpinBox->setValue(static_cast<int>(argon2Kdf->memory()) / (1 << 10));
         m_uiEncryption->parallelismSpinBox->setValue(argon2Kdf->parallelism());
     }
-#ifdef WITH_XC_SHARING
-    Sharing::Settings settings = Sharing::settingsOf(m_db);
-    m_sharingInformation = Sharing::Settings::serialize(settings);
-    m_uiSharing->enableExportCheckBox->setChecked((settings.type & Sharing::ExportTo) != 0);
-    m_uiSharing->enableImportCheckBox->setChecked((settings.type & Sharing::ImportFrom) != 0);
 
-    m_sharedGroupsModel.reset(new QStandardItemModel());
-    m_verificationModel.reset(new QStandardItemModel());
-
-    m_sharedGroupsModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path") << tr("Last Signer") << tr("Certificates"));
-    const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
-    for (const Group* group : groups) {
-        if (!Sharing::isShared(group)) {
-            continue;
-        }
-        const Sharing::Reference reference = Sharing::referenceOf(group->customData());
-
-        QStringList hierarchy = group->hierarchy();
-        hierarchy.removeFirst();
-        QList<QStandardItem*> row = QList<QStandardItem*>();
-        row << new QStandardItem(hierarchy.join(" > "));
-        row << new QStandardItem(Sharing::referenceTypeLabel(reference));
-        row << new QStandardItem(reference.path);
-        m_sharedGroupsModel->appendRow(row);
+    for( const ExtraPage& page : asConst(m_extraPages) ){
+        page.loadSettings( m_db );
     }
 
-    m_uiSharing->verificationExporterEdit->setText(settings.ownCertificate.signer);
-    m_uiSharing->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
-    m_uiSharing->verificationOwnKeyEdit->setText(settings.ownKey.key);
-    m_uiSharing->verificationOwnFingerprintEdit->setText(Sharing::fingerprintOf(settings.ownCertificate));
-
-    m_verificationModel->setHorizontalHeaderLabels(QStringList() << tr("Source") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
-
-    for( const Sharing::Certificate &certificate : settings.foreignCertificates ){
-        QStandardItem* signer = new QStandardItem(certificate.signer);
-        QStandardItem* verified = new QStandardItem(certificate.trusted ? tr("trusted") : tr("untrusted"));
-        QStandardItem* fingerprint = new QStandardItem(Sharing::fingerprintOf(settings.ownCertificate));
-        QStandardItem* key = new QStandardItem(certificate.key);
-        m_verificationModel->appendRow(QList<QStandardItem*>() << signer << verified << fingerprint << key);
-    }
-
-    m_uiSharing->verificationTableView->setModel(m_verificationModel.data());
-    m_uiSharing->sharedGroupsView->setModel(m_sharedGroupsModel.data());
-#endif
     m_uiGeneral->dbNameEdit->setFocus();
     m_ui->categoryList->setCurrentCategory(0);
+}
+
+void DatabaseSettingsWidget::addSettingsPage(IDatabaseSettingsPage *page)
+{
+    const int category = m_ui->categoryList->currentCategory();
+
+    QWidget* widget = page->createWidget();
+    widget->setParent(this);
+
+    m_extraPages.append(ExtraPage(page, widget));
+    m_ui->stackedWidget->addWidget(widget);
+    m_ui->categoryList->addCategory(page->name(), page->icon());
+
+    m_ui->categoryList->setCurrentCategory(category);
 }
 
 void DatabaseSettingsWidget::save()
@@ -293,35 +273,12 @@ void DatabaseSettingsWidget::save()
 
     m_db->setCipher(Uuid(m_uiEncryption->algorithmComboBox->currentData().toByteArray()));
 
-#ifdef WITH_XC_SHARING
-    Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
-    settings.type = Sharing::Inactive;
-    if (m_uiSharing->enableExportCheckBox->isChecked()) {
-        settings.type = static_cast<Sharing::Type>( settings.type | Sharing::ExportTo);
-    }
-    if (m_uiSharing->enableImportCheckBox->isChecked()) {
-        settings.type = static_cast<Sharing::Type>( settings.type | Sharing::ImportFrom);
-    }
-    if ((settings.type & Sharing::ImportFrom) != 0
-            && (!m_uiGeneral->historyMaxItemsCheckBox->isChecked() || m_uiGeneral->historyMaxItemsSpinBox->value() < 2)) {
-        QMessageBox warning;
-        warning.setIcon(QMessageBox::Warning);
-        warning.setWindowTitle(
-            tr("Synchronization without history", "Title for warning about missing synchronization history"));
-        warning.setText(
-            tr("You are trying to import remote changes to your database without a sufficent history size.\n\n"
-               "If you do not increase the history size to at least 2 you may suffer data loss!"));
-        auto ok = warning.addButton(tr("Understood, import remote changes"), QMessageBox::ButtonRole::AcceptRole);
-        auto cancel = warning.addButton(tr("Cancel"), QMessageBox::ButtonRole::RejectRole);
-        warning.setDefaultButton(cancel);
-        warning.exec();
-        if (warning.clickedButton() != ok) {
+    for( const ExtraPage& extraPage : asConst(m_extraPages) ){
+        if( ! extraPage.saveSettings() ){
             return;
         }
     }
 
-    Sharing::setSettingsTo(m_db, settings);
-#endif
     // Save kdf parameters
     kdf->setRounds(m_uiEncryption->transformRoundsSpinBox->value());
     if (kdf->uuid() == KeePass2::KDF_ARGON2) {
@@ -417,31 +374,3 @@ void DatabaseSettingsWidget::parallelismChanged(int value)
     m_uiEncryption->parallelismSpinBox->setSuffix(
         tr(" thread(s)", "Threads for parallel execution (KDF settings)", value));
 }
-#ifdef WITH_XC_SHARING
-void DatabaseSettingsWidget::setVerificationExporter(const QString &signer)
-{
-    Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
-    settings.ownCertificate.signer = signer;
-    m_uiSharing->verificationExporterEdit->setText(settings.ownCertificate.signer);
-    m_sharingInformation = Sharing::Settings::serialize(settings);
-}
-
-void DatabaseSettingsWidget::generateCerticate()
-{
-    Sharing::Settings settings = Sharing::encryptionSettingsFor(m_db);
-    m_uiSharing->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
-    m_uiSharing->verificationOwnKeyEdit->setText(settings.ownKey.key);
-    m_uiSharing->verificationOwnFingerprintEdit->setText(Sharing::fingerprintOf(settings.ownCertificate));
-    m_sharingInformation = Sharing::Settings::serialize(settings);
-}
-
-void DatabaseSettingsWidget::clearCerticate()
-{
-    Sharing::Settings settings;
-    m_uiSharing->verificationExporterEdit->clear();
-    m_uiSharing->verificationOwnKeyEdit->clear();
-    m_uiSharing->verificationOwnCertificateEdit->clear();
-    m_uiSharing->verificationOwnFingerprintEdit->clear();
-    m_sharingInformation = Sharing::Settings::serialize(settings);
-}
-#endif

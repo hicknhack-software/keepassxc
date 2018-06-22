@@ -5,6 +5,8 @@
 #include <QWidget>
 #include <QStandardItemModel>
 
+#include "gui/group/EditGroupWidget.h"
+
 class Group;
 class CustomData;
 
@@ -13,6 +15,17 @@ namespace Ui
     class GroupSharingWidget;
 }
 
+class GroupSharingPage : public IEditGroupPage
+{
+public:
+    GroupSharingPage(EditGroupWidget *widget);
+    QString name() override;
+    QIcon icon() override;
+    QWidget *createWidget() override;
+    void set(QWidget *widget, Group *temporaryGroup, Database *db) override;
+    void assign(QWidget *widget) override;
+};
+
 class GroupSharingWidget : public QWidget
 {
     Q_OBJECT
@@ -20,8 +33,7 @@ public:
     explicit GroupSharingWidget(QWidget* parent = nullptr);
     ~GroupSharingWidget();
 
-    void setGroup(const Group* group);
-    void setCustomData(CustomData* customData);
+    void setGroup(Group *temporaryGroup, Database *database);
 
 private:
     void showSharingState();
@@ -36,8 +48,8 @@ private slots:
 
 private:
     QScopedPointer<Ui::GroupSharingWidget> m_ui;
-    QPointer<const Group> m_currentGroup;
-    QPointer<CustomData> m_customData;
+    QPointer<Group> m_temporaryGroup;
+    QPointer<Database> m_database;
 };
 
 #endif // GROUPSHARINGWIDGET_H

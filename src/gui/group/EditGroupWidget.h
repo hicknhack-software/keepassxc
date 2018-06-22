@@ -21,22 +21,34 @@
 #include <QComboBox>
 #include <QScopedPointer>
 
-#include "config-keepassx.h"
 #include "core/Group.h"
 #include "gui/EditWidget.h"
 
 class CustomData;
 class EditWidgetIcons;
 class EditWidgetProperties;
-#ifdef WITH_XC_SHARING
-class GroupSharingWidget;
-#endif
 
 namespace Ui
 {
     class EditGroupWidgetMain;
     class EditWidget;
 }
+
+
+class IEditGroupPage
+{
+public:
+    virtual ~IEditGroupPage()
+    {
+
+    }
+    virtual QString name() = 0;
+    virtual QIcon icon() = 0;
+    virtual QWidget* createWidget() = 0;
+    virtual void set(QWidget* widget, Group *tempoaryGroup, Database *db) = 0;
+    virtual void assign(QWidget* widget) = 0;
+};
+
 
 class EditGroupWidget : public EditWidget
 {
@@ -46,8 +58,10 @@ public:
     explicit EditGroupWidget(QWidget* parent = nullptr);
     ~EditGroupWidget();
 
-    void loadGroup(Group* group, bool create, Database* database);
+    void loadGroup(Group* group, bool create, Database *database);
     void clear();
+
+    void addEditPage(IEditGroupPage *page);
 
 signals:
     void editFinished(bool accepted);
@@ -65,17 +79,17 @@ private:
     Group::TriState triStateFromIndex(int index);
 
     const QScopedPointer<Ui::EditGroupWidgetMain> m_mainUi;
-    const QScopedPointer<CustomData> m_customData;
 
     QPointer<QWidget> m_editGroupWidgetMain;
     QPointer<EditWidgetIcons> m_editGroupWidgetIcons;
     QPointer<EditWidgetProperties> m_editWidgetProperties;
-#ifdef WITH_XC_SHARING
-    QPointer<GroupSharingWidget> m_editWidgetSharing;
-#endif
 
-    QPointer<Group> m_group;
+    QScopedPointer<Group> m_temporaryGroup;
     QPointer<Database> m_database;
+    QPointer<Group> m_group;
+
+    class ExtraPage;
+    QList<ExtraPage> m_extraPages;
 
     Q_DISABLE_COPY(EditGroupWidget)
 };
