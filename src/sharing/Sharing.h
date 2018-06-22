@@ -136,14 +136,14 @@ public:
     void handleDatabaseOpened(Database *db);
     void handleDatabaseSaved(Database *db);
 signals:
-    void sharingChanged(Database*, QString, MessageWidget::MessageType);
+    void sharingMessage(Database*, QString, MessageWidget::MessageType);
 
 private slots:
     void emitSharingMessage(const QString&, MessageWidget::MessageType);
     void handleDatabaseDeleted(QObject *db);
     void handleObserverDeleted(QObject *observer);
 private:
-    static QScopedPointer<Sharing> m_instance;
+    static Sharing* m_instance;
 
     explicit Sharing(QObject *parent);
 

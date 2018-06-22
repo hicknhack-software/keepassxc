@@ -72,7 +72,9 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     , m_advancedWidget(new QWidget())
     , m_iconsWidget(new EditWidgetIcons())
     , m_autoTypeWidget(new QWidget())
+#ifdef WITH_XC_SSHAGENT
     , m_sshAgentWidget(new QWidget())
+#endif
     , m_editWidgetProperties(new EditWidgetProperties())
     , m_historyWidget(new QWidget())
     , m_entryAttributes(new EntryAttributes(this))

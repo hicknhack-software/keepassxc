@@ -159,7 +159,9 @@ private:
     QWidget* const m_advancedWidget;
     EditWidgetIcons* const m_iconsWidget;
     QWidget* const m_autoTypeWidget;
+#ifdef WITH_XC_SSHAGENT
     QWidget* const m_sshAgentWidget;
+#endif
     EditWidgetProperties* const m_editWidgetProperties;
     QWidget* const m_historyWidget;
     EntryAttributes* const m_entryAttributes;

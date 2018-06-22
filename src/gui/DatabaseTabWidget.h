@@ -103,7 +103,7 @@ private slots:
     void emitActivateDatabaseChanged();
     void emitDatabaseUnlockedFromDbWidgetSender();
 #ifdef WITH_XC_SHARING
-    void handleDatabaseMessage(const Database *db, const QString& message, MessageWidget::MessageType type);
+    void handleDatabaseMessage(Database *db, QString message, MessageWidget::MessageType type);
 #endif
 private:
     bool saveDatabase(Database* db, QString filePath = "");

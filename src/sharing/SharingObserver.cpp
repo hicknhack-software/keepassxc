@@ -146,7 +146,7 @@ void SharingObserver::notifyAbout(const QStringList& success, const QStringList&
     if (!error.isEmpty()) {
         type = MessageWidget::Error;
     }
-    emit sharingChanged((success + warning + error).join("\n"), type);
+    emit sharingMessage((success + warning + error).join("\n"), type);
 }
 
 void SharingObserver::handleDatabaseChanged()

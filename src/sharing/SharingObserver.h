@@ -49,7 +49,7 @@ public:
     Database* database();
 
 signals:
-    void sharingChanged(QString, MessageWidget::MessageType);
+    void sharingMessage(QString, MessageWidget::MessageType);
 
 public slots:
     void handleDatabaseChanged();

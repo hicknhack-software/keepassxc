@@ -845,14 +845,15 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
 #ifdef WITH_XC_SHARING
     Sharing::instance()->connectDatabase(newDb, oldDb);
     connect(Sharing::instance(),
-            SIGNAL(sharingChanged(Database*, QString, MessageWidget::MessageType)),
+            SIGNAL(sharingMessage(Database*, QString, MessageWidget::MessageType)),
+            this,
             SLOT(handleDatabaseMessage(Database*, QString, MessageWidget::MessageType)),
             Qt::UniqueConnection);
     Sharing::instance()->handleDatabaseOpened(newDb);
 #endif
 }
 
-void DatabaseTabWidget::handleDatabaseMessage(const Database* db, const QString& message, MessageWidget::MessageType type)
+void DatabaseTabWidget::handleDatabaseMessage(Database *db, QString message, MessageWidget::MessageType type)
 {
     auto* databaseWidget = currentDatabaseWidget();
     if (!databaseWidget) {

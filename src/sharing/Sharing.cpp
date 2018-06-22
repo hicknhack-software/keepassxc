@@ -89,7 +89,7 @@ OpenSSHKey unpackCertificate(const Sharing::Certificate& certificate)
 }
 
 }
-QScopedPointer<Sharing> Sharing::m_instance;
+Sharing* Sharing::m_instance;
 
 Sharing* Sharing::instance()
 {
@@ -97,12 +97,13 @@ Sharing* Sharing::instance()
         qFatal("Race condition: instance wanted before it was initialized, this is a bug.");
     }
 
-    return m_instance.data();
+    return m_instance;
 }
 
 void Sharing::init(QObject* parent)
 {
-    m_instance.reset(new Sharing(parent));
+    Q_ASSERT( ! m_instance );
+    m_instance = new Sharing(parent);
 }
 
 Sharing::Settings Sharing::encryptionSettingsFor(const Database *db)
@@ -498,7 +499,7 @@ void Sharing::emitSharingMessage(const QString &message, KMessageWidget::Message
     QObject *observer = sender();
     Database* db = m_databasesByObserver.value(observer);
     if( db ){
-        emit sharingChanged(db, message, type);
+        emit sharingMessage(db, message, type);
     }
 }
 
@@ -523,6 +524,3 @@ Sharing::Sharing(QObject *parent)
 {
 
 }
-
-
-
