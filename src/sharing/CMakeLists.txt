@@ -4,12 +4,13 @@ if(WITH_XC_SHARING)
     set(sharing_SOURCES
 	DatabaseSettingsSharingPage.cpp
 	DatabaseSettingsSharingWidget.cpp
+	group/GroupSharingWidget.cpp
+	group/GroupSharingPage.cpp
 	Sharing.cpp
 	SharingObserver.cpp
 	Signature.cpp
-	group/GroupSharingWidget.cpp
     )
 
     add_library(sharing STATIC ${sharing_SOURCES})
-    target_link_libraries(sharing Qt5::Core Qt5::Widgets Qt5::Network ${GCRYPT_LIBRARIES} ${QUAZIP_LIBRARIES})
+    target_link_libraries(sharing Qt5::Core Qt5::Widgets ${GCRYPT_LIBRARIES} ${QUAZIP_LIBRARIES})
 endif()

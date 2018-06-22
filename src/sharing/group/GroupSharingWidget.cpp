@@ -224,35 +224,3 @@ void GroupSharingWidget::selectType()
     Sharing::setReferenceTo(m_temporaryGroup->customData(), reference);
 }
 
-GroupSharingPage::GroupSharingPage(EditGroupWidget *widget)
-{
-    Q_UNUSED(widget);
-}
-
-QString GroupSharingPage::name()
-{
-    return QApplication::tr("Sharing");
-}
-
-QIcon GroupSharingPage::icon()
-{
-    return FilePath::instance()->icon("apps", "preferences-system-network-sharing");
-}
-
-QWidget *GroupSharingPage::createWidget()
-{
-    return  new GroupSharingWidget();
-}
-
-void GroupSharingPage::set(QWidget *widget, Group *temporaryGroup, Database *database)
-{
-    GroupSharingWidget *settingsWidget = reinterpret_cast<GroupSharingWidget*>(widget);
-    settingsWidget->setGroup(temporaryGroup, database);
-}
-
-void GroupSharingPage::assign(QWidget *widget)
-{
-    Q_UNUSED(widget);
-    // everything is saved directly
-}
-

@@ -47,7 +47,7 @@ option(WITH_XC_NETWORKING "Include networking code (e.g. for downlading website 
 option(WITH_XC_BROWSER "Include browser integration with keepassxc-browser." OFF)
 option(WITH_XC_YUBIKEY "Include YubiKey support." OFF)
 option(WITH_XC_SSHAGENT "Include SSH agent support." OFF)
-option(WITH_XC_SHARING "Include Sharing support." OFF)
+option(WITH_XC_SHARING "Include sharing support with keepassxc-sharing." OFF)
 
 if(WITH_XC_ALL)
   # Enable all options

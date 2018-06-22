@@ -24,10 +24,8 @@
 #include "gui/EditWidgetProperties.h"
 
 #ifdef WITH_XC_SHARING
-#include "sharing/group/GroupSharingWidget.h"
+#include "sharing/group/GroupSharingPage.h"
 #endif
-
-
 
 class EditGroupWidget::ExtraPage
 {
