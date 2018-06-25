@@ -35,7 +35,7 @@ static const QString KeeShareExt_ExportEnabled("Export");
 static const QString KeeShareExt_ImportEnabled("Import");
 static const QString KeeShareExt("KeeShareXC");
 static const QString KeeShareExt_Certificate("KeeShareXC_Certificate");
-static const QChar KeeShareExt_referencePropertyDelimiter('|');
+static const QChar KeeShareExt_Delimiter('|');
 
 Sharing::Certificate packCertificate(const OpenSSHKey &key, bool verified, const QString &signer)
 {
@@ -43,11 +43,7 @@ Sharing::Certificate packCertificate(const OpenSSHKey &key, bool verified, const
     extracted.type = "rsa";
     extracted.trusted = verified;
     extracted.signer = signer;
-    QStringList parts;
-    for( const QByteArray& part : key.publicParts() ){
-        parts << part.toHex();
-    }
-    extracted.key = parts.join("|").toLatin1().toBase64();
+    extracted.key = OpenSSHKey::customExportPublicKey(key);
     return extracted;
 }
 
@@ -55,40 +51,26 @@ Sharing::Key packKey(const OpenSSHKey &key)
 {
     Sharing::Key extracted;
     extracted.type = "rsa";
-    QStringList parts;
-    for( const QByteArray& part : key.privateParts() ){
-        parts << part.toHex();
-    }
-    extracted.key = parts.join("|").toLatin1().toBase64();
+    extracted.key = OpenSSHKey::customExportPrivateKey(key);
     return extracted;
 }
 
 OpenSSHKey unpackKey(const Sharing::Key &sign)
 {
-    OpenSSHKey key;
-    const QString serialized = QByteArray::fromBase64(sign.key.toLatin1());
-    const QStringList privateParts = serialized.split(KeeShareExt_referencePropertyDelimiter);
-    QList<QByteArray> privateData;
-    for( int i = 0; i < privateParts.count(); ++i){
-        privateData << QByteArray::fromHex(privateParts[i].toLatin1());
+    if(sign.type != "rsa"){
+        Q_ASSERT(sign.type == "rsa");
+        return OpenSSHKey();
     }
-    key.m_rawType = OpenSSHKey::TYPE_RSA_PRIVATE;
-    key.setPrivateData(privateData);
-    return key;
+    return OpenSSHKey::customImportPrivateKey(OpenSSHKey::TYPE_RSA_PRIVATE, sign.key.toLatin1());
 }
 
 OpenSSHKey unpackCertificate(const Sharing::Certificate& certificate)
 {
-    OpenSSHKey key;
-    const QString serialized = QString::fromLatin1(QByteArray::fromBase64(certificate.key.toLatin1()));
-    const QStringList publicParts = serialized.split(KeeShareExt_referencePropertyDelimiter);
-    QList<QByteArray> publicData;
-    for( int i = 0; i < publicParts.count(); ++i ){
-        publicData << QByteArray::fromHex(publicParts[i].toLatin1());
+    if(certificate.type != "rsa"){
+        Q_ASSERT(certificate.type == "rsa");
+        return OpenSSHKey();
     }
-    key.m_rawType = OpenSSHKey::TYPE_RSA_PUBLIC;
-    key.setPublicData(publicData);
-    return key;
+    return OpenSSHKey::customImportPublicKey(OpenSSHKey::TYPE_RSA_PUBLIC, certificate.key.toLatin1());
 }
 }
 
@@ -130,7 +112,7 @@ QString Sharing::Certificate::serialize(const Sharing::Certificate &certificate)
             << certificate.signer
             << (certificate.trusted ? "trusted" : "trusted")
             << certificate.key;
-    return data.join(KeeShareExt_referencePropertyDelimiter);
+    return data.join(KeeShareExt_Delimiter);
 }
 
 bool Sharing::Certificate::isNull() const
@@ -140,7 +122,7 @@ bool Sharing::Certificate::isNull() const
 
 Sharing::Certificate Sharing::Certificate::deserialize(const QString &raw)
 {
-    const QStringList data = raw.split(KeeShareExt_referencePropertyDelimiter);
+    const QStringList data = raw.split(KeeShareExt_Delimiter);
     Certificate certificate;
     certificate.type = data.value(0);
     certificate.signer = data.value(1);
@@ -159,12 +141,12 @@ QString Sharing::Key::serialize(const Sharing::Key &key)
     const QStringList data = QStringList()
             << key.type
             << key.key;
-    return data.join(KeeShareExt_referencePropertyDelimiter).toLatin1();
+    return data.join(KeeShareExt_Delimiter).toLatin1();
 }
 
 Sharing::Key Sharing::Key::deserialize(const QString &raw)
 {
-    const QStringList data = raw.split(KeeShareExt_referencePropertyDelimiter);
+    const QStringList data = raw.split(KeeShareExt_Delimiter);
     Sharing::Key key;
     key.type = data.value(0);
     key.key = data.value(1);
@@ -189,21 +171,21 @@ QString Sharing::Settings::serialize(const Sharing::Settings &settings)
             << QString::number(static_cast<int>(settings.type))
             << Key::serialize(settings.ownKey).toLatin1().toBase64()
             << Certificate::serialize(settings.ownCertificate).toLatin1().toBase64()
-            << foreign.join(KeeShareExt_referencePropertyDelimiter).toLatin1().toBase64();
-    return serialized.join(KeeShareExt_referencePropertyDelimiter);
+            << foreign.join(KeeShareExt_Delimiter).toLatin1().toBase64();
+    return serialized.join(KeeShareExt_Delimiter);
 }
 
 Sharing::Settings Sharing::Settings::deserialize(const QString &raw)
 {
     Settings settings;
-    const auto parts = raw.split(KeeShareExt_referencePropertyDelimiter);
+    const auto parts = raw.split(KeeShareExt_Delimiter);
     if (parts.count() != 4) {
         return settings;
     }
     settings.type = static_cast<Type>(parts[0].toInt());
     settings.ownKey = Key::deserialize(QByteArray::fromBase64(parts[1].toLatin1()));
     settings.ownCertificate = Certificate::deserialize(QByteArray::fromBase64(parts[2].toLatin1()));
-    for( const QString &foreign : QString::fromLatin1(QByteArray::fromBase64(parts[3].toLatin1())).split(KeeShareExt_referencePropertyDelimiter, QString::SkipEmptyParts) ){
+    for( const QString &foreign : QString::fromLatin1(QByteArray::fromBase64(parts[3].toLatin1())).split(KeeShareExt_Delimiter, QString::SkipEmptyParts) ){
         settings.foreignCertificates << Certificate::deserialize(QByteArray::fromBase64(foreign.toLatin1()));
     }
     return settings;
@@ -256,14 +238,14 @@ QString Sharing::Reference::serialize(const Reference &reference)
             << reference.uuid.toHex()
             << reference.path.toLatin1().toBase64()
             << reference.password.toLatin1().toBase64();
-    return raw.join(KeeShareExt_referencePropertyDelimiter);
+    return raw.join(KeeShareExt_Delimiter);
 }
 
 Sharing::Reference Sharing::Reference::deserialize(const QString &raw)
 {
     Reference reference;
 
-    const auto parts = raw.split(KeeShareExt_referencePropertyDelimiter);
+    const auto parts = raw.split(KeeShareExt_Delimiter);
     if (parts.count() != 4) {
         return reference;
     }

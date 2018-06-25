@@ -66,6 +66,11 @@ public:
     static const QString TYPE_RSA_PUBLIC;
     static const QString TYPE_OPENSSH_PRIVATE;
 
+    static OpenSSHKey customImportPublicKey(const QString &rawType, const QByteArray &serialized);
+    static QByteArray customExportPublicKey(const OpenSSHKey &key);
+    static OpenSSHKey customImportPrivateKey(const QString &rawType, const QByteArray &serialized);
+    static QByteArray customExportPrivateKey(const OpenSSHKey &key);
+
 private:
     bool extractPEM(const QByteArray& in, QByteArray& out);
 
@@ -74,10 +79,8 @@ private:
     QByteArray m_cipherIV;
     QString m_kdfName;
     QByteArray m_kdfOptions;
-public:
-    // TODO HNH Hack!
+
     QString m_rawType;
-private:
     QByteArray m_rawData;
     QList<QByteArray> m_rawPublicData;
     QList<QByteArray> m_rawPrivateData;
