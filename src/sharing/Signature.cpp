@@ -19,7 +19,7 @@
 #include "core/Tools.h"
 #include "crypto/Crypto.h"
 #include "crypto/CryptoHash.h"
-#include "sshagent/OpenSSHKey.h"
+#include "crypto/ssh/OpenSSHKey.h"
 
 #include <QByteArray>
 #include <gcrypt.h>

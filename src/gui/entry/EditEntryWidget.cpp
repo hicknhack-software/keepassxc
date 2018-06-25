@@ -44,7 +44,7 @@
 #include "core/TimeDelta.h"
 #include "core/Tools.h"
 #ifdef WITH_XC_SSHAGENT
-#include "sshagent/OpenSSHKey.h"
+#include "crypto/ssh/OpenSSHKey.h"
 #include "sshagent/KeeAgentSettings.h"
 #include "sshagent/SSHAgent.h"
 #endif
@@ -90,6 +90,7 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
     setupAdvanced();
     setupIcon();
     setupAutoType();
+
 #ifdef WITH_XC_SSHAGENT
     if (config()->get("SSHAgent", false).toBool()) {
         setupSSHAgent();
@@ -98,6 +99,7 @@ EditEntryWidget::EditEntryWidget(QWidget* parent)
         m_sshAgentEnabled = false;
     }
 #endif
+
     setupProperties();
     setupHistory();
     setupEntryUpdate();

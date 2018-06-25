@@ -15,8 +15,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DatabaseSettingsSharingWidget.h"
-#include "ui_DatabaseSettingsSharingWidget.h"
+#include "DatabaseSettingsWidgetSharing.h"
+#include "ui_DatabaseSettingsWidgetSharing.h"
 
 #include "core/Database.h"
 #include "core/Group.h"
@@ -26,9 +26,9 @@
 #include <QStandardItemModel>
 #include <QMessageBox>
 
-DatabaseSettingsSharingWidget::DatabaseSettingsSharingWidget(QWidget* parent)
+DatabaseSettingsWidgetSharing::DatabaseSettingsWidgetSharing(QWidget* parent)
     : QWidget(parent)
-    , m_ui(new Ui::DatabaseSettingsSharingWidget())
+    , m_ui(new Ui::DatabaseSettingsWidgetSharing())
 {
     m_ui->setupUi(this);
 
@@ -37,11 +37,11 @@ DatabaseSettingsSharingWidget::DatabaseSettingsSharingWidget(QWidget* parent)
     connect(m_ui->clearCertificateButton, SIGNAL(clicked(bool)), SLOT(clearCerticate()));
 }
 
-DatabaseSettingsSharingWidget::~DatabaseSettingsSharingWidget()
+DatabaseSettingsWidgetSharing::~DatabaseSettingsWidgetSharing()
 {
 }
 
-void DatabaseSettingsSharingWidget::loadSettings(Database *db)
+void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
 {
     m_db = db;
 
@@ -89,7 +89,7 @@ void DatabaseSettingsSharingWidget::loadSettings(Database *db)
     m_ui->sharedGroupsView->setModel(m_referencesModel.data());
 }
 
-bool DatabaseSettingsSharingWidget::saveSettings()
+bool DatabaseSettingsWidgetSharing::saveSettings()
 {
     Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
     settings.type = Sharing::Inactive;
@@ -125,7 +125,7 @@ bool DatabaseSettingsSharingWidget::saveSettings()
 }
 
 
-void DatabaseSettingsSharingWidget::setVerificationExporter(const QString &signer)
+void DatabaseSettingsWidgetSharing::setVerificationExporter(const QString &signer)
 {
     Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
     settings.ownCertificate.signer = signer;
@@ -133,7 +133,7 @@ void DatabaseSettingsSharingWidget::setVerificationExporter(const QString &signe
     m_sharingInformation = Sharing::Settings::serialize(settings);
 }
 
-void DatabaseSettingsSharingWidget::generateCerticate()
+void DatabaseSettingsWidgetSharing::generateCerticate()
 {
     Sharing::Settings settings = Sharing::encryptionSettingsFor(m_db);
     m_ui->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
@@ -142,7 +142,7 @@ void DatabaseSettingsSharingWidget::generateCerticate()
     m_sharingInformation = Sharing::Settings::serialize(settings);
 }
 
-void DatabaseSettingsSharingWidget::clearCerticate()
+void DatabaseSettingsWidgetSharing::clearCerticate()
 {
     Sharing::Settings settings;
     m_ui->verificationExporterEdit->clear();

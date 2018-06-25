@@ -59,6 +59,12 @@ if(WITH_XC_ALL)
   set(WITH_XC_SHARING ON)
 endif()
 
+if(WITH_XC_SSHAGENT OR WITH_XC_SHARING)
+  set(WITH_XC_CRYPTO_SSH ON)
+else()
+  set(WITH_XC_CRYPTO_SSH OFF)
+endif()
+
 # Process ui files automatically from source files
 set(CMAKE_AUTOUIC ON)
 
@@ -395,9 +401,3 @@ else()
   feature_summary(WHAT ENABLED_FEATURES DESCRIPTION "Enabled features:")
   feature_summary(WHAT DISABLED_FEATURES DESCRIPTION "Disabled features:")
 endif()
-
-#get_cmake_property(_variableNames VARIABLES)
-#list (SORT _variableNames)
-#foreach (_variableName ${_variableNames})
-#    message(STATUS "${_variableName}=${${_variableName}}")
-#endforeach()

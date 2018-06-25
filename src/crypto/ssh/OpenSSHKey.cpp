@@ -19,9 +19,10 @@
 #include "OpenSSHKey.h"
 
 #include "core/Tools.h"
+#include "crypto/ssh/BinaryStream.h"
+#include "crypto/ssh/ASN1Key.h"
 #include "crypto/SymmetricCipher.h"
-#include "sshagent/BinaryStream.h"
-#include "sshagent/ASN1Key.h"
+
 #include <QCryptographicHash>
 #include <QRegularExpression>
 #include <QStringList>

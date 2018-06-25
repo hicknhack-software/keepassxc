@@ -159,7 +159,7 @@ if(WITH_XC_AUTOTYPE)
   set_target_properties(testautotype PROPERTIES ENABLE_EXPORTS ON)
 endif()
 
-if(WITH_XC_SSHAGENT)
+if(WITH_XC_CRYPTO_SSH)
 add_unit_test(NAME testopensshkey SOURCES TestOpenSSHKey.cpp
 	LIBS ${TEST_LIBRARIES})
 endif()

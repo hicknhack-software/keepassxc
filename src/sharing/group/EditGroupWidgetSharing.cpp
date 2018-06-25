@@ -15,24 +15,24 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GroupSharingWidget.h"
-#include "ui_GroupSharingWidget.h"
+#include "EditGroupWidgetSharing.h"
+#include "ui_EditGroupWidgetSharing.h"
 
 #include "core/Config.h"
 #include "core/CustomData.h"
 #include "core/FilePath.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
+#include "crypto/ssh/OpenSSHKey.h"
 #include "gui/FileDialog.h"
 #include "sharing/Sharing.h"
-#include "sshagent/OpenSSHKey.h"
 
 #include <QDir>
 #include <QStandardPaths>
 
-GroupSharingWidget::GroupSharingWidget(QWidget* parent)
+EditGroupWidgetSharing::EditGroupWidgetSharing(QWidget* parent)
     : QWidget(parent)
-    , m_ui(new Ui::GroupSharingWidget())
+    , m_ui(new Ui::EditGroupWidgetSharing())
 {
     m_ui->setupUi(this);
 
@@ -74,11 +74,11 @@ GroupSharingWidget::GroupSharingWidget(QWidget* parent)
     }
 }
 
-GroupSharingWidget::~GroupSharingWidget()
+EditGroupWidgetSharing::~EditGroupWidgetSharing()
 {
 }
 
-void GroupSharingWidget::setGroup(Group* temporaryGroup, Database *database)
+void EditGroupWidgetSharing::setGroup(Group* temporaryGroup, Database *database)
 {
     if (m_temporaryGroup) {
         m_temporaryGroup->disconnect(this);
@@ -93,7 +93,7 @@ void GroupSharingWidget::setGroup(Group* temporaryGroup, Database *database)
     update();
 }
 
-void GroupSharingWidget::showSharingState()
+void EditGroupWidgetSharing::showSharingState()
 {
     if(!m_temporaryGroup || !m_database){
         return;
@@ -111,7 +111,7 @@ void GroupSharingWidget::showSharingState()
     }
 }
 
-void GroupSharingWidget::update()
+void EditGroupWidgetSharing::update()
 {
     if (!m_temporaryGroup) {
         m_ui->passwordEdit->clear();
@@ -130,13 +130,13 @@ void GroupSharingWidget::update()
     }
 }
 
-void GroupSharingWidget::togglePasswordGeneratorButton(bool checked)
+void EditGroupWidgetSharing::togglePasswordGeneratorButton(bool checked)
 {
     m_ui->passwordGenerator->regeneratePassword();
     m_ui->passwordGenerator->setVisible(checked);
 }
 
-void GroupSharingWidget::setGeneratedPassword(const QString& password)
+void EditGroupWidgetSharing::setGeneratedPassword(const QString& password)
 {
     if (!m_temporaryGroup) {
         return;
@@ -147,7 +147,7 @@ void GroupSharingWidget::setGeneratedPassword(const QString& password)
     m_ui->togglePasswordGeneratorButton->setChecked(false);
 }
 
-void GroupSharingWidget::setPath(const QString& path)
+void EditGroupWidgetSharing::setPath(const QString& path)
 {
     if (!m_temporaryGroup) {
         return;
@@ -157,7 +157,7 @@ void GroupSharingWidget::setPath(const QString& path)
     Sharing::setReferenceTo(m_temporaryGroup->customData(), reference);
 }
 
-void GroupSharingWidget::selectPath()
+void EditGroupWidgetSharing::selectPath()
 {
     if (!m_temporaryGroup) {
         return;
@@ -204,7 +204,7 @@ void GroupSharingWidget::selectPath()
     config()->set("Sharing/LastSharingDir", QFileInfo(filename).absolutePath());
 }
 
-void GroupSharingWidget::selectPassword()
+void EditGroupWidgetSharing::selectPassword()
 {
     if (!m_temporaryGroup) {
         return;
@@ -214,7 +214,7 @@ void GroupSharingWidget::selectPassword()
     Sharing::setReferenceTo(m_temporaryGroup->customData(), reference);
 }
 
-void GroupSharingWidget::selectType()
+void EditGroupWidgetSharing::selectType()
 {
     if (!m_temporaryGroup) {
         return;

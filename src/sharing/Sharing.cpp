@@ -21,9 +21,9 @@
 #include "core/DatabaseIcons.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
+#include "crypto/ssh/OpenSSHKey.h"
 #include "sharing/Signature.h"
 #include "sharing/SharingObserver.h"
-#include "sshagent/OpenSSHKey.h"
 
 #include <QPainter>
 #include <QPushButton>

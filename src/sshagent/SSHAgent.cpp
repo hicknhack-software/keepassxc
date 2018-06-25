@@ -18,7 +18,8 @@
 
 #include "SSHAgent.h"
 
-#include "sshagent/BinaryStream.h"
+#include "crypto/ssh/OpenSSHKey.h"
+#include "crypto/ssh/BinaryStream.h"
 #include "sshagent/KeeAgentSettings.h"
 
 #ifndef Q_OS_WIN

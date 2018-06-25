@@ -215,6 +215,12 @@ endif()
 add_subdirectory(autotype)
 add_subdirectory(cli)
 
+add_subdirectory(crypto/ssh)
+if(WITH_XC_CRYPTO_SSH)
+    set(crypto_ssh_LIB crypto_ssh)
+endif()
+
+
 add_subdirectory(sharing)
 if(WITH_XC_SHARING)
     set(sharing_LIB sharing)
@@ -259,7 +265,6 @@ set_target_properties(keepassx_core PROPERTIES COMPILE_DEFINITIONS KEEPASSX_BUIL
 target_link_libraries(keepassx_core
                       autotype
                       ${keepassxcbrowser_LIB}
-                      ${sshagent_LIB}
                       Qt5::Core
                       Qt5::Network
                       Qt5::Concurrent
@@ -272,8 +277,11 @@ target_link_libraries(keepassx_core
                       ${GPGERROR_LIBRARIES}
 		      ${ZLIB_LIBRARIES})
 
+if(WITH_XC_SSHAGENT)
+  target_link_libraries(keepassx_core sshagent)
+endif()
 if(WITH_XC_SHARING)
-  target_link_libraries(keepassx_core ${sharing_LIB} ${QUAZIP_LIBRARIES})
+  target_link_libraries(keepassx_core sharing)
 endif()
 
 if(APPLE)

@@ -15,8 +15,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_DATABASESETTINGSSHARINGPAGE_H
-#define KEEPASSXC_DATABASESETTINGSSHARINGPAGE_H
+#ifndef KEEPASSXC_DATABASESETTINGSPAGESHARING_H
+#define KEEPASSXC_DATABASESETTINGSPAGESHARING_H
 
 #include <QWidget>
 #include <QObject>
@@ -24,10 +24,9 @@
 
 #include "gui/DatabaseSettingsWidget.h"
 
-class DatabaseSettingsSharingPage : public IDatabaseSettingsPage
+class DatabaseSettingsPageSharing : public IDatabaseSettingsPage
 {
 public:
-    DatabaseSettingsSharingPage(DatabaseSettingsWidget *settings);
     QString name() override;
     QIcon icon() override;
     QWidget *createWidget() override;
@@ -35,4 +34,4 @@ public:
     bool saveSettings(QWidget *widget) override;
 };
 
-#endif // KEEPASSXC_DATABASESETTINGSSHARINGPAGE_H
+#endif // KEEPASSXC_DATABASESETTINGSPAGESHARING_H

@@ -17,7 +17,7 @@
  */
 
 #include "ASN1Key.h"
-#include "sshagent/BinaryStream.h"
+#include "crypto/ssh/BinaryStream.h"
 
 #include <gcrypt.h>
 

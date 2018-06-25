@@ -42,6 +42,9 @@
 #include "crypto/kdf/Argon2Kdf.h"
 #include "gui/MessageBox.h"
 #include "gui/PasswordEdit.h"
+#ifdef WITH_XC_SHARING
+#include "sharing/DatabaseSettingsPageSharing.h"
+#endif
 
 
 class DatabaseSettingsWidget::ExtraPage
@@ -103,6 +106,10 @@ DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
 
     m_ui->stackedWidget->addWidget(m_uiGeneralPage);
     m_ui->stackedWidget->addWidget(m_uiEncryptionPage);
+
+#ifdef WITH_XC_SHARING
+    addSettingsPage(new DatabaseSettingsPageSharing());
+#endif
 
     connect(m_ui->categoryList, SIGNAL(categoryChanged(int)), m_ui->stackedWidget, SLOT(setCurrentIndex(int)));
 }

@@ -15,8 +15,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_DATABASESETTINGSSHARINGWIDGET_H
-#define KEEPASSXC_DATABASESETTINGSSHARINGWIDGET_H
+#ifndef KEEPASSXC_DATABASESETTINGSWIDGETSHARING_H
+#define KEEPASSXC_DATABASESETTINGSWIDGETSHARING_H
 
 #include <QScopedPointer>
 #include <QPointer>
@@ -28,15 +28,15 @@ class QStandardItemModel;
 
 namespace Ui
 {
-    class DatabaseSettingsSharingWidget;
+    class DatabaseSettingsWidgetSharing;
 }
 
-class DatabaseSettingsSharingWidget : public QWidget
+class DatabaseSettingsWidgetSharing : public QWidget
 {
     Q_OBJECT
 public:
-    explicit DatabaseSettingsSharingWidget(QWidget* parent = nullptr);
-    ~DatabaseSettingsSharingWidget();
+    explicit DatabaseSettingsWidgetSharing(QWidget* parent = nullptr);
+    ~DatabaseSettingsWidgetSharing();
 
     void loadSettings(Database *db);
     bool saveSettings();
@@ -47,7 +47,7 @@ private slots:
     void clearCerticate();
 
 private:
-    QScopedPointer<Ui::DatabaseSettingsSharingWidget> m_ui;
+    QScopedPointer<Ui::DatabaseSettingsWidgetSharing> m_ui;
 
     QString m_sharingInformation;
     QScopedPointer<QStandardItemModel> m_referencesModel;
@@ -55,4 +55,4 @@ private:
     QPointer<Database> m_db;
 };
 
-#endif // KEEPASSXC_DATABASESETTINGSSHARINGWIDGET_H
+#endif // KEEPASSXC_DATABASESETTINGSWIDGETSHARING_H

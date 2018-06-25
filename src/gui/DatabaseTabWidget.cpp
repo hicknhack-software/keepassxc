@@ -41,6 +41,8 @@
 #include "gui/group/GroupView.h"
 #include "sharing/Sharing.h"
 
+#include "config-keepassx.h"
+
 DatabaseManagerStruct::DatabaseManagerStruct()
     : dbWidget(nullptr)
     , modified(false)
@@ -865,7 +867,7 @@ void DatabaseTabWidget::handleDatabaseMessage(Database *db, QString message, Mes
     }
     if (currentDb != db) {
         auto index = databaseIndex(db);
-        emit messageGlobal(tr("Sharing update in background database %1:\n%2").arg(tabText(index)).arg(message), type);
+        emit messageGlobal(tr("Update in background database %1:\n%2").arg(tabText(index)).arg(message), type);
 
     } else {
         emit messageTab(message, type);

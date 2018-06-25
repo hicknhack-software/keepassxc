@@ -20,8 +20,9 @@
 #include "ui_SettingsWidgetGeneral.h"
 #include "ui_SettingsWidgetSecurity.h"
 
-#include "autotype/AutoType.h"
 #include "config-keepassx.h"
+
+#include "autotype/AutoType.h"
 #include "core/Config.h"
 #include "core/FilePath.h"
 #include "core/Global.h"
@@ -105,7 +106,6 @@ void SettingsWidget::addSettingsPage(ISettingsPage* page)
 
 void SettingsWidget::loadSettings()
 {
-
     if (config()->hasAccessError()) {
         showMessage(tr("Access error for config file %1").arg(config()->getFileName()), MessageWidget::Error);
     }

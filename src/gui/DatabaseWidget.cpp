@@ -65,9 +65,6 @@
 #ifdef WITH_XC_SSHAGENT
 #include "sshagent/SSHAgent.h"
 #endif
-#ifdef WITH_XC_SHARING
-#include "sharing/DatabaseSettingsSharingPage.h"
-#endif
 
 DatabaseWidget::DatabaseWidget(Database* db, QWidget* parent)
     : QStackedWidget(parent)
@@ -233,10 +230,6 @@ DatabaseWidget::DatabaseWidget(Database* db, QWidget* parent)
                 SLOT(databaseModeChanged(DatabaseWidget::Mode)));
         connect(this, SIGNAL(closeRequest()), SSHAgent::instance(), SLOT(databaseModeChanged()));
     }
-#endif
-
-#ifdef WITH_XC_SHARING
-    m_databaseSettingsWidget->addSettingsPage(new DatabaseSettingsSharingPage(m_databaseSettingsWidget));
 #endif
 
     setCurrentWidget(m_mainWidget);

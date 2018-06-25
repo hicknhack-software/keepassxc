@@ -15,42 +15,40 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GroupSharingPage.h"
+#include "DatabaseSettingsPageSharing.h"
 
+#include "core/Database.h"
 #include "core/FilePath.h"
-#include "sharing/group/GroupSharingWidget.h"
+#include "core/Group.h"
+#include "sharing/Sharing.h"
+#include "sharing/DatabaseSettingsWidgetSharing.h"
 
 #include <QApplication>
 
-GroupSharingPage::GroupSharingPage(EditGroupWidget *widget)
-{
-    Q_UNUSED(widget);
-}
-
-QString GroupSharingPage::name()
+QString DatabaseSettingsPageSharing::name()
 {
     return QApplication::tr("Sharing");
 }
 
-QIcon GroupSharingPage::icon()
+QIcon DatabaseSettingsPageSharing::icon()
 {
     return FilePath::instance()->icon("apps", "preferences-system-network-sharing");
 }
 
-QWidget *GroupSharingPage::createWidget()
+QWidget *DatabaseSettingsPageSharing::createWidget()
 {
-    return new GroupSharingWidget();
+    return new DatabaseSettingsWidgetSharing();
 }
 
-void GroupSharingPage::set(QWidget *widget, Group *temporaryGroup, Database *database)
+void DatabaseSettingsPageSharing::loadSettings(QWidget *widget, Database *db)
 {
-    GroupSharingWidget *settingsWidget = reinterpret_cast<GroupSharingWidget*>(widget);
-    settingsWidget->setGroup(temporaryGroup, database);
+    DatabaseSettingsWidgetSharing* settingsWidget = reinterpret_cast<DatabaseSettingsWidgetSharing*>(widget);
+    settingsWidget->loadSettings(db);
 }
 
-void GroupSharingPage::assign(QWidget *widget)
+bool DatabaseSettingsPageSharing::saveSettings(QWidget *widget)
 {
-    Q_UNUSED(widget);
-    // everything is saved directly
+    DatabaseSettingsWidgetSharing* settingsWidget = reinterpret_cast<DatabaseSettingsWidgetSharing*>(widget);
+    return settingsWidget->saveSettings();
 }
 

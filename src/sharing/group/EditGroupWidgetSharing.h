@@ -15,8 +15,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_GROUPSHARINGWIDGET_H
-#define KEEPASSXC_GROUPSHARINGWIDGET_H
+#ifndef KEEPASSXC_EDITGROUPWIDGETSHARING_H
+#define KEEPASSXC_EDITGROUPWIDGETSHARING_H
 
 #include <QPointer>
 #include <QWidget>
@@ -27,15 +27,15 @@ class Database;
 
 namespace Ui
 {
-    class GroupSharingWidget;
+    class EditGroupWidgetSharing;
 }
 
-class GroupSharingWidget : public QWidget
+class EditGroupWidgetSharing : public QWidget
 {
     Q_OBJECT
 public:
-    explicit GroupSharingWidget(QWidget* parent = nullptr);
-    ~GroupSharingWidget();
+    explicit EditGroupWidgetSharing(QWidget* parent = nullptr);
+    ~EditGroupWidgetSharing();
 
     void setGroup(Group *temporaryGroup, Database *database);
 
@@ -52,9 +52,9 @@ private slots:
     void togglePasswordGeneratorButton(bool checked);
 
 private:
-    QScopedPointer<Ui::GroupSharingWidget> m_ui;
+    QScopedPointer<Ui::EditGroupWidgetSharing> m_ui;
     QPointer<Group> m_temporaryGroup;
     QPointer<Database> m_database;
 };
 
-#endif // KEEPASSXC_GROUPSHARINGWIDGET_H
+#endif // KEEPASSXC_EDITGROUPWIDGETSHARING_H

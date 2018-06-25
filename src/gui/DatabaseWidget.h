@@ -25,7 +25,6 @@
 #include <QTimer>
 
 #include "core/Uuid.h"
-
 #include "gui/MessageWidget.h"
 #include "gui/csvImport/CsvImportWizard.h"
 #include "gui/entry/EntryModel.h"

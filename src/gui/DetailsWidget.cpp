@@ -27,7 +27,9 @@
 #include "core/FilePath.h"
 #include "entry/EntryAttachmentsModel.h"
 #include "gui/Clipboard.h"
+#ifdef WITH_XC_SHARING
 #include "sharing/Sharing.h"
+#endif
 
 namespace
 {

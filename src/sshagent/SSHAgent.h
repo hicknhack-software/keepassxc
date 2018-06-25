@@ -23,7 +23,7 @@
 #include <QtCore>
 
 #include "gui/DatabaseWidget.h"
-#include "sshagent/OpenSSHKey.h"
+#include "crypto/ssh/OpenSSHKey.h"
 
 class SSHAgent : public QObject
 {

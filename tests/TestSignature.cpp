@@ -22,8 +22,8 @@
 #include <QBuffer>
 
 #include "crypto/Crypto.h"
+#include "crypto/ssh/OpenSSHKey.h"
 #include "sharing/Signature.h"
-#include "sshagent//OpenSSHKey.h"
 
 QTEST_GUILESS_MAIN(TestSignature)
 static const char* rsa_2_private = "-----BEGIN RSA PRIVATE KEY-----\n"

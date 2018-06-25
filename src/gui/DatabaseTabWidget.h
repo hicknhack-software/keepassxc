@@ -23,7 +23,6 @@
 #include <QHash>
 #include <QTabWidget>
 
-#include "config-keepassx.h"
 #include "gui/DatabaseWidget.h"
 #include "gui/MessageWidget.h"
 
@@ -102,9 +101,8 @@ private slots:
     void changeDatabase(Database* newDb, bool unsavedChanges);
     void emitActivateDatabaseChanged();
     void emitDatabaseUnlockedFromDbWidgetSender();
-#ifdef WITH_XC_SHARING
     void handleDatabaseMessage(Database *db, QString message, MessageWidget::MessageType type);
-#endif
+
 private:
     bool saveDatabase(Database* db, QString filePath = "");
     bool saveDatabaseAs(Database* db);
