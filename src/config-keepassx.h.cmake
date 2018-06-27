@@ -17,7 +17,7 @@
 #cmakedefine WITH_XC_BROWSER
 #cmakedefine WITH_XC_YUBIKEY
 #cmakedefine WITH_XC_SSHAGENT
-#cmakedefine WITH_XC_SHARING
+#cmakedefine WITH_XC_KEESHARE
 
 #cmakedefine KEEPASSXC_BUILD_TYPE "@KEEPASSXC_BUILD_TYPE@"
 #cmakedefine KEEPASSXC_BUILD_TYPE_RELEASE

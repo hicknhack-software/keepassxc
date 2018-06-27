@@ -15,18 +15,18 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_EDITGROUPPAGESHARING_H
-#define KEEPASSXC_EDITGROUPPAGESHARING_H
+#ifndef KEEPASSXC_EDITGROUPPAGEKEESHARE_H
+#define KEEPASSXC_EDITGROUPPAGEKEESHARE_H
 
 #include "gui/group/EditGroupWidget.h"
 
 class Group;
 class Database;
 
-class EditGroupPageSharing : public IEditGroupPage
+class EditGroupPageKeeShare : public IEditGroupPage
 {
 public:
-    EditGroupPageSharing(EditGroupWidget *widget);
+    EditGroupPageKeeShare(EditGroupWidget *widget);
     QString name() override;
     QIcon icon() override;
     QWidget *createWidget() override;
@@ -34,4 +34,4 @@ public:
     void assign(QWidget *widget) override;
 };
 
-#endif // KEEPASSXC_EDITGROUPPAGESHARING_H
+#endif // KEEPASSXC_EDITGROUPPAGEKEESHARE_H

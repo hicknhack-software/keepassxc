@@ -202,7 +202,7 @@ add_feature_info(Auto-Type WITH_XC_AUTOTYPE "Automatic password typing")
 add_feature_info(Networking WITH_XC_NETWORKING "Compile KeePassXC with network access code (e.g. for downloading website icons)")
 add_feature_info(KeePassXC-Browser WITH_XC_BROWSER "Browser integration with KeePassXC-Browser")
 add_feature_info(SSHAgent WITH_XC_SSHAGENT "SSH agent integration compatible with KeeAgent")
-add_feature_info(KeePassXC-Sharing WITH_XC_SHARING "Sharing integration with KeePassXC-Share")
+add_feature_info(KeeShare WITH_XC_KEESHARE "Sharing integration with KeeShare")
 add_feature_info(YubiKey WITH_XC_YUBIKEY "YubiKey HMAC-SHA1 challenge-response")
 
 set(BROWSER_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/browser)
@@ -221,9 +221,9 @@ if(WITH_XC_CRYPTO_SSH)
 endif()
 
 
-add_subdirectory(sharing)
-if(WITH_XC_SHARING)
-    set(sharing_LIB sharing)
+add_subdirectory(keeshare)
+if(WITH_XC_KEESHARE)
+    set(keeshare_LIB keeshare)
 endif()
 
 add_subdirectory(sshagent)
@@ -280,8 +280,8 @@ target_link_libraries(keepassx_core
 if(WITH_XC_SSHAGENT)
   target_link_libraries(keepassx_core sshagent)
 endif()
-if(WITH_XC_SHARING)
-  target_link_libraries(keepassx_core sharing)
+if(WITH_XC_KEESHARE)
+  target_link_libraries(keepassx_core keeshare)
 endif()
 
 if(APPLE)

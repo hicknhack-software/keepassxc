@@ -15,44 +15,46 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_DATABASESETTINGSWIDGETSHARING_H
-#define KEEPASSXC_DATABASESETTINGSWIDGETSHARING_H
+#ifndef KEEPASSXC_EDITGROUPWIDGETKEESHARE_H
+#define KEEPASSXC_EDITGROUPWIDGETKEESHARE_H
 
-#include <QScopedPointer>
 #include <QPointer>
 #include <QWidget>
+#include <QStandardItemModel>
 
+class Group;
 class Database;
-
-class QStandardItemModel;
 
 namespace Ui
 {
-    class DatabaseSettingsWidgetSharing;
+    class EditGroupWidgetKeeShare;
 }
 
-class DatabaseSettingsWidgetSharing : public QWidget
+class EditGroupWidgetKeeShare : public QWidget
 {
     Q_OBJECT
 public:
-    explicit DatabaseSettingsWidgetSharing(QWidget* parent = nullptr);
-    ~DatabaseSettingsWidgetSharing();
+    explicit EditGroupWidgetKeeShare(QWidget* parent = nullptr);
+    ~EditGroupWidgetKeeShare();
 
-    void loadSettings(Database *db);
-    bool saveSettings();
-
-private slots:
-    void setVerificationExporter(const QString &signer);
-    void generateCerticate();
-    void clearCerticate();
+    void setGroup(Group *temporaryGroup, Database *database);
 
 private:
-    QScopedPointer<Ui::DatabaseSettingsWidgetSharing> m_ui;
+    void showSharingState();
 
-    QString m_sharingInformation;
-    QScopedPointer<QStandardItemModel> m_referencesModel;
-    QScopedPointer<QStandardItemModel> m_verificationModel;
-    QPointer<Database> m_db;
+private slots:
+    void update();
+    void selectType();
+    void selectPassword();
+    void selectPath();
+    void setPath(const QString& path);
+    void setGeneratedPassword(const QString& password);
+    void togglePasswordGeneratorButton(bool checked);
+
+private:
+    QScopedPointer<Ui::EditGroupWidgetKeeShare> m_ui;
+    QPointer<Group> m_temporaryGroup;
+    QPointer<Database> m_database;
 };
 
-#endif // KEEPASSXC_DATABASESETTINGSWIDGETSHARING_H
+#endif // KEEPASSXC_EDITGROUPWIDGETKEESHARE_H

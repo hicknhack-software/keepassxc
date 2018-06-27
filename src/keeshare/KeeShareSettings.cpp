@@ -15,15 +15,14 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "SharingSettings.h"
+#include "KeeShareSettings.h"
 #include "core/CustomData.h"
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "crypto/ssh/OpenSSHKey.h"
-#include "sharing/Signature.h"
-#include "sharing/SharingObserver.h"
+#include "keeshare/Signature.h"
 
 #include <QPainter>
 #include <QPushButton>
@@ -33,9 +32,9 @@ namespace {
 
 static const QString KeeShareExt("KeeShare");
 
-SharingSettings::Certificate packCertificate(const OpenSSHKey &key, bool verified, const QString &signer)
+KeeShareSettings::Certificate packCertificate(const OpenSSHKey &key, bool verified, const QString &signer)
 {
-    SharingSettings::Certificate extracted;
+    KeeShareSettings::Certificate extracted;
     extracted.trusted = verified;
     extracted.signer = signer;
     Q_ASSERT(key.type() == "ssh-rsa");
@@ -43,15 +42,15 @@ SharingSettings::Certificate packCertificate(const OpenSSHKey &key, bool verifie
     return extracted;
 }
 
-SharingSettings::Key packKey(const OpenSSHKey &key)
+KeeShareSettings::Key packKey(const OpenSSHKey &key)
 {
-    SharingSettings::Key extracted;
+    KeeShareSettings::Key extracted;
     Q_ASSERT(key.type() == "ssh-rsa");
     extracted.key = OpenSSHKey::serializeToBinary(OpenSSHKey::Private, key);
     return extracted;
 }
 
-OpenSSHKey unpackKey(const SharingSettings::Key &sign)
+OpenSSHKey unpackKey(const KeeShareSettings::Key &sign)
 {
     if(sign.key.isEmpty()){
         return OpenSSHKey();
@@ -61,7 +60,7 @@ OpenSSHKey unpackKey(const SharingSettings::Key &sign)
     return key;
 }
 
-OpenSSHKey unpackCertificate(const SharingSettings::Certificate& certificate)
+OpenSSHKey unpackCertificate(const KeeShareSettings::Certificate& certificate)
 {
     if(certificate.key.isEmpty()){
         return OpenSSHKey();
@@ -72,7 +71,7 @@ OpenSSHKey unpackCertificate(const SharingSettings::Certificate& certificate)
 }
 }
 
-void SharingSettings::Certificate::serialize(QXmlStreamWriter &writer, const SharingSettings::Certificate &certificate)
+void KeeShareSettings::Certificate::serialize(QXmlStreamWriter &writer, const KeeShareSettings::Certificate &certificate)
 {
     if( certificate.isNull() ){
         return;
@@ -88,19 +87,19 @@ void SharingSettings::Certificate::serialize(QXmlStreamWriter &writer, const Sha
     writer.writeEndElement();
 }
 
-void SharingSettings::Certificate::serialize(QXmlStreamWriter &writer, const SharingSettings::Certificate &certificate, const QString &element)
+void KeeShareSettings::Certificate::serialize(QXmlStreamWriter &writer, const KeeShareSettings::Certificate &certificate, const QString &element)
 {
     writer.writeStartElement(element);
     serialize(writer, certificate);
     writer.writeEndElement();
 }
 
-bool SharingSettings::Certificate::isNull() const
+bool KeeShareSettings::Certificate::isNull() const
 {
     return !trusted && key.isEmpty() && signer.isEmpty();
 }
 
-QString SharingSettings::Certificate::fingerprint() const
+QString KeeShareSettings::Certificate::fingerprint() const
 {
     if( isNull() ){
         return "";
@@ -109,12 +108,12 @@ QString SharingSettings::Certificate::fingerprint() const
     return key.fingerprint();
 }
 
-OpenSSHKey SharingSettings::Certificate::sshKey() const
+OpenSSHKey KeeShareSettings::Certificate::sshKey() const
 {
     return unpackCertificate(*this);
 }
 
-SharingSettings::Certificate SharingSettings::Certificate::deserialize(QXmlStreamReader &reader)
+KeeShareSettings::Certificate KeeShareSettings::Certificate::deserialize(QXmlStreamReader &reader)
 {
     Certificate certificate;
     while( !reader.error() && reader.readNextStartElement()){
@@ -129,7 +128,7 @@ SharingSettings::Certificate SharingSettings::Certificate::deserialize(QXmlStrea
     return certificate;
 }
 
-SharingSettings::Certificate SharingSettings::Certificate::deserialize(QXmlStreamReader &reader, const QString &element)
+KeeShareSettings::Certificate KeeShareSettings::Certificate::deserialize(QXmlStreamReader &reader, const QString &element)
 {
     reader.readNextStartElement();
     if( reader.error() || reader.name() != element){
@@ -138,17 +137,17 @@ SharingSettings::Certificate SharingSettings::Certificate::deserialize(QXmlStrea
     return deserialize(reader);
 }
 
-bool SharingSettings::Key::isNull() const
+bool KeeShareSettings::Key::isNull() const
 {
     return key.isEmpty();
 }
 
-OpenSSHKey SharingSettings::Key::sshKey() const
+OpenSSHKey KeeShareSettings::Key::sshKey() const
 {
     return unpackKey(*this);
 }
 
-void SharingSettings::Key::serialize(QXmlStreamWriter &writer, const SharingSettings::Key &key)
+void KeeShareSettings::Key::serialize(QXmlStreamWriter &writer, const KeeShareSettings::Key &key)
 {
     if( key.isNull() ){
         return;
@@ -156,21 +155,21 @@ void SharingSettings::Key::serialize(QXmlStreamWriter &writer, const SharingSett
     writer.writeCharacters(key.key.toBase64());
 }
 
-void SharingSettings::Key::serialize(QXmlStreamWriter &writer, const SharingSettings::Key &key, const QString &element)
+void KeeShareSettings::Key::serialize(QXmlStreamWriter &writer, const KeeShareSettings::Key &key, const QString &element)
 {
     writer.writeStartElement(element);
     serialize(writer, key);
     writer.writeEndElement();
 }
 
-SharingSettings::Key SharingSettings::Key::deserialize(QXmlStreamReader &reader)
+KeeShareSettings::Key KeeShareSettings::Key::deserialize(QXmlStreamReader &reader)
 {
     Key key;
     key.key = QByteArray::fromBase64(reader.readElementText().toLatin1());
     return key;
 }
 
-SharingSettings::Key SharingSettings::Key::deserialize(QXmlStreamReader &reader, const QString &element)
+KeeShareSettings::Key KeeShareSettings::Key::deserialize(QXmlStreamReader &reader, const QString &element)
 {
     reader.readNextStartElement();
     if( reader.error() || reader.name() != element){
@@ -179,13 +178,13 @@ SharingSettings::Key SharingSettings::Key::deserialize(QXmlStreamReader &reader,
     return deserialize(reader);
 }
 
-SharingSettings::SharingSettings()
+KeeShareSettings::KeeShareSettings()
     : importing(false)
     , exporting(false)
 {
 }
 
-bool SharingSettings::isNull() const
+bool KeeShareSettings::isNull() const
 {
     return importing == false
             && exporting == false
@@ -194,7 +193,7 @@ bool SharingSettings::isNull() const
             && foreignCertificates.isEmpty();
 }
 
-QString SharingSettings::serialize(const SharingSettings &settings)
+QString KeeShareSettings::serialize(const KeeShareSettings &settings)
 {
     QString buffer;
     QXmlStreamWriter writer(&buffer);
@@ -204,7 +203,7 @@ QString SharingSettings::serialize(const SharingSettings &settings)
     writer.setAutoFormattingIndent(2);
 
     writer.writeStartDocument();
-    writer.writeStartElement("SharingSettings");
+    writer.writeStartElement("KeeShareSettings");
     writer.writeAttribute("xmlns:xsd", "http://www.w3.org/2001/XMLSchema");
     writer.writeAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
     writer.writeStartElement("Type");
@@ -232,11 +231,11 @@ QString SharingSettings::serialize(const SharingSettings &settings)
     return buffer;
 }
 
-SharingSettings SharingSettings::deserialize(const QString &raw)
+KeeShareSettings KeeShareSettings::deserialize(const QString &raw)
 {
-    SharingSettings settings;
+    KeeShareSettings settings;
     QXmlStreamReader reader(raw);
-    if( !reader.readNextStartElement() || reader.qualifiedName() != "SharingSettings" ){
+    if( !reader.readNextStartElement() || reader.qualifiedName() != "KeeShareSettings" ){
         return settings;
     }
     while( !reader.error() && reader.readNextStartElement() ){
@@ -267,18 +266,18 @@ SharingSettings SharingSettings::deserialize(const QString &raw)
                 }
             }
         } else {
-            ::qWarning() << "Unknown SharingSettings element" << reader.name();
+            ::qWarning() << "Unknown KeeShareSettings element" << reader.name();
             reader.skipCurrentElement();
         }
     }
     return settings;
 }
 
-SharingSettings SharingSettings::generateEncryptionSettingsFor(const Database *db)
+KeeShareSettings KeeShareSettings::generateEncryptionSettingsFor(const Database *db)
 {
     OpenSSHKey key = OpenSSHKey::generate(false);
     key.openKey(QString());
-    SharingSettings settings;
+    KeeShareSettings settings;
     settings.ownKey = packKey(key);
     QString name = db->metadata()->name();
     if( name.isEmpty() ){

@@ -130,7 +130,7 @@ add_unit_test(NAME testcryptohash SOURCES TestCryptoHash.cpp
 add_unit_test(NAME testsymmetriccipher SOURCES TestSymmetricCipher.cpp
         LIBS ${TEST_LIBRARIES})
 
-if(WITH_XC_SHARING)
+if(WITH_XC_KEESHARE)
     add_unit_test(NAME testsignature SOURCES TestSignature.cpp
 	    LIBS ${TEST_LIBRARIES})
 endif()
@@ -192,7 +192,7 @@ add_unit_test(NAME testykchallengeresponsekey
         SOURCES TestYkChallengeResponseKey.cpp
         LIBS ${TEST_LIBRARIES})
 
-if(WITH_XC_SHARING)
+if(WITH_XC_KEESHARE)
     add_unit_test(NAME testsharing SOURCES TestSharing.cpp
 	    LIBS testsupport ${TEST_LIBRARIES})
 endif()

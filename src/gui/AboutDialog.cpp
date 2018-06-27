@@ -89,8 +89,8 @@ AboutDialog::AboutDialog(QWidget* parent)
 #ifdef WITH_XC_SSHAGENT
     extensions += "\n- " + tr("SSH Agent");
 #endif
-#ifdef WITH_XC_SHARING
-    extensions += "\n- " + tr("Sharing Extension");
+#ifdef WITH_XC_KEESHARE
+    extensions += "\n- " + tr("KeeShare");
 #endif
 #ifdef WITH_XC_YUBIKEY
     extensions += "\n- " + tr("YubiKey");

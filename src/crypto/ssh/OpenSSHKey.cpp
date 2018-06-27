@@ -94,13 +94,13 @@ OpenSSHKey OpenSSHKey::generate(bool secure)
     gcry_error_t rc = GPG_ERR_NO_ERROR;
     rc = gcry_sexp_build(&sexp[Params], NULL, secure ? "(genkey (rsa (nbits 4:2048)))" : "(genkey (rsa (transient-key) (nbits 4:2048)))");
     if (rc != GPG_ERR_NO_ERROR) {
-        qWarning() << "Could not create sharing key" << gcry_err_code(rc);
+        qWarning() << "Could not create ssh key" << gcry_err_code(rc);
         return OpenSSHKey();
     }
 
     rc = gcry_pk_genkey(&sexp[CombinedKey], sexp[Params]);
     if (rc != GPG_ERR_NO_ERROR) {
-        qWarning() << "Could not create sharing key" << gcry_err_code(rc);
+        qWarning() << "Could not create ssh key" << gcry_err_code(rc);
         return OpenSSHKey();
     }
 

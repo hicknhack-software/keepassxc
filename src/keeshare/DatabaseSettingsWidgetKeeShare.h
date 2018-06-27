@@ -15,46 +15,44 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_EDITGROUPWIDGETSHARING_H
-#define KEEPASSXC_EDITGROUPWIDGETSHARING_H
+#ifndef KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H
+#define KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H
 
+#include <QScopedPointer>
 #include <QPointer>
 #include <QWidget>
-#include <QStandardItemModel>
 
-class Group;
 class Database;
+
+class QStandardItemModel;
 
 namespace Ui
 {
-    class EditGroupWidgetSharing;
+    class DatabaseSettingsWidgetKeeShare;
 }
 
-class EditGroupWidgetSharing : public QWidget
+class DatabaseSettingsWidgetKeeShare : public QWidget
 {
     Q_OBJECT
 public:
-    explicit EditGroupWidgetSharing(QWidget* parent = nullptr);
-    ~EditGroupWidgetSharing();
+    explicit DatabaseSettingsWidgetKeeShare(QWidget* parent = nullptr);
+    ~DatabaseSettingsWidgetKeeShare();
 
-    void setGroup(Group *temporaryGroup, Database *database);
-
-private:
-    void showSharingState();
+    void loadSettings(Database *db);
+    bool saveSettings();
 
 private slots:
-    void update();
-    void selectType();
-    void selectPassword();
-    void selectPath();
-    void setPath(const QString& path);
-    void setGeneratedPassword(const QString& password);
-    void togglePasswordGeneratorButton(bool checked);
+    void setVerificationExporter(const QString &signer);
+    void generateCerticate();
+    void clearCerticate();
 
 private:
-    QScopedPointer<Ui::EditGroupWidgetSharing> m_ui;
-    QPointer<Group> m_temporaryGroup;
-    QPointer<Database> m_database;
+    QScopedPointer<Ui::DatabaseSettingsWidgetKeeShare> m_ui;
+
+    QString m_sharingInformation;
+    QScopedPointer<QStandardItemModel> m_referencesModel;
+    QScopedPointer<QStandardItemModel> m_verificationModel;
+    QPointer<Database> m_db;
 };
 
-#endif // KEEPASSXC_EDITGROUPWIDGETSHARING_H
+#endif // KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H

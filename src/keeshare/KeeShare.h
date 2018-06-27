@@ -15,23 +15,23 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_SHARING_H
-#define KEEPASSXC_SHARING_H
+#ifndef KEEPASSXC_KEESHARE_H
+#define KEEPASSXC_KEESHARE_H
 
 #include <QMap>
 #include <QObject>
 
 #include "gui/MessageWidget.h"
-#include "sharing/SharingSettings.h"
+#include "keeshare/KeeShareSettings.h"
 
 class CustomData;
 class Group;
 class Database;
-class SharingObserver;
+class ShareObserver;
 class QXmlStreamWriter;
 class QXmlStreamReader;
 
-class Sharing : public QObject
+class KeeShare : public QObject
 {
     Q_OBJECT
 public:
@@ -63,7 +63,7 @@ public:
     };
 
 
-    static Sharing* instance();
+    static KeeShare* instance();
     static void init(QObject* parent);
 
     static QString indicatorSuffix(const Group* group, const QString& text);
@@ -72,9 +72,9 @@ public:
     static bool isShared(const Group* group);
     static bool isEnabled(const Database* db, Type sharing);
 
-    static SharingSettings settingsOf(const Database* database);
-    static void setSettingsTo(Database *database, const SharingSettings& settings);
-    static SharingSettings generateEncryptionSettingsFor(const Database* db);
+    static KeeShareSettings settingsOf(const Database* database);
+    static void setSettingsTo(Database *database, const KeeShareSettings& settings);
+    static KeeShareSettings generateEncryptionSettingsFor(const Database* db);
 
     static Reference referenceOf(const CustomData* customData);
     static void setReferenceTo(CustomData* customData, const Reference& reference);
@@ -91,12 +91,12 @@ private slots:
     void handleDatabaseDeleted(QObject *db);
     void handleObserverDeleted(QObject *observer);
 private:
-    static Sharing* m_instance;
+    static KeeShare* m_instance;
 
-    explicit Sharing(QObject *parent);
+    explicit KeeShare(QObject *parent);
 
-    QMap<QObject*, QPointer<SharingObserver>> m_observersByDatabase;
+    QMap<QObject*, QPointer<ShareObserver>> m_observersByDatabase;
     QMap<QObject*, QPointer<Database>> m_databasesByObserver;
 };
 
-#endif // KEEPASSXC_SHARING_H
+#endif // KEEPASSXC_KEESHARE_H

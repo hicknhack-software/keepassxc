@@ -15,8 +15,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_SHARINGOBSERVER_H
-#define KEEPASSXC_SHARINGOBSERVER_H
+#ifndef KEEPASSXC_SHAREOBSERVER_H
+#define KEEPASSXC_SHAREOBSERVER_H
 
 #include <QMap>
 #include <QObject>
@@ -26,7 +26,7 @@
 
 #include "core/Uuid.h"
 #include "gui/MessageWidget.h"
-#include "sharing/Sharing.h"
+#include "keeshare/KeeShare.h"
 
 class BulkFileWatcher;
 class Entry;
@@ -34,13 +34,13 @@ class Group;
 class CustomData;
 class Database;
 
-class SharingObserver : public QObject
+class ShareObserver : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit SharingObserver(Database* db, QObject* parent = nullptr);
-    ~SharingObserver();
+    explicit ShareObserver(Database* db, QObject* parent = nullptr);
+    ~ShareObserver();
 
     void handleDatabaseSaved();
     void handleDatabaseOpened();
@@ -91,11 +91,11 @@ private:
 
     static void resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb);
 
-    static Database* exportIntoContainer(const Sharing::Reference& reference, const Group* sourceRoot);
-    static Result importContainerInto(const Sharing::Reference &reference, Group* targetGroup);
+    static Database* exportIntoContainer(const KeeShare::Reference& reference, const Group* sourceRoot);
+    static Result importContainerInto(const KeeShare::Reference &reference, Group* targetGroup);
 
     Result importFromReferenceContainer(const QString& path);
-    QList<SharingObserver::Result> exportIntoReferenceContainers();
+    QList<ShareObserver::Result> exportIntoReferenceContainers();
     void deinitialize();
     void reinitialize();
     void handleFileUpdated(const QString& path, Change change);
@@ -103,11 +103,11 @@ private:
 
 private:
     Database* const m_db;
-    QMap<Sharing::Reference, QPointer<Group>> m_referenceToGroup;
-    QMap<QPointer<Group>, Sharing::Reference> m_groupToReference;
+    QMap<KeeShare::Reference, QPointer<Group>> m_referenceToGroup;
+    QMap<QPointer<Group>, KeeShare::Reference> m_groupToReference;
     QMap<QString, QPointer<Group>> m_shareToGroup;
 
     BulkFileWatcher* m_fileWatcher;
 };
 
-#endif // KEEPASSXC_SHARINGOBSERVER_H
+#endif // KEEPASSXC_SHAREOBSERVER_H

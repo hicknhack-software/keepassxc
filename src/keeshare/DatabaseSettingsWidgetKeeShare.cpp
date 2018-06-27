@@ -15,21 +15,21 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DatabaseSettingsWidgetSharing.h"
-#include "ui_DatabaseSettingsWidgetSharing.h"
+#include "DatabaseSettingsWidgetKeeShare.h"
+#include "ui_DatabaseSettingsWidgetKeeShare.h"
 
 #include "core/Database.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
-#include "sharing/Sharing.h"
-#include "sharing/SharingSettings.h"
+#include "keeshare/KeeShare.h"
+#include "keeshare/KeeShareSettings.h"
 
 #include <QStandardItemModel>
 #include <QMessageBox>
 
-DatabaseSettingsWidgetSharing::DatabaseSettingsWidgetSharing(QWidget* parent)
+DatabaseSettingsWidgetKeeShare::DatabaseSettingsWidgetKeeShare(QWidget* parent)
     : QWidget(parent)
-    , m_ui(new Ui::DatabaseSettingsWidgetSharing())
+    , m_ui(new Ui::DatabaseSettingsWidgetKeeShare())
 {
     m_ui->setupUi(this);
 
@@ -38,16 +38,16 @@ DatabaseSettingsWidgetSharing::DatabaseSettingsWidgetSharing(QWidget* parent)
     connect(m_ui->clearCertificateButton, SIGNAL(clicked(bool)), SLOT(clearCerticate()));
 }
 
-DatabaseSettingsWidgetSharing::~DatabaseSettingsWidgetSharing()
+DatabaseSettingsWidgetKeeShare::~DatabaseSettingsWidgetKeeShare()
 {
 }
 
-void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
+void DatabaseSettingsWidgetKeeShare::loadSettings(Database *db)
 {
     m_db = db;
 
-    SharingSettings settings = m_db ? Sharing::settingsOf(m_db) : SharingSettings();
-    m_sharingInformation = SharingSettings::serialize(settings);
+    KeeShareSettings settings = m_db ? KeeShare::settingsOf(m_db) : KeeShareSettings();
+    m_sharingInformation = KeeShareSettings::serialize(settings);
     m_ui->enableExportCheckBox->setChecked(settings.exporting);
     m_ui->enableImportCheckBox->setChecked(settings.importing);
 
@@ -57,16 +57,16 @@ void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
     m_referencesModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path") << tr("Last Signer") << tr("Certificates"));
     const QList<Group*> groups = db->rootGroup()->groupsRecursive(true);
     for (const Group* group : groups) {
-        if (!Sharing::isShared(group)) {
+        if (!KeeShare::isShared(group)) {
             continue;
         }
-        const Sharing::Reference reference = Sharing::referenceOf(group->customData());
+        const KeeShare::Reference reference = KeeShare::referenceOf(group->customData());
 
         QStringList hierarchy = group->hierarchy();
         hierarchy.removeFirst();
         QList<QStandardItem*> row = QList<QStandardItem*>();
         row << new QStandardItem(hierarchy.join(" > "));
-        row << new QStandardItem(Sharing::referenceTypeLabel(reference));
+        row << new QStandardItem(KeeShare::referenceTypeLabel(reference));
         row << new QStandardItem(reference.path);
         m_referencesModel->appendRow(row);
     }
@@ -78,7 +78,7 @@ void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
 
     m_verificationModel->setHorizontalHeaderLabels(QStringList() << tr("Source") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
 
-    for( const SharingSettings::Certificate &certificate : settings.foreignCertificates ){
+    for( const KeeShareSettings::Certificate &certificate : settings.foreignCertificates ){
         QStandardItem* signer = new QStandardItem(certificate.signer);
         QStandardItem* verified = new QStandardItem(certificate.trusted ? tr("trusted") : tr("untrusted"));
         QStandardItem* fingerprint = new QStandardItem(certificate.fingerprint());
@@ -90,9 +90,9 @@ void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
     m_ui->sharedGroupsView->setModel(m_referencesModel.data());
 }
 
-bool DatabaseSettingsWidgetSharing::saveSettings()
+bool DatabaseSettingsWidgetKeeShare::saveSettings()
 {
-    SharingSettings settings = SharingSettings::deserialize(m_sharingInformation);
+    KeeShareSettings settings = KeeShareSettings::deserialize(m_sharingInformation);
     settings.exporting = m_ui->enableExportCheckBox->isChecked();
     settings.importing = m_ui->enableImportCheckBox->isChecked();
     // TODO HNH: This depends on the order of saving new data - a better model would be to
@@ -115,35 +115,35 @@ bool DatabaseSettingsWidgetSharing::saveSettings()
         }
     }
 
-    Sharing::setSettingsTo(m_db, settings);
+    KeeShare::setSettingsTo(m_db, settings);
     return true;
 }
 
 
-void DatabaseSettingsWidgetSharing::setVerificationExporter(const QString &signer)
+void DatabaseSettingsWidgetKeeShare::setVerificationExporter(const QString &signer)
 {
-    SharingSettings settings = SharingSettings::deserialize(m_sharingInformation);
+    KeeShareSettings settings = KeeShareSettings::deserialize(m_sharingInformation);
     settings.ownCertificate.signer = signer;
     m_ui->verificationExporterEdit->setText(settings.ownCertificate.signer);
-    m_sharingInformation = SharingSettings::serialize(settings);
+    m_sharingInformation = KeeShareSettings::serialize(settings);
 }
 
-void DatabaseSettingsWidgetSharing::generateCerticate()
+void DatabaseSettingsWidgetKeeShare::generateCerticate()
 {
-    SharingSettings settings = SharingSettings::generateEncryptionSettingsFor(m_db);
+    KeeShareSettings settings = KeeShareSettings::generateEncryptionSettingsFor(m_db);
     m_ui->verificationOwnCertificateEdit->setText(settings.ownCertificate.sshKey().publicKey());
     m_ui->verificationOwnKeyEdit->setText(settings.ownKey.sshKey().privateKey());
     m_ui->verificationOwnFingerprintEdit->setText(settings.ownCertificate.fingerprint());
-    m_sharingInformation = SharingSettings::serialize(settings);
+    m_sharingInformation = KeeShareSettings::serialize(settings);
 }
 
-void DatabaseSettingsWidgetSharing::clearCerticate()
+void DatabaseSettingsWidgetKeeShare::clearCerticate()
 {
-    SharingSettings settings;
+    KeeShareSettings settings;
     m_ui->verificationExporterEdit->clear();
     m_ui->verificationOwnKeyEdit->clear();
     m_ui->verificationOwnCertificateEdit->clear();
     m_ui->verificationOwnFingerprintEdit->clear();
-    m_sharingInformation = SharingSettings::serialize(settings);
+    m_sharingInformation = KeeShareSettings::serialize(settings);
 }
 

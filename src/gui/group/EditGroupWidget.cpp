@@ -23,8 +23,8 @@
 #include "gui/EditWidgetIcons.h"
 #include "gui/EditWidgetProperties.h"
 
-#ifdef WITH_XC_SHARING
-#include "sharing/group/EditGroupPageSharing.h"
+#ifdef WITH_XC_KEESHARE
+#include "keeshare/group/EditGroupPageKeeShare.h"
 #endif
 
 class EditGroupWidget::ExtraPage
@@ -79,8 +79,8 @@ EditGroupWidget::EditGroupWidget(QWidget* parent)
             SLOT(showMessage(QString, MessageWidget::MessageType)));
     connect(m_editGroupWidgetIcons, SIGNAL(messageEditEntryDismiss()), SLOT(hideMessage()));
 
-#ifdef WITH_XC_SHARING
-    addEditPage(new EditGroupPageSharing(this));
+#ifdef WITH_XC_KEESHARE
+    addEditPage(new EditGroupPageKeeShare(this));
 #endif
 }
 

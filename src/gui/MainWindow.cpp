@@ -43,8 +43,8 @@
 #include "sshagent/AgentSettingsPage.h"
 #include "sshagent/SSHAgent.h"
 #endif
-#ifdef WITH_XC_SHARING
-#include "sharing/Sharing.h"
+#ifdef WITH_XC_KEESHARE
+#include "keeshare/KeeShare.h"
 #endif
 #ifdef WITH_XC_BROWSER
 #include "browser/BrowserOptionDialog.h"
@@ -157,8 +157,8 @@ MainWindow::MainWindow()
     m_ui->settingsWidget->addSettingsPage(new AgentSettingsPage(m_ui->tabWidget));
 #endif
 
-#ifdef WITH_XC_SHARING
-    Sharing::init(this);
+#ifdef WITH_XC_KEESHARE
+    KeeShare::init(this);
 #endif
     setWindowIcon(filePath()->applicationIcon());
     m_ui->globalMessageWidget->setHidden(true);

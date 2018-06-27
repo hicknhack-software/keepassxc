@@ -15,8 +15,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_SHARINGSETTINGS_H
-#define KEEPASSXC_SHARINGSETTINGS_H
+#ifndef KEEPASSXC_KEESHARESETTINGS_H
+#define KEEPASSXC_KEESHARESETTINGS_H
 
 #include <QMap>
 #include <QObject>
@@ -28,11 +28,10 @@
 class CustomData;
 class Group;
 class Database;
-class SharingObserver;
 class QXmlStreamWriter;
 class QXmlStreamReader;
 
-class SharingSettings
+class KeeShareSettings
 {
 public:
     enum Type
@@ -80,14 +79,14 @@ public:
     Certificate ownCertificate;
     QList<Certificate> foreignCertificates;
 
-    SharingSettings();
+    KeeShareSettings();
     bool isNull() const;
 
-    static QString serialize(const SharingSettings &settings);
-    static SharingSettings deserialize(const QString &raw);
+    static QString serialize(const KeeShareSettings &settings);
+    static KeeShareSettings deserialize(const QString &raw);
 
 
-    static SharingSettings generateEncryptionSettingsFor(const Database *db);
+    static KeeShareSettings generateEncryptionSettingsFor(const Database *db);
 };
 
-#endif // KEEPASSXC_SHARING_H
+#endif // KEEPASSXC_KEESHARESETTINGS_H

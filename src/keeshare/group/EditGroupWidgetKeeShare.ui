@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>EditGroupWidgetSharing</class>
- <widget class="QWidget" name="EditGroupWidgetSharing">
+ <class>EditGroupWidgetKeeShare</class>
+ <widget class="QWidget" name="EditGroupWidgetKeeShare">
   <property name="geometry">
    <rect>
     <x>0</x>

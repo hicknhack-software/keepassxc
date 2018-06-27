@@ -39,7 +39,7 @@
 #include "gui/UnlockDatabaseDialog.h"
 #include "gui/entry/EntryView.h"
 #include "gui/group/GroupView.h"
-#include "sharing/Sharing.h"
+#include "keeshare/KeeShare.h"
 
 #include "config-keepassx.h"
 
@@ -338,10 +338,10 @@ bool DatabaseTabWidget::saveDatabase(Database* db, QString filePath)
             dbStruct.saveAttempts = 0;
             dbStruct.fileInfo = QFileInfo(filePath);
             dbStruct.dbWidget->databaseSaved();
-#ifdef WITH_XC_SHARING
+#ifdef WITH_XC_KEESHARE
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
-            Sharing::instance()->handleDatabaseSaved(db);
+            KeeShare::instance()->handleDatabaseSaved(db);
 #endif
             updateTabName(db);
             emit messageDismissTab();
@@ -400,11 +400,11 @@ bool DatabaseTabWidget::saveDatabaseAs(Database* db)
                 // Failed to save, try again
                 continue;
             }
-#ifdef WITH_XC_SHARING
+#ifdef WITH_XC_KEESHARE
             // Since we change to the saved database we should also export
             // TODO HNH: This is hacky - we need to remove the logic from the ui at this point to allow a proper
             // architecture
-            Sharing::instance()->handleDatabaseSaved(db);
+            KeeShare::instance()->handleDatabaseSaved(db);
 #endif
             // changes of the current database
             //           SaveAs for non-existing datbase doesn't matter since one has to set the path while creation
@@ -844,14 +844,14 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
     connect(newDb, SIGNAL(modified()), SLOT(modified()));
     newDb->setEmitModified(true);
 
-#ifdef WITH_XC_SHARING
-    Sharing::instance()->connectDatabase(newDb, oldDb);
-    connect(Sharing::instance(),
+#ifdef WITH_XC_KEESHARE
+    KeeShare::instance()->connectDatabase(newDb, oldDb);
+    connect(KeeShare::instance(),
             SIGNAL(sharingMessage(Database*, QString, MessageWidget::MessageType)),
             this,
             SLOT(handleDatabaseMessage(Database*, QString, MessageWidget::MessageType)),
             Qt::UniqueConnection);
-    Sharing::instance()->handleDatabaseOpened(newDb);
+    KeeShare::instance()->handleDatabaseOpened(newDb);
 #endif
 }
 

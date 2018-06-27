@@ -23,7 +23,7 @@
 
 #include "crypto/Crypto.h"
 #include "crypto/ssh/OpenSSHKey.h"
-#include "sharing/Signature.h"
+#include "keeshare/Signature.h"
 
 QTEST_GUILESS_MAIN(TestSignature)
 static const char* rsa_2_private = "-----BEGIN RSA PRIVATE KEY-----\n"

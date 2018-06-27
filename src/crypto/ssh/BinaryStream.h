@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEESHAREXC_BINARYSTREAM_H
-#define KEESHAREXC_BINARYSTREAM_H
+#ifndef KEEPASSXC_BINARYSTREAM_H
+#define KEEPASSXC_BINARYSTREAM_H
 
 #include <QBuffer>
 #include <QIODevice>
@@ -65,4 +65,4 @@ private:
     QScopedPointer<QBuffer> m_buffer;
 };
 
-#endif // KEESHAREXC_BINARYSTREAM_H
+#endif // KEEPASSXC_BINARYSTREAM_H

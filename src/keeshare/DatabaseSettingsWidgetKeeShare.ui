@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DatabaseSettingsWidgetSharing</class>
- <widget class="QWidget" name="DatabaseSettingsWidgetSharing">
+ <class>DatabaseSettingsWidgetKeeShare</class>
+ <widget class="QWidget" name="DatabaseSettingsWidgetKeeShare">
   <property name="geometry">
    <rect>
     <x>0</x>
