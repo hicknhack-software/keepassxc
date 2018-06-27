@@ -23,7 +23,6 @@
 #include <QTemporaryFile>
 #include <QTextStream>
 #include <QTimer>
-#include <QXmlStreamReader>
 
 #include "cli/Utils.h"
 #include "core/Clock.h"

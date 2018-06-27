@@ -34,7 +34,38 @@ const QString OpenSSHKey::TYPE_RSA_PRIVATE = "RSA PRIVATE KEY";
 const QString OpenSSHKey::TYPE_RSA_PUBLIC = "RSA PUBLIC KEY";
 const QString OpenSSHKey::TYPE_OPENSSH_PRIVATE = "OPENSSH PRIVATE KEY";
 namespace {
-static const QString OpenSSHKey_CustomDelimiter = "|";
+
+QPair<QString, QList<QByteArray>> binaryDeserialize(const QByteArray& serialized)
+{
+    if( serialized.isEmpty() ){
+        return {};
+    }
+    QBuffer buffer;
+    buffer.setData(serialized);
+    buffer.open(QBuffer::ReadOnly);
+    BinaryStream stream(&buffer);
+    QString type;
+    stream.readString(type);
+    QByteArray temp;
+    QList<QByteArray> data;
+    while( stream.readString(temp) ){
+        data << temp;
+    }
+    return ::qMakePair(type, data);
+}
+QByteArray binarySerialize(const QString &type, const QList<QByteArray> &data)
+{
+    if( type.isEmpty() && data.isEmpty() ){
+        return {};
+    }
+    QByteArray buffer;
+    BinaryStream stream(&buffer);
+    stream.writeString(type);
+    for( const QByteArray& part : data ){
+        stream.writeString(part);
+    }
+    return buffer;
+}
 }
 // bcrypt_pbkdf.cpp
 int bcrypt_pbkdf(const QByteArray& pass, const QByteArray& salt, QByteArray& key, quint32 rounds);
@@ -253,6 +284,24 @@ const QString OpenSSHKey::fingerprint() const
 const QString OpenSSHKey::comment() const
 {
     return m_comment;
+}
+
+const QString OpenSSHKey::privateKey() const
+{
+    if (m_rawPrivateData.isEmpty()) {
+        return {};
+    }
+
+    QByteArray privateKey;
+    BinaryStream stream(&privateKey);
+
+    stream.writeString(m_type);
+
+    for (QByteArray ba : m_rawPrivateData) {
+        stream.writeString(ba);
+    }
+
+    return m_type + " " + QString::fromLatin1(privateKey.toBase64()) + " " + m_comment;
 }
 
 const QString OpenSSHKey::publicKey() const
@@ -730,69 +779,32 @@ const QString& OpenSSHKey::privateType() const
     return m_rawType;
 }
 
-OpenSSHKey OpenSSHKey::customImportPublicKey(const QString &rawType, const QByteArray &serialized)
+OpenSSHKey OpenSSHKey::restoreFromBinary(Type type, const QByteArray &serialized)
 {
-    // currently the import/export is just implemented for RSA
-    if(rawType != TYPE_RSA_PUBLIC){
-        Q_ASSERT(rawType == TYPE_RSA_PUBLIC);
-        return OpenSSHKey();
-    }
     OpenSSHKey key;
-    const QString raw = QString::fromLatin1(QByteArray::fromBase64(serialized));
-    const QStringList publicParts = raw.split(OpenSSHKey_CustomDelimiter);
-    QList<QByteArray> publicData;
-    for( int i = 0; i < publicParts.count(); ++i ){
-        publicData << QByteArray::fromHex(publicParts[i].toLatin1());
+    auto data = binaryDeserialize(serialized);
+    key.setType(data.first);
+    switch (type) {
+    case Public:
+        key.setPublicData(data.second);
+        break;
+    case Private:
+        key.setPrivateData(data.second);
+        break;
     }
-    key.m_rawType = OpenSSHKey::TYPE_RSA_PUBLIC;
-    key.setPublicData(publicData);
     return key;
 }
 
-QByteArray OpenSSHKey::customExportPublicKey(const OpenSSHKey &key)
+QByteArray OpenSSHKey::serializeToBinary(Type type, const OpenSSHKey &key)
 {
-    // currently the import/export is just implemented for RSA
-    if(key.privateType() != TYPE_RSA_PUBLIC){
-        Q_ASSERT(key.privateType() == TYPE_RSA_PUBLIC);
-        return "";
+    Q_ASSERT(!key.encrypted());
+    switch(type){
+    case Public:
+        return binarySerialize(key.type(), key.publicParts());
+    case Private:
+        return binarySerialize(key.type(), key.privateParts());
     }
-    QStringList parts;
-    for( const QByteArray& part : key.publicParts() ){
-        parts << part.toHex();
-    }
-    return parts.join(OpenSSHKey_CustomDelimiter).toLatin1().toBase64();
-}
-
-OpenSSHKey OpenSSHKey::customImportPrivateKey(const QString &rawType, const QByteArray &serialized)
-{
-    // currently the import/export is just implemented for RSA
-    if(rawType != TYPE_RSA_PRIVATE){
-        Q_ASSERT(rawType == TYPE_RSA_PRIVATE);
-        return OpenSSHKey();
-    }
-    OpenSSHKey key;
-    const QStringList privateParts = QString::fromLatin1(QByteArray::fromBase64(serialized)).split(OpenSSHKey_CustomDelimiter);
-    QList<QByteArray> privateData;
-    for( int i = 0; i < privateParts.count(); ++i){
-        privateData << QByteArray::fromHex(privateParts[i].toLatin1());
-    }
-    key.m_rawType = OpenSSHKey::TYPE_RSA_PRIVATE;
-    key.setPrivateData(privateData);
-    return key;
-}
-
-QByteArray OpenSSHKey::customExportPrivateKey(const OpenSSHKey &key)
-{
-    // currently the import/export is just implemented for RSA
-    if(key.privateType() != TYPE_RSA_PRIVATE){
-        Q_ASSERT(key.privateType() == TYPE_RSA_PRIVATE);
-        return "";
-    }
-    QStringList parts;
-    for( const QByteArray& part : key.privateParts() ){
-        parts << part.toHex();
-    }
-    return parts.join(OpenSSHKey_CustomDelimiter).toLatin1().toBase64();
+    return {};
 }
 
 uint qHash(const OpenSSHKey& key)

@@ -19,6 +19,9 @@
 #define KEEPASSXC_TESTSHARING_H
 
 #include <QObject>
+#include <QSharedPointer>
+
+class OpenSSHKey;
 
 class TestSharing : public QObject
 {
@@ -28,6 +31,15 @@ private slots:
     void initTestCase();
     void cleanupTestCase();
     void testIdempotentDatabaseWriting();
+    void testNullObjects();
+    void testCertificateSerialization();
+    void testCertificateSerialization_data();
+    void testKeySerialization();
+    void testSettingsSerialization();
+    void testSettingsSerialization_data();
+
+private:
+    const OpenSSHKey& stubkey(int iIndex = 0);
 };
 
 #endif // KEEPASSXC_TESTSHARING_H

@@ -7,6 +7,7 @@ if(WITH_XC_SHARING)
 	group/EditGroupWidgetSharing.cpp
 	group/EditGroupPageSharing.cpp
 	Sharing.cpp
+	SharingSettings.cpp
 	SharingObserver.cpp
 	Signature.cpp
     )

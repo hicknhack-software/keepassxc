@@ -235,7 +235,7 @@ QString Signature::create(const QByteArray& data, const OpenSSHKey& key)
     //           when we integrate a proper library)
     //           Even more, we could publish standard self signed certificates with the container
     //           instead of the custom certificates
-    if (key.privateType() == OpenSSHKey::TYPE_RSA_PRIVATE) {
+    if (key.type() == "ssh-rsa") {
         RSASigner signer;
         QString result = signer.sign(data, key);
         if (signer.rc != GPG_ERR_NO_ERROR) {
@@ -249,7 +249,7 @@ QString Signature::create(const QByteArray& data, const OpenSSHKey& key)
 
 bool Signature::verify(const QByteArray& data, const QString& signature, const OpenSSHKey& key)
 {
-    if (key.privateType() == OpenSSHKey::TYPE_RSA_PRIVATE || key.privateType() == OpenSSHKey::TYPE_RSA_PUBLIC) {
+    if (key.type() == "ssh-rsa") {
         RSASigner signer;
         bool result = signer.verify(data, key, signature);
         if (signer.rc != GPG_ERR_NO_ERROR) {

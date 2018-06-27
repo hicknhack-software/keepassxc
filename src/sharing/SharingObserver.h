@@ -98,7 +98,6 @@ private:
     QList<SharingObserver::Result> exportIntoReferenceContainers();
     void deinitialize();
     void reinitialize();
-
     void handleFileUpdated(const QString& path, Change change);
     void notifyAbout(const QStringList& success, const QStringList& warning, const QStringList& error);
 

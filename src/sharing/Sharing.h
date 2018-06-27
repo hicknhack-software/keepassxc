@@ -21,13 +21,15 @@
 #include <QMap>
 #include <QObject>
 
-#include "core/Uuid.h"
 #include "gui/MessageWidget.h"
+#include "sharing/SharingSettings.h"
 
 class CustomData;
 class Group;
 class Database;
 class SharingObserver;
+class QXmlStreamWriter;
+class QXmlStreamReader;
 
 class Sharing : public QObject
 {
@@ -60,54 +62,6 @@ public:
         static Reference deserialize(const QString &raw);
     };
 
-    struct Certificate
-    {
-        QString type;
-        bool trusted;
-        QString key;
-        QString signer;
-
-        Certificate() : trusted(false) {}
-
-        bool isNull() const;
-
-        static QString serialize(const Certificate &certificate);
-        static Certificate deserialize(const QString &raw);
-    };
-
-    struct Key
-    {
-        QString type;
-        QString key;
-
-        bool isNull() const;
-
-        static QString serialize(const Key &key);
-        static Key deserialize(const QString &raw);
-    };
-
-    struct Settings
-    {
-        Type type;
-        Key ownKey;
-        Certificate ownCertificate;
-        QList<Certificate> foreignCertificates;
-
-        Settings() : type(Inactive) {}
-        bool isNull() const;
-
-        static QString serialize(const Settings &settings);
-        static Settings deserialize(const QString &raw);
-    };
-
-    enum Trust {
-        None,
-        Invalid,
-        Single,
-        Lasting,
-        Known,
-        Own
-    };
 
     static Sharing* instance();
     static void init(QObject* parent);
@@ -117,21 +71,15 @@ public:
 
     static bool isShared(const Group* group);
     static bool isEnabled(const Database* db, Type sharing);
-    static void enable(Database* db, Type sharing);
 
-    static Settings settingsOf(const Database* database);
-    static void setSettingsTo(Database *database, const Settings& settings);
-    static Settings encryptionSettingsFor(const Database* db);
-
-    static QString fingerprintOf(const Certificate &certificate);
+    static SharingSettings settingsOf(const Database* database);
+    static void setSettingsTo(Database *database, const SharingSettings& settings);
+    static SharingSettings generateEncryptionSettingsFor(const Database* db);
 
     static Reference referenceOf(const CustomData* customData);
     static void setReferenceTo(CustomData* customData, const Reference& reference);
     static QString referenceTypeLabel(const Reference& reference);
 
-    static QPair<Trust, Certificate> unsign(Database *sourceDb, const Database *targetDb, QByteArray &data, const Reference &reference, const QString &signature);
-    static QByteArray sign(const QByteArray &data, Database *sourceDb);
-    static void assignCertificate(Database *targetDb, const Database *sourceDb);
     void connectDatabase(Database *newDb, Database *oldDb);
     void handleDatabaseOpened(Database *db);
     void handleDatabaseSaved(Database *db);

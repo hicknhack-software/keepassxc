@@ -28,7 +28,7 @@ class Signature
 {
 public:
     static QString create(const QByteArray& data, const OpenSSHKey& key);
-    static bool verify(const QByteArray& data, const QString& signature, const OpenSSHKey& key);
+    static bool verify(const QByteArray& data, const QString &signature, const OpenSSHKey& key);
 };
 
 #endif // KEEPASSXC_SIGNATURE_H

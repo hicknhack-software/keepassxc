@@ -22,6 +22,7 @@
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "sharing/Sharing.h"
+#include "sharing/SharingSettings.h"
 
 #include <QStandardItemModel>
 #include <QMessageBox>
@@ -45,10 +46,10 @@ void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
 {
     m_db = db;
 
-    Sharing::Settings settings = m_db ? Sharing::settingsOf(m_db) : Sharing::Settings();
-    m_sharingInformation = Sharing::Settings::serialize(settings);
-    m_ui->enableExportCheckBox->setChecked((settings.type & Sharing::ExportTo) != 0);
-    m_ui->enableImportCheckBox->setChecked((settings.type & Sharing::ImportFrom) != 0);
+    SharingSettings settings = m_db ? Sharing::settingsOf(m_db) : SharingSettings();
+    m_sharingInformation = SharingSettings::serialize(settings);
+    m_ui->enableExportCheckBox->setChecked(settings.exporting);
+    m_ui->enableImportCheckBox->setChecked(settings.importing);
 
     m_referencesModel.reset(new QStandardItemModel());
     m_verificationModel.reset(new QStandardItemModel());
@@ -71,17 +72,17 @@ void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
     }
 
     m_ui->verificationExporterEdit->setText(settings.ownCertificate.signer);
-    m_ui->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
-    m_ui->verificationOwnKeyEdit->setText(settings.ownKey.key);
-    m_ui->verificationOwnFingerprintEdit->setText(Sharing::fingerprintOf(settings.ownCertificate));
+    m_ui->verificationOwnCertificateEdit->setText(settings.ownCertificate.sshKey().publicKey());
+    m_ui->verificationOwnKeyEdit->setText(settings.ownKey.sshKey().privateKey());
+    m_ui->verificationOwnFingerprintEdit->setText(settings.ownCertificate.fingerprint());
 
     m_verificationModel->setHorizontalHeaderLabels(QStringList() << tr("Source") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
 
-    for( const Sharing::Certificate &certificate : settings.foreignCertificates ){
+    for( const SharingSettings::Certificate &certificate : settings.foreignCertificates ){
         QStandardItem* signer = new QStandardItem(certificate.signer);
         QStandardItem* verified = new QStandardItem(certificate.trusted ? tr("trusted") : tr("untrusted"));
-        QStandardItem* fingerprint = new QStandardItem(Sharing::fingerprintOf(settings.ownCertificate));
-        QStandardItem* key = new QStandardItem(certificate.key);
+        QStandardItem* fingerprint = new QStandardItem(certificate.fingerprint());
+        QStandardItem* key = new QStandardItem(certificate.sshKey().publicKey());
         m_verificationModel->appendRow(QList<QStandardItem*>() << signer << verified << fingerprint << key);
     }
 
@@ -91,19 +92,13 @@ void DatabaseSettingsWidgetSharing::loadSettings(Database *db)
 
 bool DatabaseSettingsWidgetSharing::saveSettings()
 {
-    Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
-    settings.type = Sharing::Inactive;
-    if (m_ui->enableExportCheckBox->isChecked()) {
-        settings.type = static_cast<Sharing::Type>( settings.type | Sharing::ExportTo);
-    }
-    if (m_ui->enableImportCheckBox->isChecked()) {
-        settings.type = static_cast<Sharing::Type>( settings.type | Sharing::ImportFrom);
-    }
+    SharingSettings settings = SharingSettings::deserialize(m_sharingInformation);
+    settings.exporting = m_ui->enableExportCheckBox->isChecked();
+    settings.importing = m_ui->enableImportCheckBox->isChecked();
     // TODO HNH: This depends on the order of saving new data - a better model would be to
     //           store changes to the settings in a temporary object and check on the final values
     //           of this object (similar scheme to Entry) - this way we could validate the settings before save
-    if ((settings.type & Sharing::ImportFrom) != 0
-            && m_db->metadata()->historyMaxItems() < 2 ) {
+    if (settings.importing && m_db->metadata()->historyMaxItems() < 2 ) {
         QMessageBox warning;
         warning.setIcon(QMessageBox::Warning);
         warning.setWindowTitle(
@@ -127,28 +122,28 @@ bool DatabaseSettingsWidgetSharing::saveSettings()
 
 void DatabaseSettingsWidgetSharing::setVerificationExporter(const QString &signer)
 {
-    Sharing::Settings settings = Sharing::Settings::deserialize(m_sharingInformation);
+    SharingSettings settings = SharingSettings::deserialize(m_sharingInformation);
     settings.ownCertificate.signer = signer;
     m_ui->verificationExporterEdit->setText(settings.ownCertificate.signer);
-    m_sharingInformation = Sharing::Settings::serialize(settings);
+    m_sharingInformation = SharingSettings::serialize(settings);
 }
 
 void DatabaseSettingsWidgetSharing::generateCerticate()
 {
-    Sharing::Settings settings = Sharing::encryptionSettingsFor(m_db);
-    m_ui->verificationOwnCertificateEdit->setText(settings.ownCertificate.key);
-    m_ui->verificationOwnKeyEdit->setText(settings.ownKey.key);
-    m_ui->verificationOwnFingerprintEdit->setText(Sharing::fingerprintOf(settings.ownCertificate));
-    m_sharingInformation = Sharing::Settings::serialize(settings);
+    SharingSettings settings = SharingSettings::generateEncryptionSettingsFor(m_db);
+    m_ui->verificationOwnCertificateEdit->setText(settings.ownCertificate.sshKey().publicKey());
+    m_ui->verificationOwnKeyEdit->setText(settings.ownKey.sshKey().privateKey());
+    m_ui->verificationOwnFingerprintEdit->setText(settings.ownCertificate.fingerprint());
+    m_sharingInformation = SharingSettings::serialize(settings);
 }
 
 void DatabaseSettingsWidgetSharing::clearCerticate()
 {
-    Sharing::Settings settings;
+    SharingSettings settings;
     m_ui->verificationExporterEdit->clear();
     m_ui->verificationOwnKeyEdit->clear();
     m_ui->verificationOwnCertificateEdit->clear();
     m_ui->verificationOwnFingerprintEdit->clear();
-    m_sharingInformation = Sharing::Settings::serialize(settings);
+    m_sharingInformation = SharingSettings::serialize(settings);
 }
 

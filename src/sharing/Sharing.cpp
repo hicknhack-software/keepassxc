@@ -31,47 +31,9 @@
 
 namespace {
 
-static const QString KeeShareExt_ExportEnabled("Export");
-static const QString KeeShareExt_ImportEnabled("Import");
 static const QString KeeShareExt("KeeShareXC");
-static const QString KeeShareExt_Certificate("KeeShareXC_Certificate");
 static const QChar KeeShareExt_Delimiter('|');
 
-Sharing::Certificate packCertificate(const OpenSSHKey &key, bool verified, const QString &signer)
-{
-    Sharing::Certificate extracted;
-    extracted.type = "rsa";
-    extracted.trusted = verified;
-    extracted.signer = signer;
-    extracted.key = OpenSSHKey::customExportPublicKey(key);
-    return extracted;
-}
-
-Sharing::Key packKey(const OpenSSHKey &key)
-{
-    Sharing::Key extracted;
-    extracted.type = "rsa";
-    extracted.key = OpenSSHKey::customExportPrivateKey(key);
-    return extracted;
-}
-
-OpenSSHKey unpackKey(const Sharing::Key &sign)
-{
-    if(sign.type != "rsa"){
-        Q_ASSERT(sign.type == "rsa");
-        return OpenSSHKey();
-    }
-    return OpenSSHKey::customImportPrivateKey(OpenSSHKey::TYPE_RSA_PRIVATE, sign.key.toLatin1());
-}
-
-OpenSSHKey unpackCertificate(const Sharing::Certificate& certificate)
-{
-    if(certificate.type != "rsa"){
-        Q_ASSERT(certificate.type == "rsa");
-        return OpenSSHKey();
-    }
-    return OpenSSHKey::customImportPublicKey(OpenSSHKey::TYPE_RSA_PUBLIC, certificate.key.toLatin1());
-}
 }
 
 Sharing* Sharing::m_instance = nullptr;
@@ -89,106 +51,6 @@ void Sharing::init(QObject* parent)
 {
     Q_ASSERT( ! m_instance );
     m_instance = new Sharing(parent);
-}
-
-Sharing::Settings Sharing::encryptionSettingsFor(const Database *db)
-{
-    OpenSSHKey key = OpenSSHKey::generate(false);
-    key.openKey(QString());
-    Settings settings;
-    settings.ownKey = packKey(key);
-    QString name = db->metadata()->name();
-    if( name.isEmpty() ){
-        name = db->rootGroup()->name();
-    }
-    settings.ownCertificate = packCertificate(key, true, name);
-    return settings;
-}
-
-QString Sharing::Certificate::serialize(const Sharing::Certificate &certificate)
-{
-    const QStringList data = QStringList()
-            << certificate.type
-            << certificate.signer
-            << (certificate.trusted ? "trusted" : "trusted")
-            << certificate.key;
-    return data.join(KeeShareExt_Delimiter);
-}
-
-bool Sharing::Certificate::isNull() const
-{
-    return type.isEmpty() && !trusted && key.isEmpty() && signer.isEmpty();
-}
-
-Sharing::Certificate Sharing::Certificate::deserialize(const QString &raw)
-{
-    const QStringList data = raw.split(KeeShareExt_Delimiter);
-    Certificate certificate;
-    certificate.type = data.value(0);
-    certificate.signer = data.value(1);
-    certificate.trusted = data.value(2) == "trusted";
-    certificate.key = data.value(3);
-    return certificate;
-}
-
-bool Sharing::Key::isNull() const
-{
-    return type.isEmpty() && key.isEmpty();
-}
-
-QString Sharing::Key::serialize(const Sharing::Key &key)
-{
-    const QStringList data = QStringList()
-            << key.type
-            << key.key;
-    return data.join(KeeShareExt_Delimiter).toLatin1();
-}
-
-Sharing::Key Sharing::Key::deserialize(const QString &raw)
-{
-    const QStringList data = raw.split(KeeShareExt_Delimiter);
-    Sharing::Key key;
-    key.type = data.value(0);
-    key.key = data.value(1);
-    return key;
-}
-
-bool Sharing::Settings::isNull() const
-{
-    return type == Inactive
-            && ownKey.isNull()
-            && ownCertificate.isNull()
-            && foreignCertificates.isEmpty();
-}
-
-QString Sharing::Settings::serialize(const Sharing::Settings &settings)
-{
-    QStringList foreign;
-    for( const Certificate &certificate : settings.foreignCertificates ){
-        foreign << Certificate::serialize(certificate).toLatin1().toBase64();
-    }
-    const QStringList serialized = QStringList()
-            << QString::number(static_cast<int>(settings.type))
-            << Key::serialize(settings.ownKey).toLatin1().toBase64()
-            << Certificate::serialize(settings.ownCertificate).toLatin1().toBase64()
-            << foreign.join(KeeShareExt_Delimiter).toLatin1().toBase64();
-    return serialized.join(KeeShareExt_Delimiter);
-}
-
-Sharing::Settings Sharing::Settings::deserialize(const QString &raw)
-{
-    Settings settings;
-    const auto parts = raw.split(KeeShareExt_Delimiter);
-    if (parts.count() != 4) {
-        return settings;
-    }
-    settings.type = static_cast<Type>(parts[0].toInt());
-    settings.ownKey = Key::deserialize(QByteArray::fromBase64(parts[1].toLatin1()));
-    settings.ownCertificate = Certificate::deserialize(QByteArray::fromBase64(parts[2].toLatin1()));
-    for( const QString &foreign : QString::fromLatin1(QByteArray::fromBase64(parts[3].toLatin1())).split(KeeShareExt_Delimiter, QString::SkipEmptyParts) ){
-        settings.foreignCertificates << Certificate::deserialize(QByteArray::fromBase64(foreign.toLatin1()));
-    }
-    return settings;
 }
 
 
@@ -260,19 +122,14 @@ Sharing::Reference Sharing::Reference::deserialize(const QString &raw)
 
 bool Sharing::isEnabled(const Database* db, Type type)
 {
-    const Settings settings = Sharing::settingsOf(db);
-    return (settings.type & type) != 0;
+    const SharingSettings settings = Sharing::settingsOf(db);
+    return ((type & ImportFrom) != 0 && settings.importing)
+            || ((type & ExportTo) != 0 && settings.exporting);
 }
 
 bool Sharing::isShared(const Group* group)
 {
     return group->customData()->contains(KeeShareExt);
-}
-
-QString Sharing::fingerprintOf(const Certificate &certificate)
-{
-    const OpenSSHKey key = unpackCertificate(certificate);
-    return key.fingerprint();
 }
 
 Sharing::Reference Sharing::referenceOf(const CustomData* customData)
@@ -289,12 +146,12 @@ Sharing::Reference Sharing::referenceOf(const CustomData* customData)
     return reference;
 }
 
-Sharing::Settings Sharing::settingsOf(const Database *database)
+SharingSettings Sharing::settingsOf(const Database *database)
 {
     Q_ASSERT(database);
     const auto* meta = database->metadata();
     const auto* customData = meta->customData();
-    return Settings::deserialize(customData->value(KeeShareExt));
+    return SharingSettings::deserialize(customData->value(KeeShareExt));
 }
 
 void Sharing::setReferenceTo(CustomData* customData, const Reference& reference)
@@ -309,12 +166,12 @@ void Sharing::setReferenceTo(CustomData* customData, const Reference& reference)
     customData->set(KeeShareExt, Reference::serialize(reference));
 }
 
-void Sharing::setSettingsTo(Database *database, const Settings &settings)
+void Sharing::setSettingsTo(Database *database, const SharingSettings &settings)
 {
     Q_ASSERT( database );
     auto* metadata = database->metadata();
     auto* customData = metadata->customData();
-    customData->set(KeeShareExt, Settings::serialize(settings));
+    customData->set(KeeShareExt, SharingSettings::serialize(settings));
 }
 
 QPixmap Sharing::indicatorBadge(const Group* group, QPixmap pixmap)
@@ -350,76 +207,6 @@ QString Sharing::referenceTypeLabel(const Reference& reference)
     return "";
 }
 
-QPair<Sharing::Trust, Sharing::Certificate> Sharing::unsign(Database *sourceDb, const Database *targetDb, QByteArray &data, const Sharing::Reference &reference, const QString &signature)
-{
-    if( signature.isEmpty() ){
-        QMessageBox warning;
-        warning.setIcon(QMessageBox::Warning);
-        warning.setWindowTitle( tr("Untrustworthy container without signature"));
-        warning.setText(tr("Do you want to import from unsigned container %1")
-                        .arg(reference.path));
-        auto yes = warning.addButton(tr("Import once"), QMessageBox::ButtonRole::YesRole);
-        auto no = warning.addButton(tr("No"), QMessageBox::ButtonRole::NoRole);
-        warning.setDefaultButton(no);
-        warning.exec();
-        const Trust trust = warning.clickedButton() == yes ? Single : None;
-        return qMakePair( trust, Certificate() );
-    }
-    QVariantMap map = sourceDb->publicCustomData();
-    Sharing::Certificate importedCertificate = Sharing::Certificate::deserialize(map[KeeShareExt_Certificate].toString());
-    Sharing::Settings settings = Sharing::settingsOf(targetDb);
-    OpenSSHKey key = unpackCertificate(importedCertificate);
-    key.openKey(QString());
-    Signature signer;
-    const bool success = signer.verify(data, signature, key);
-    if( ! success ) {
-        const QFileInfo info(reference.path);
-        qCritical("Invalid signature for sharing container %s.", qPrintable(info.absoluteFilePath()));
-        return qMakePair( Invalid, Certificate() );
-    }
-    if( settings.ownCertificate.key == importedCertificate.key ){
-        return qMakePair( Own, settings.ownCertificate );
-    }
-    for( const Sharing::Certificate &certificate : settings.foreignCertificates ){
-        if( certificate.key == importedCertificate.key && certificate.trusted ){
-            return qMakePair( Known, importedCertificate );
-        }
-    }
-
-    QMessageBox warning;
-    warning.setIcon(QMessageBox::Question);
-    warning.setWindowTitle(tr("Import from untrustworthy certificate for sharing container"));
-    warning.setText(tr("Do you want to trust %1 with the fingerprint of %2")
-                    .arg(importedCertificate.signer)
-                    .arg(fingerprintOf(importedCertificate)));
-    auto yes = warning.addButton(tr("Import and trust"), QMessageBox::ButtonRole::YesRole);
-    auto no = warning.addButton(tr("No"), QMessageBox::ButtonRole::NoRole);
-    warning.setDefaultButton(no);
-    warning.exec();
-    if( warning.clickedButton() != yes ){
-        qWarning("Prevented import due to untrusted certificate of %s", qPrintable(importedCertificate.signer));
-        return qMakePair( None, importedCertificate );
-    }
-    return qMakePair( Lasting, importedCertificate );
-}
-
-QByteArray Sharing::sign(const QByteArray &data, Database *sourceDb)
-{
-    const Sharing::Settings sourceSettings = Sharing::settingsOf(sourceDb);
-    OpenSSHKey key = unpackKey(sourceSettings.ownKey);
-    key.openKey(QString());
-    Signature signer;
-    return signer.create(data, key).toLatin1();
-}
-
-void Sharing::assignCertificate(Database *targetDb, const Database *sourceDb)
-{
-    const Sharing::Settings sourceSettings = Sharing::settingsOf(sourceDb);
-    QVariantMap map = targetDb->publicCustomData();
-    map[KeeShareExt_Certificate] = Sharing::Certificate::serialize(sourceSettings.ownCertificate);
-    targetDb->setPublicCustomData(map);
-}
-
 QString Sharing::indicatorSuffix(const Group* group, const QString& text)
 {
     Q_UNUSED(group);
@@ -433,25 +220,6 @@ QString Sharing::indicatorSuffix(const Group* group, const QString& text)
     //               : tr("%1 [share inactive]", "Template for name with inactive sharing annotation").arg(text);
 }
 
-
-
-void Sharing::enable(Database* db, Type sharing)
-{
-    QStringList options;
-    if ((sharing & ImportFrom) == ImportFrom) {
-        options << KeeShareExt_ImportEnabled;
-    }
-    if ((sharing & ExportTo) == ExportTo) {
-        options << KeeShareExt_ExportEnabled;
-    }
-    auto* meta = db->metadata();
-    auto* customData = meta->customData();
-    if (options.isEmpty()) {
-        customData->remove(KeeShareExt);
-    } else {
-        customData->set(KeeShareExt, options.join("|"));
-    }
-}
 void Sharing::connectDatabase(Database *newDb, Database *oldDb)
 {
     if( oldDb && m_observersByDatabase.contains(oldDb) ){

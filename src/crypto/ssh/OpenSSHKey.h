@@ -23,7 +23,7 @@
 
 class BinaryStream;
 
-class OpenSSHKey : QObject
+class OpenSSHKey : public QObject
 {
     Q_OBJECT
 public:
@@ -43,6 +43,7 @@ public:
     const QString fingerprint() const;
     const QString comment() const;
     const QString publicKey() const;
+    const QString privateKey() const;
     const QString errorString() const;
 
     void setType(const QString& type);
@@ -66,10 +67,13 @@ public:
     static const QString TYPE_RSA_PUBLIC;
     static const QString TYPE_OPENSSH_PRIVATE;
 
-    static OpenSSHKey customImportPublicKey(const QString &rawType, const QByteArray &serialized);
-    static QByteArray customExportPublicKey(const OpenSSHKey &key);
-    static OpenSSHKey customImportPrivateKey(const QString &rawType, const QByteArray &serialized);
-    static QByteArray customExportPrivateKey(const OpenSSHKey &key);
+    enum Type {
+        Public,
+        Private
+    };
+
+    static OpenSSHKey restoreFromBinary(Type eType, const QByteArray &serialized);
+    static QByteArray serializeToBinary(Type eType, const OpenSSHKey &key);
 
 private:
     bool extractPEM(const QByteArray& in, QByteArray& out);
