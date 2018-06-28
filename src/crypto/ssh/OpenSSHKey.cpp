@@ -19,9 +19,9 @@
 #include "OpenSSHKey.h"
 
 #include "core/Tools.h"
-#include "crypto/ssh/BinaryStream.h"
-#include "crypto/ssh/ASN1Key.h"
 #include "crypto/SymmetricCipher.h"
+#include "crypto/ssh/ASN1Key.h"
+#include "crypto/ssh/BinaryStream.h"
 
 #include <QCryptographicHash>
 #include <QRegularExpression>
@@ -33,40 +33,43 @@ const QString OpenSSHKey::TYPE_DSA_PRIVATE = "DSA PRIVATE KEY";
 const QString OpenSSHKey::TYPE_RSA_PRIVATE = "RSA PRIVATE KEY";
 const QString OpenSSHKey::TYPE_RSA_PUBLIC = "RSA PUBLIC KEY";
 const QString OpenSSHKey::TYPE_OPENSSH_PRIVATE = "OPENSSH PRIVATE KEY";
-namespace {
 
-QPair<QString, QList<QByteArray>> binaryDeserialize(const QByteArray& serialized)
+namespace
 {
-    if( serialized.isEmpty() ){
-        return {};
+
+    QPair<QString, QList<QByteArray>> binaryDeserialize(const QByteArray& serialized)
+    {
+        if (serialized.isEmpty()) {
+            return {};
+        }
+        QBuffer buffer;
+        buffer.setData(serialized);
+        buffer.open(QBuffer::ReadOnly);
+        BinaryStream stream(&buffer);
+        QString type;
+        stream.readString(type);
+        QByteArray temp;
+        QList<QByteArray> data;
+        while (stream.readString(temp)) {
+            data << temp;
+        }
+        return ::qMakePair(type, data);
     }
-    QBuffer buffer;
-    buffer.setData(serialized);
-    buffer.open(QBuffer::ReadOnly);
-    BinaryStream stream(&buffer);
-    QString type;
-    stream.readString(type);
-    QByteArray temp;
-    QList<QByteArray> data;
-    while( stream.readString(temp) ){
-        data << temp;
+    QByteArray binarySerialize(const QString& type, const QList<QByteArray>& data)
+    {
+        if (type.isEmpty() && data.isEmpty()) {
+            return {};
+        }
+        QByteArray buffer;
+        BinaryStream stream(&buffer);
+        stream.writeString(type);
+        for (const QByteArray& part : data) {
+            stream.writeString(part);
+        }
+        return buffer;
     }
-    return ::qMakePair(type, data);
 }
-QByteArray binarySerialize(const QString &type, const QList<QByteArray> &data)
-{
-    if( type.isEmpty() && data.isEmpty() ){
-        return {};
-    }
-    QByteArray buffer;
-    BinaryStream stream(&buffer);
-    stream.writeString(type);
-    for( const QByteArray& part : data ){
-        stream.writeString(part);
-    }
-    return buffer;
-}
-}
+
 // bcrypt_pbkdf.cpp
 int bcrypt_pbkdf(const QByteArray& pass, const QByteArray& salt, QByteArray& key, quint32 rounds);
 
@@ -175,7 +178,6 @@ OpenSSHKey OpenSSHKey::generate(bool secure)
         return OpenSSHKey();
     }
     privateParts << buffer.content();
-
 
     buffer.clear();
     rc = gcry_mpi_aprint(format, &buffer.raw, &buffer.size, mpi[Public_E]);
@@ -568,7 +570,7 @@ bool OpenSSHKey::openKey(const QString& passphrase)
             hash.addData(m_cipherIV.data(), 8);
             mdBuf = hash.result();
             keyData.append(mdBuf);
-        } while(keyData.size() < cipher->keySize());
+        } while (keyData.size() < cipher->keySize());
 
         if (keyData.size() > cipher->keySize()) {
             // If our key size isn't a multiple of 16 (e.g. AES-192 or something),
@@ -779,7 +781,7 @@ const QString& OpenSSHKey::privateType() const
     return m_rawType;
 }
 
-OpenSSHKey OpenSSHKey::restoreFromBinary(Type type, const QByteArray &serialized)
+OpenSSHKey OpenSSHKey::restoreFromBinary(Type type, const QByteArray& serialized)
 {
     OpenSSHKey key;
     auto data = binaryDeserialize(serialized);
@@ -795,10 +797,10 @@ OpenSSHKey OpenSSHKey::restoreFromBinary(Type type, const QByteArray &serialized
     return key;
 }
 
-QByteArray OpenSSHKey::serializeToBinary(Type type, const OpenSSHKey &key)
+QByteArray OpenSSHKey::serializeToBinary(Type type, const OpenSSHKey& key)
 {
     Q_ASSERT(!key.encrypted());
-    switch(type){
+    switch (type) {
     case Public:
         return binarySerialize(key.type(), key.publicParts());
     case Private:

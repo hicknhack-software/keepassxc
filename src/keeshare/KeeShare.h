@@ -46,17 +46,17 @@ public:
     static KeeShareSettings::Own own();
     static KeeShareSettings::Active active();
     static KeeShareSettings::Foreign foreign();
-    static void setForeign(const KeeShareSettings::Foreign &foreign);
-    static void setActive(const KeeShareSettings::Active &active);
-    static void setOwn(const KeeShareSettings::Own &own);
+    static void setForeign(const KeeShareSettings::Foreign& foreign);
+    static void setActive(const KeeShareSettings::Active& active);
+    static void setOwn(const KeeShareSettings::Own& own);
 
-    static KeeShareSettings::Reference referenceOf(const Group *group);
+    static KeeShareSettings::Reference referenceOf(const Group* group);
     static void setReferenceTo(Group* group, const KeeShareSettings::Reference& reference);
     static QString referenceTypeLabel(const KeeShareSettings::Reference& reference);
 
-    void connectDatabase(Database *newDb, Database *oldDb);
-    void handleDatabaseOpened(Database *db);
-    void handleDatabaseSaved(Database *db);
+    void connectDatabase(Database* newDb, Database* oldDb);
+    void handleDatabaseOpened(Database* db);
+    void handleDatabaseSaved(Database* db);
 
 signals:
     void activeChanged();
@@ -64,14 +64,14 @@ signals:
 
 private slots:
     void emitSharingMessage(const QString&, MessageWidget::MessageType);
-    void handleDatabaseDeleted(QObject *);
-    void handleObserverDeleted(QObject *);
-    void handleSettingsChanged(const QString &);
+    void handleDatabaseDeleted(QObject*);
+    void handleObserverDeleted(QObject*);
+    void handleSettingsChanged(const QString&);
 
 private:
     static KeeShare* m_instance;
 
-    explicit KeeShare(QObject *parent);
+    explicit KeeShare(QObject* parent);
 
     QMap<QObject*, QPointer<ShareObserver>> m_observersByDatabase;
     QMap<QObject*, QPointer<Database>> m_databasesByObserver;

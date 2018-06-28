@@ -18,9 +18,9 @@
 #ifndef KEEPASSXC_DATABASESETTINGSPAGEKEESHARE_H
 #define KEEPASSXC_DATABASESETTINGSPAGEKEESHARE_H
 
-#include <QWidget>
 #include <QObject>
 #include <QPointer>
+#include <QWidget>
 
 #include "gui/DatabaseSettingsWidget.h"
 
@@ -29,9 +29,9 @@ class DatabaseSettingsPageKeeShare : public IDatabaseSettingsPage
 public:
     QString name() override;
     QIcon icon() override;
-    QWidget *createWidget() override;
-    void loadSettings(QWidget *widget, Database *db) override;
-    void saveSettings(QWidget *widget) override;
+    QWidget* createWidget() override;
+    void loadSettings(QWidget* widget, Database* db) override;
+    void saveSettings(QWidget* widget) override;
 };
 
 #endif // KEEPASSXC_DATABASESETTINGSPAGEKEESHARE_H

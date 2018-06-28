@@ -55,9 +55,10 @@ EditGroupWidgetKeeShare::EditGroupWidgetKeeShare(QWidget* parent)
 
     connect(KeeShare::instance(), SIGNAL(activeChanged()), SLOT(showSharingState()));
 
-    const auto types = QList<KeeShareSettings::Type>()
-            << KeeShareSettings::Inactive << KeeShareSettings::ImportFrom
-            << KeeShareSettings::ExportTo << KeeShareSettings::SynchronizeWith;
+    const auto types = QList<KeeShareSettings::Type>() << KeeShareSettings::Inactive 
+                                                        << KeeShareSettings::ImportFrom
+                                                        << KeeShareSettings::ExportTo
+                                                        << KeeShareSettings::SynchronizeWith;
     for (const auto& type : types) {
         QString name;
         switch (type) {
@@ -98,7 +99,7 @@ void EditGroupWidgetKeeShare::setGroup(Group* temporaryGroup)
 
 void EditGroupWidgetKeeShare::showSharingState()
 {
-    if(!m_temporaryGroup){
+    if (!m_temporaryGroup) {
         return;
     }
     const auto active = KeeShare::active();
@@ -225,4 +226,3 @@ void EditGroupWidgetKeeShare::selectType()
     reference.type = static_cast<KeeShareSettings::Type>(m_ui->typeComboBox->currentData().toInt());
     KeeShare::setReferenceTo(m_temporaryGroup, reference);
 }
-

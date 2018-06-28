@@ -23,18 +23,19 @@
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "crypto/ssh/OpenSSHKey.h"
-#include "keeshare/Signature.h"
 #include "keeshare/ShareObserver.h"
+#include "keeshare/Signature.h"
 
+#include <QMessageBox>
 #include <QPainter>
 #include <QPushButton>
-#include <QMessageBox>
 
-namespace {
-static const QString KeeShare_Reference("KeeShare/Reference");
-static const QString KeeShare_Own("KeeShare/Settings.own");
-static const QString KeeShare_Foreign("KeeShare/Settings.foreign");
-static const QString KeeShare_Active("KeeShare/Settings.active");
+namespace
+{
+    static const QString KeeShare_Reference("KeeShare/Reference");
+    static const QString KeeShare_Own("KeeShare/Settings.own");
+    static const QString KeeShare_Foreign("KeeShare/Settings.foreign");
+    static const QString KeeShare_Active("KeeShare/Settings.active");
 }
 
 KeeShare* KeeShare::m_instance = nullptr;
@@ -50,7 +51,7 @@ KeeShare* KeeShare::instance()
 
 void KeeShare::init(QObject* parent)
 {
-    Q_ASSERT( ! m_instance );
+    Q_ASSERT(!m_instance);
     m_instance = new KeeShare(parent);
 }
 
@@ -69,17 +70,17 @@ KeeShareSettings::Foreign KeeShare::foreign()
     return KeeShareSettings::Foreign::deserialize(config()->get(KeeShare_Foreign).toString());
 }
 
-void KeeShare::setForeign(const KeeShareSettings::Foreign &foreign)
+void KeeShare::setForeign(const KeeShareSettings::Foreign& foreign)
 {
     config()->set(KeeShare_Foreign, KeeShareSettings::Foreign::serialize(foreign));
 }
 
-void KeeShare::setActive(const KeeShareSettings::Active &active)
+void KeeShare::setActive(const KeeShareSettings::Active& active)
 {
     config()->set(KeeShare_Active, KeeShareSettings::Active::serialize(active));
 }
 
-void KeeShare::setOwn(const KeeShareSettings::Own &own)
+void KeeShare::setOwn(const KeeShareSettings::Own& own)
 {
     config()->set(KeeShare_Own, KeeShareSettings::Own::serialize(own));
 }
@@ -92,14 +93,14 @@ bool KeeShare::isShared(const Group* group)
 KeeShareSettings::Reference KeeShare::referenceOf(const Group* group)
 {
     static const KeeShareSettings::Reference s_emptyReference;
-    const CustomData *customData = group->customData();
+    const CustomData* customData = group->customData();
     if (!customData->contains(KeeShare_Reference)) {
         return s_emptyReference;
     }
     const auto encoded = customData->value(KeeShare_Reference);
     const auto serialized = QString::fromUtf8(QByteArray::fromBase64(encoded.toLatin1()));
     KeeShareSettings::Reference reference = KeeShareSettings::Reference::deserialize(serialized);
-    if( reference.isNull() ){
+    if (reference.isNull()) {
         qWarning("Invalid sharing reference detected - sharing disabled");
         return s_emptyReference;
     }
@@ -108,7 +109,7 @@ KeeShareSettings::Reference KeeShare::referenceOf(const Group* group)
 
 void KeeShare::setReferenceTo(Group* group, const KeeShareSettings::Reference& reference)
 {
-    CustomData *customData = group->customData();
+    CustomData* customData = group->customData();
     if (reference.isNull()) {
         customData->remove(KeeShare_Reference);
         return;
@@ -159,72 +160,74 @@ QString KeeShare::indicatorSuffix(const Group* group, const QString& text)
     return text;
 }
 
-void KeeShare::connectDatabase(Database *newDb, Database *oldDb)
+void KeeShare::connectDatabase(Database* newDb, Database* oldDb)
 {
-    if( oldDb && m_observersByDatabase.contains(oldDb) ){
+    if (oldDb && m_observersByDatabase.contains(oldDb)) {
         QPointer<ShareObserver> observer = m_observersByDatabase.take(oldDb);
-        if( observer ){
+        if (observer) {
             delete observer;
         }
     }
 
-    if( newDb && !m_observersByDatabase.contains(newDb) ){
+    if (newDb && !m_observersByDatabase.contains(newDb)) {
         QPointer<ShareObserver> observer(new ShareObserver(newDb, newDb));
         m_observersByDatabase[newDb] = observer;
-        connect(observer.data(), SIGNAL(sharingMessage(QString, MessageWidget::MessageType))
-                ,this, SLOT(emitSharingMessage(QString, MessageWidget::MessageType)));
+        connect(observer.data(),
+                SIGNAL(sharingMessage(QString, MessageWidget::MessageType)),
+                this,
+                SLOT(emitSharingMessage(QString, MessageWidget::MessageType)));
     }
 }
 
-void KeeShare::handleDatabaseOpened(Database *db)
+void KeeShare::handleDatabaseOpened(Database* db)
 {
     QPointer<ShareObserver> observer = m_observersByDatabase.value(db);
-    if( observer ){
+    if (observer) {
         observer->handleDatabaseOpened();
     }
 }
 
-void KeeShare::handleDatabaseSaved(Database *db)
+void KeeShare::handleDatabaseSaved(Database* db)
 {
     QPointer<ShareObserver> observer = m_observersByDatabase.value(db);
-    if( observer ){
+    if (observer) {
         observer->handleDatabaseSaved();
     }
 }
 
-void KeeShare::emitSharingMessage(const QString &message, KMessageWidget::MessageType type)
+void KeeShare::emitSharingMessage(const QString& message, KMessageWidget::MessageType type)
 {
-    QObject *observer = sender();
+    QObject* observer = sender();
     Database* db = m_databasesByObserver.value(observer);
-    if( db ){
+    if (db) {
         emit sharingMessage(db, message, type);
     }
 }
 
-void KeeShare::handleDatabaseDeleted(QObject *db)
+void KeeShare::handleDatabaseDeleted(QObject* db)
 {
     auto observer = m_observersByDatabase.take(db);
-    if( observer ){
+    if (observer) {
         m_databasesByObserver.remove(observer);
     }
 }
 
-void KeeShare::handleObserverDeleted(QObject *observer)
+void KeeShare::handleObserverDeleted(QObject* observer)
 {
     auto database = m_databasesByObserver.take(observer);
-    if( database ){
+    if (database) {
         m_observersByDatabase.remove(database);
     }
 }
 
-void KeeShare::handleSettingsChanged(const QString &key)
+void KeeShare::handleSettingsChanged(const QString& key)
 {
-    if( key == KeeShare_Active ){
+    if (key == KeeShare_Active) {
         emit activeChanged();
     }
 }
 
-KeeShare::KeeShare(QObject *parent)
+KeeShare::KeeShare(QObject* parent)
     : QObject(parent)
 {
     connect(config(), SIGNAL(changed(QString)), this, SLOT(handleSettingsChanged(QString)));

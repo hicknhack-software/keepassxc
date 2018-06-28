@@ -46,7 +46,6 @@
 #include "keeshare/DatabaseSettingsPageKeeShare.h"
 #endif
 
-
 class DatabaseSettingsWidget::ExtraPage
 {
 public:
@@ -56,7 +55,7 @@ public:
     {
     }
 
-    void loadSettings(Database *db) const
+    void loadSettings(Database* db) const
     {
         settingsPage->loadSettings(widget, db);
     }
@@ -70,7 +69,6 @@ private:
     QSharedPointer<IDatabaseSettingsPage> settingsPage;
     QWidget* widget;
 };
-
 
 DatabaseSettingsWidget::DatabaseSettingsWidget(QWidget* parent)
     : DialogyWidget(parent)
@@ -184,15 +182,15 @@ void DatabaseSettingsWidget::load(Database* db)
         m_uiEncryption->parallelismSpinBox->setValue(argon2Kdf->parallelism());
     }
 
-    for( const ExtraPage& page : asConst(m_extraPages) ){
-        page.loadSettings( m_db );
+    for (const ExtraPage& page : asConst(m_extraPages)) {
+        page.loadSettings(m_db);
     }
 
     m_uiGeneral->dbNameEdit->setFocus();
     m_ui->categoryList->setCurrentCategory(0);
 }
 
-void DatabaseSettingsWidget::addSettingsPage(IDatabaseSettingsPage *page)
+void DatabaseSettingsWidget::addSettingsPage(IDatabaseSettingsPage* page)
 {
     const int category = m_ui->categoryList->currentCategory();
 
@@ -280,7 +278,7 @@ void DatabaseSettingsWidget::save()
 
     m_db->setCipher(Uuid(m_uiEncryption->algorithmComboBox->currentData().toByteArray()));
 
-    for( const ExtraPage& extraPage : asConst(m_extraPages) ){
+    for (const ExtraPage& extraPage : asConst(m_extraPages)) {
         extraPage.saveSettings();
     }
 

@@ -18,8 +18,8 @@
 #ifndef KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H
 #define KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H
 
-#include <QScopedPointer>
 #include <QPointer>
+#include <QScopedPointer>
 #include <QWidget>
 
 class Database;
@@ -38,7 +38,7 @@ public:
     explicit DatabaseSettingsWidgetKeeShare(QWidget* parent = nullptr);
     ~DatabaseSettingsWidgetKeeShare();
 
-    void loadSettings(Database *db);
+    void loadSettings(Database* db);
     void saveSettings();
 
 private:

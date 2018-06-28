@@ -101,14 +101,14 @@ private slots:
     void changeDatabase(Database* newDb, bool unsavedChanges);
     void emitActivateDatabaseChanged();
     void emitDatabaseUnlockedFromDbWidgetSender();
-    void handleDatabaseMessage(Database *db, QString message, MessageWidget::MessageType type);
+    void handleDatabaseMessage(Database* db, QString message, MessageWidget::MessageType type);
 
 private:
     bool saveDatabase(Database* db, QString filePath = "");
     bool saveDatabaseAs(Database* db);
     bool closeDatabase(Database* db);
     void deleteDatabase(Database* db);
-    int databaseIndex(const Database *db);
+    int databaseIndex(const Database* db);
     Database* indexDatabase(int index);
     DatabaseManagerStruct indexDatabaseManagerStruct(int index);
     Database* databaseFromDatabaseWidget(DatabaseWidget* dbWidget);

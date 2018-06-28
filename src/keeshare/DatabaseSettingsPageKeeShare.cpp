@@ -20,8 +20,8 @@
 #include "core/Database.h"
 #include "core/FilePath.h"
 #include "core/Group.h"
-#include "keeshare/KeeShare.h"
 #include "keeshare/DatabaseSettingsWidgetKeeShare.h"
+#include "keeshare/KeeShare.h"
 
 #include <QApplication>
 
@@ -35,20 +35,19 @@ QIcon DatabaseSettingsPageKeeShare::icon()
     return FilePath::instance()->icon("apps", "preferences-system-network-sharing");
 }
 
-QWidget *DatabaseSettingsPageKeeShare::createWidget()
+QWidget* DatabaseSettingsPageKeeShare::createWidget()
 {
     return new DatabaseSettingsWidgetKeeShare();
 }
 
-void DatabaseSettingsPageKeeShare::loadSettings(QWidget *widget, Database *db)
+void DatabaseSettingsPageKeeShare::loadSettings(QWidget* widget, Database* db)
 {
     DatabaseSettingsWidgetKeeShare* settingsWidget = reinterpret_cast<DatabaseSettingsWidgetKeeShare*>(widget);
     settingsWidget->loadSettings(db);
 }
 
-void DatabaseSettingsPageKeeShare::saveSettings(QWidget *widget)
+void DatabaseSettingsPageKeeShare::saveSettings(QWidget* widget)
 {
     DatabaseSettingsWidgetKeeShare* settingsWidget = reinterpret_cast<DatabaseSettingsWidgetKeeShare*>(widget);
     settingsWidget->saveSettings();
 }
-

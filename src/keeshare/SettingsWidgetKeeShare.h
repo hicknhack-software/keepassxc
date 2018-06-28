@@ -18,12 +18,12 @@
 #ifndef KEEPASSXC_SETTINGSWIDGETKEESHARE_H
 #define KEEPASSXC_SETTINGSWIDGETKEESHARE_H
 
-#include <QScopedPointer>
 #include <QPointer>
+#include <QScopedPointer>
 #include <QWidget>
 
-#include "keeshare/KeeShareSettings.h"
 #include "gui/MessageWidget.h"
+#include "keeshare/KeeShareSettings.h"
 
 class Database;
 
@@ -48,7 +48,7 @@ signals:
     void settingsMessage(const QString&, MessageWidget::MessageType type);
 
 private slots:
-    void setVerificationExporter(const QString &signer);
+    void setVerificationExporter(const QString& signer);
 
     void generateCertificate();
     void importCertificate();

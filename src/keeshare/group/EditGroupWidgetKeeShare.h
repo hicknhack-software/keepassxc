@@ -19,8 +19,8 @@
 #define KEEPASSXC_EDITGROUPWIDGETKEESHARE_H
 
 #include <QPointer>
-#include <QWidget>
 #include <QStandardItemModel>
+#include <QWidget>
 
 class Group;
 class Database;
@@ -37,7 +37,7 @@ public:
     explicit EditGroupWidgetKeeShare(QWidget* parent = nullptr);
     ~EditGroupWidgetKeeShare();
 
-    void setGroup(Group *temporaryGroup);
+    void setGroup(Group* temporaryGroup);
 
 private slots:
     void showSharingState();

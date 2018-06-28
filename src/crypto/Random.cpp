@@ -81,7 +81,7 @@ void Random::resetInstance()
     m_instance.reset();
 }
 
-void Random::setInstance(RandomBackend *backend)
+void Random::setInstance(RandomBackend* backend)
 {
     m_instance.reset(new Random(backend));
 }

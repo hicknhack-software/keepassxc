@@ -26,12 +26,12 @@ class Database;
 class EditGroupPageKeeShare : public IEditGroupPage
 {
 public:
-    EditGroupPageKeeShare(EditGroupWidget *widget);
+    EditGroupPageKeeShare(EditGroupWidget* widget);
     QString name() override;
     QIcon icon() override;
-    QWidget *createWidget() override;
-    void set(QWidget *widget, Group *temporaryGroup) override;
-    void assign(QWidget *widget) override;
+    QWidget* createWidget() override;
+    void set(QWidget* widget, Group* temporaryGroup) override;
+    void assign(QWidget* widget) override;
 };
 
 #endif // KEEPASSXC_EDITGROUPPAGEKEESHARE_H

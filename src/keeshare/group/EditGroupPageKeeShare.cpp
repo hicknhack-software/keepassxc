@@ -22,7 +22,7 @@
 
 #include <QApplication>
 
-EditGroupPageKeeShare::EditGroupPageKeeShare(EditGroupWidget *widget)
+EditGroupPageKeeShare::EditGroupPageKeeShare(EditGroupWidget* widget)
 {
     Q_UNUSED(widget);
 }
@@ -37,20 +37,19 @@ QIcon EditGroupPageKeeShare::icon()
     return FilePath::instance()->icon("apps", "preferences-system-network-sharing");
 }
 
-QWidget *EditGroupPageKeeShare::createWidget()
+QWidget* EditGroupPageKeeShare::createWidget()
 {
     return new EditGroupWidgetKeeShare();
 }
 
-void EditGroupPageKeeShare::set(QWidget *widget, Group *temporaryGroup)
+void EditGroupPageKeeShare::set(QWidget* widget, Group* temporaryGroup)
 {
-    EditGroupWidgetKeeShare *settingsWidget = reinterpret_cast<EditGroupWidgetKeeShare*>(widget);
+    EditGroupWidgetKeeShare* settingsWidget = reinterpret_cast<EditGroupWidgetKeeShare*>(widget);
     settingsWidget->setGroup(temporaryGroup);
 }
 
-void EditGroupPageKeeShare::assign(QWidget *widget)
+void EditGroupPageKeeShare::assign(QWidget* widget)
 {
     Q_UNUSED(widget);
     // everything is saved directly
 }
-

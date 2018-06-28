@@ -63,7 +63,7 @@ struct RSASigner
         };
 
         const QList<QByteArray> parts = key.privateParts();
-        if( parts.count() != 6){
+        if (parts.count() != 6) {
             raiseError("Unsupported signing key");
             return QString();
         }
@@ -147,8 +147,7 @@ struct RSASigner
             raiseError();
             return QString();
         }
-        return QString("rsa|%1").arg(
-            QString::fromLatin1(buffer.content().toHex()));
+        return QString("rsa|%1").arg(QString::fromLatin1(buffer.content().toHex()));
     }
 
     bool verify(const QByteArray& data, const OpenSSHKey& key, const QString& signature)
@@ -169,7 +168,7 @@ struct RSASigner
         };
 
         const QList<QByteArray> parts = key.publicParts();
-        if( parts.count() != 2 ){
+        if (parts.count() != 2) {
             raiseError("Unsupported verification key");
             return false;
         }

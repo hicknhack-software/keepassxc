@@ -27,15 +27,14 @@
 
 #include "config-keepassx-tests.h"
 #include "core/Metadata.h"
-#include "crypto/Random.h"
 #include "crypto/Crypto.h"
+#include "crypto/Random.h"
 #include "crypto/ssh/OpenSSHKey.h"
 #include "format/KeePass2Writer.h"
 #include "keeshare/KeeShareSettings.h"
 #include "keys/PasswordKey.h"
 
 #include <format/KeePass2Reader.h>
-
 
 QTEST_GUILESS_MAIN(TestSharing)
 
@@ -139,7 +138,7 @@ void TestSharing::testNullObjects()
 void TestSharing::testCertificateSerialization()
 {
     QFETCH(bool, trusted);
-    const OpenSSHKey &key = stubkey();
+    const OpenSSHKey& key = stubkey();
     KeeShareSettings::Certificate original;
     original.key = OpenSSHKey::serializeToBinary(OpenSSHKey::Public, key);
     original.signer = "Some <!> &#_\"\" weird string";
@@ -173,7 +172,7 @@ void TestSharing::testCertificateSerialization_data()
 
 void TestSharing::testKeySerialization()
 {
-    const OpenSSHKey &key = stubkey();
+    const OpenSSHKey& key = stubkey();
     KeeShareSettings::Key original;
     original.key = OpenSSHKey::serializeToBinary(OpenSSHKey::Private, key);
 
@@ -259,14 +258,14 @@ void TestSharing::testSettingsSerialization()
     QCOMPARE(restoredOwn.certificate.trusted, ownCertificate.trusted);
     QCOMPARE(restoredOwn.key.key, ownKey.key);
     QCOMPARE(restoredForeign.certificates.count(), foreignCertificates.count());
-    for( int i = 0; i < foreignCertificates.count(); ++i ){
+    for (int i = 0; i < foreignCertificates.count(); ++i) {
         QCOMPARE(restoredForeign.certificates[i].key, foreignCertificates[i].key);
     }
 }
 
 void TestSharing::testSettingsSerialization_data()
 {
-    const OpenSSHKey &sshKey0 = stubkey(0);
+    const OpenSSHKey& sshKey0 = stubkey(0);
     KeeShareSettings::Certificate certificate0;
     certificate0.key = OpenSSHKey::serializeToBinary(OpenSSHKey::Public, sshKey0);
     certificate0.signer = "Some <!> &#_\"\" weird string";
@@ -275,7 +274,7 @@ void TestSharing::testSettingsSerialization_data()
     KeeShareSettings::Key key0;
     key0.key = OpenSSHKey::serializeToBinary(OpenSSHKey::Private, sshKey0);
 
-    const OpenSSHKey &sshKey1 = stubkey(1);
+    const OpenSSHKey& sshKey1 = stubkey(1);
     KeeShareSettings::Certificate certificate1;
     certificate1.key = OpenSSHKey::serializeToBinary(OpenSSHKey::Public, sshKey1);
     certificate1.signer = "Another ";
@@ -293,14 +292,13 @@ void TestSharing::testSettingsSerialization_data()
     QTest::newRow("5") << false << false << certificate0 << key0 << QList<KeeShareSettings::Certificate>({ certificate1 });
 }
 
-const OpenSSHKey &TestSharing::stubkey(int index)
+const OpenSSHKey& TestSharing::stubkey(int index)
 {
     static QMap<int, OpenSSHKey*> keys;
-    if( !keys.contains(index)){
-        OpenSSHKey *key = new OpenSSHKey(OpenSSHKey::generate(false));
+    if (!keys.contains(index)) {
+        OpenSSHKey* key = new OpenSSHKey(OpenSSHKey::generate(false));
         key->setParent(this);
         keys[index] = key;
     }
     return *keys[index];
 }
-

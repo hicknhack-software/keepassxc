@@ -34,21 +34,18 @@ namespace Ui
     class EditWidget;
 }
 
-
 class IEditGroupPage
 {
 public:
     virtual ~IEditGroupPage()
     {
-
     }
     virtual QString name() = 0;
     virtual QIcon icon() = 0;
     virtual QWidget* createWidget() = 0;
-    virtual void set(QWidget* widget, Group *tempoaryGroup) = 0;
+    virtual void set(QWidget* widget, Group* tempoaryGroup) = 0;
     virtual void assign(QWidget* widget) = 0;
 };
-
 
 class EditGroupWidget : public EditWidget
 {
@@ -58,10 +55,10 @@ public:
     explicit EditGroupWidget(QWidget* parent = nullptr);
     ~EditGroupWidget();
 
-    void loadGroup(Group* group, bool create, Database *database);
+    void loadGroup(Group* group, bool create, Database* database);
     void clear();
 
-    void addEditPage(IEditGroupPage *page);
+    void addEditPage(IEditGroupPage* page);
 
 signals:
     void editFinished(bool accepted);

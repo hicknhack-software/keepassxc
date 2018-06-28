@@ -36,44 +36,54 @@ namespace KeeShareSettings
         QString signer;
         bool trusted;
 
-        bool operator==(const Certificate &other) const;
-        bool operator!=(const Certificate &other) const;
+        bool operator==(const Certificate& other) const;
+        bool operator!=(const Certificate& other) const;
 
-        Certificate() : trusted(false) {}
+        Certificate()
+            : trusted(false)
+        {
+        }
 
         bool isNull() const;
         QString fingerprint() const;
         QString publicKey() const;
         OpenSSHKey sshKey() const;
 
-        static void serialize(QXmlStreamWriter &writer, const Certificate &certificate);
-        static Certificate deserialize(QXmlStreamReader &reader);
+        static void serialize(QXmlStreamWriter& writer, const Certificate& certificate);
+        static Certificate deserialize(QXmlStreamReader& reader);
     };
 
     struct Key
     {
         QByteArray key;
 
-        bool operator==(const Key &other) const;
-        bool operator!=(const Key &other) const;
+        bool operator==(const Key& other) const;
+        bool operator!=(const Key& other) const;
 
         bool isNull() const;
         QString privateKey() const;
         OpenSSHKey sshKey() const;
 
-        static void serialize(QXmlStreamWriter &writer, const Key &key);
-        static Key deserialize(QXmlStreamReader &reader);
+        static void serialize(QXmlStreamWriter& writer, const Key& key);
+        static Key deserialize(QXmlStreamReader& reader);
     };
 
     struct Active
     {
         bool in;
         bool out;
-        Active() : in(false), out(false) {}
-        bool isNull() const { return !in && !out; }
+        Active()
+            : in(false)
+            , out(false)
+        {
+        }
+        bool isNull() const
+        {
+            return !in && !out;
+        }
 
-        static QString serialize(const Active &active);
-        static Active deserialize(const QString &raw);
+        static QString serialize(const Active& active);
+        static Active deserialize(const QString& raw);
     };
 
     struct Own
@@ -81,12 +91,15 @@ namespace KeeShareSettings
         Key key;
         Certificate certificate;
 
-        bool operator==(const Own &other) const;
-        bool operator!=(const Own &other) const;
-        bool isNull() const { return key.isNull() && certificate.isNull(); }
+        bool operator==(const Own& other) const;
+        bool operator!=(const Own& other) const;
+        bool isNull() const
+        {
+            return key.isNull() && certificate.isNull();
+        }
 
-        static QString serialize(const Own &own);
-        static Own deserialize(const QString &raw);
+        static QString serialize(const Own& own);
+        static Own deserialize(const QString& raw);
         static Own generate();
     };
 
@@ -94,10 +107,13 @@ namespace KeeShareSettings
     {
         QList<Certificate> certificates;
 
-        bool isNull() const { return certificates.isEmpty(); }
+        bool isNull() const
+        {
+            return certificates.isEmpty();
+        }
 
-        static QString serialize(const Foreign &foreign);
-        static Foreign deserialize(const QString &raw);
+        static QString serialize(const Foreign& foreign);
+        static Foreign deserialize(const QString& raw);
     };
 
     struct Sign
@@ -105,10 +121,13 @@ namespace KeeShareSettings
         QString signature;
         Certificate certificate;
 
-        bool isNull() const { return signature.isEmpty() && certificate.isNull(); }
+        bool isNull() const
+        {
+            return signature.isEmpty() && certificate.isNull();
+        }
 
-        static QString serialize(const Sign &sign);
-        static Sign deserialize(const QString &raw);
+        static QString serialize(const Sign& sign);
+        static Sign deserialize(const QString& raw);
     };
 
     enum TypeFlag
@@ -135,8 +154,8 @@ namespace KeeShareSettings
         bool operator<(const Reference& other) const;
         bool operator==(const Reference& other) const;
 
-        static QString serialize(const Reference &reference);
-        static Reference deserialize(const QString &raw);
+        static QString serialize(const Reference& reference);
+        static Reference deserialize(const QString& raw);
     };
 };
 

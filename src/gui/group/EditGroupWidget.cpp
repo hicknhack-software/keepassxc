@@ -36,7 +36,7 @@ public:
     {
     }
 
-    void set(Group *temporaryGroup) const
+    void set(Group* temporaryGroup) const
     {
         editPage->set(widget, temporaryGroup);
     }
@@ -129,7 +129,7 @@ void EditGroupWidget::loadGroup(Group* group, bool create, Database* database)
     m_editWidgetProperties->setFields(m_temporaryGroup->timeInfo(), m_temporaryGroup->uuid());
     m_editWidgetProperties->setCustomData(m_temporaryGroup->customData());
 
-    for( const ExtraPage& page : asConst(m_extraPages)){
+    for (const ExtraPage& page : asConst(m_extraPages)) {
         page.set(m_temporaryGroup.data());
     }
 
@@ -171,7 +171,7 @@ void EditGroupWidget::apply()
         m_temporaryGroup->setIcon(iconStruct.uuid);
     }
 
-    for( const ExtraPage& page : asConst(m_extraPages)){
+    for (const ExtraPage& page : asConst(m_extraPages)) {
         page.assign();
     }
 
@@ -193,7 +193,7 @@ void EditGroupWidget::clear()
     m_editGroupWidgetIcons->reset();
 }
 
-void EditGroupWidget::addEditPage(IEditGroupPage *page)
+void EditGroupWidget::addEditPage(IEditGroupPage* page)
 {
     QWidget* widget = page->createWidget();
     widget->setParent(this);

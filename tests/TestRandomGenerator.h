@@ -24,7 +24,7 @@
 
 class RandomBackendPreset;
 
-class TestRandomGenerator: public QObject
+class TestRandomGenerator : public QObject
 {
     Q_OBJECT
 

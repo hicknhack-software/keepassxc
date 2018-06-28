@@ -42,12 +42,11 @@ class IDatabaseSettingsPage
 public:
     virtual ~IDatabaseSettingsPage()
     {
-
     }
     virtual QString name() = 0;
     virtual QIcon icon() = 0;
     virtual QWidget* createWidget() = 0;
-    virtual void loadSettings(QWidget* widget, Database *db) = 0;
+    virtual void loadSettings(QWidget* widget, Database* db) = 0;
     virtual void saveSettings(QWidget* widget) = 0;
 };
 
@@ -61,7 +60,7 @@ public:
     Q_DISABLE_COPY(DatabaseSettingsWidget)
 
     void load(Database* db);
-    void addSettingsPage(IDatabaseSettingsPage *page);
+    void addSettingsPage(IDatabaseSettingsPage* page);
 
 signals:
     void editFinished(bool accepted);
@@ -89,7 +88,5 @@ private:
 
     Database* m_db;
 };
-
-
 
 #endif // KEEPASSX_DATABASESETTINGSWIDGET_H

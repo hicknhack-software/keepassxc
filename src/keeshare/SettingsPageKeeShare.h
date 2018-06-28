@@ -18,9 +18,9 @@
 #ifndef KEEPASSXC_SETTINGSPAGEKEESHARE_H
 #define KEEPASSXC_SETTINGSPAGEKEESHARE_H
 
-#include <QWidget>
 #include <QObject>
 #include <QPointer>
+#include <QWidget>
 
 #include "gui/SettingsWidget.h"
 
@@ -32,9 +32,10 @@ public:
     SettingsPageKeeShare(DatabaseTabWidget* tabWidget);
     QString name() override;
     QIcon icon() override;
-    QWidget *createWidget() override;
-    void loadSettings(QWidget *widget) override;
-    void saveSettings(QWidget *widget) override;
+    QWidget* createWidget() override;
+    void loadSettings(QWidget* widget) override;
+    void saveSettings(QWidget* widget) override;
+
 private:
     QPointer<DatabaseTabWidget> m_tabWidget;
 };

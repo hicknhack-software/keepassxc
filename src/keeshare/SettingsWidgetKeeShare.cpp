@@ -25,8 +25,8 @@
 #include "keeshare/KeeShare.h"
 #include "keeshare/KeeShareSettings.h"
 
-#include <QStandardItemModel>
 #include <QMessageBox>
+#include <QStandardItemModel>
 
 SettingsWidgetKeeShare::SettingsWidgetKeeShare(QWidget* parent)
     : QWidget(parent)
@@ -60,15 +60,15 @@ void SettingsWidgetKeeShare::loadSettings()
 
     m_foreign = KeeShare::foreign();
     updateForeignCertificates();
-
 }
 
 void SettingsWidgetKeeShare::updateForeignCertificates()
 {
     m_importedCertificateModel.reset(new QStandardItemModel());
-    m_importedCertificateModel->setHorizontalHeaderLabels(QStringList() << tr("Signer") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
+    m_importedCertificateModel->setHorizontalHeaderLabels(
+        QStringList() << tr("Signer") << tr("Status") << tr("Fingerprint") << tr("Certificate"));
 
-    for( const KeeShareSettings::Certificate &certificate : m_foreign.certificates ){
+    for (const KeeShareSettings::Certificate& certificate : m_foreign.certificates) {
         QStandardItem* signer = new QStandardItem(certificate.signer);
         QStandardItem* verified = new QStandardItem(certificate.trusted ? tr("trusted") : tr("untrusted"));
         QStandardItem* fingerprint = new QStandardItem(certificate.fingerprint());
@@ -95,7 +95,7 @@ void SettingsWidgetKeeShare::saveSettings()
     // TODO HNH: This depends on the order of saving new data - a better model would be to
     //           store changes to the settings in a temporary object and check on the final values
     //           of this object (similar scheme to Entry) - this way we could validate the settings before save
-    if (active.in ) {
+    if (active.in) {
         emit settingsMessage(tr("Make sure to have a history size greater than 2 to prevent data loss when importing!"), MessageWidget::Warning);
     }
 
@@ -104,8 +104,7 @@ void SettingsWidgetKeeShare::saveSettings()
     KeeShare::setActive(active);
 }
 
-
-void SettingsWidgetKeeShare::setVerificationExporter(const QString &signer)
+void SettingsWidgetKeeShare::setVerificationExporter(const QString& signer)
 {
     m_own.certificate.signer = signer;
     m_ui->ownCertificateSignerEdit->setText(m_own.certificate.signer);
@@ -129,13 +128,8 @@ void SettingsWidgetKeeShare::importCertificate()
     }
     const auto filetype = tr("key.share", "Filetype for KeeShare key");
     const auto filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeeShare key file"), tr("All files"));
-    QString filename = fileDialog()->getOpenFileName(this,
-                                                 tr("Select path"),
-                                                 defaultDirPath,
-                                                 filters,
-                                                 nullptr,
-                                                 0);
-    if( filename.isEmpty() ){
+    QString filename = fileDialog()->getOpenFileName(this, tr("Select path"), defaultDirPath, filters, nullptr, 0);
+    if (filename.isEmpty()) {
         return;
     }
     QFile file(filename);
@@ -150,16 +144,16 @@ void SettingsWidgetKeeShare::importCertificate()
 
 void SettingsWidgetKeeShare::exportCertificate()
 {
-    if( KeeShare::own() != m_own ){
+    if (KeeShare::own() != m_own) {
         QMessageBox warning;
         warning.setIcon(QMessageBox::Warning);
-        warning.setWindowTitle( tr("Exporting changed certificate"));
+        warning.setWindowTitle(tr("Exporting changed certificate"));
         warning.setText(tr("The exported certificate is not the same as the one in use. Do you want to export the current certificate?"));
         auto yes = warning.addButton(QMessageBox::StandardButton::Yes);
         auto no = warning.addButton(QMessageBox::StandardButton::No);
         warning.setDefaultButton(no);
         warning.exec();
-        if( warning.clickedButton() != yes){
+        if (warning.clickedButton() != yes) {
             return;
         }
     }
@@ -171,15 +165,8 @@ void SettingsWidgetKeeShare::exportCertificate()
     const auto filetype = tr("key.share", "Filetype for KeeShare key");
     const auto filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeeShare key file"), tr("All files"));
     QString filename = tr("%1.%2", "Template for KeeShare key file").arg(m_own.certificate.signer).arg(filetype);
-    filename = fileDialog()->getSaveFileName(this,
-                                                 tr("Select path"),
-                                                 defaultDirPath,
-                                                 filters,
-                                                 nullptr,
-                                                 0,
-                                                 filetype,
-                                                 filename);
-    if( filename.isEmpty() ){
+    filename = fileDialog()->getSaveFileName(this, tr("Select path"), defaultDirPath, filters, nullptr, 0, filetype, filename);
+    if (filename.isEmpty()) {
         return;
     }
     QFile file(filename);
@@ -193,9 +180,9 @@ void SettingsWidgetKeeShare::exportCertificate()
 
 void SettingsWidgetKeeShare::trustSelectedCertificates()
 {
-    const auto *selectionModel = m_ui->importedCertificateTableView->selectionModel();
+    const auto* selectionModel = m_ui->importedCertificateTableView->selectionModel();
     Q_ASSERT(selectionModel);
-    for( const auto& index : selectionModel->selectedRows() ){
+    for (const auto& index : selectionModel->selectedRows()) {
         m_foreign.certificates[index.row()].trusted = true;
     }
 
@@ -204,9 +191,9 @@ void SettingsWidgetKeeShare::trustSelectedCertificates()
 
 void SettingsWidgetKeeShare::untrustSelectedCertificates()
 {
-    const auto *selectionModel = m_ui->importedCertificateTableView->selectionModel();
+    const auto* selectionModel = m_ui->importedCertificateTableView->selectionModel();
     Q_ASSERT(selectionModel);
-    for( const auto& index : selectionModel->selectedRows() ){
+    for (const auto& index : selectionModel->selectedRows()) {
         m_foreign.certificates[index.row()].trusted = false;
     }
 
@@ -216,9 +203,9 @@ void SettingsWidgetKeeShare::untrustSelectedCertificates()
 void SettingsWidgetKeeShare::removeSelectedCertificates()
 {
     QList<KeeShareSettings::Certificate> certificates = m_foreign.certificates;
-    const auto *selectionModel = m_ui->importedCertificateTableView->selectionModel();
+    const auto* selectionModel = m_ui->importedCertificateTableView->selectionModel();
     Q_ASSERT(selectionModel);
-    for( const auto& index : selectionModel->selectedRows() ){
+    for (const auto& index : selectionModel->selectedRows()) {
         certificates.removeOne(m_foreign.certificates[index.row()]);
     }
     m_foreign.certificates = certificates;

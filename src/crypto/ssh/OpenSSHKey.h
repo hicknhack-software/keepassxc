@@ -67,13 +67,14 @@ public:
     static const QString TYPE_RSA_PUBLIC;
     static const QString TYPE_OPENSSH_PRIVATE;
 
-    enum Type {
+    enum Type
+    {
         Public,
         Private
     };
 
-    static OpenSSHKey restoreFromBinary(Type eType, const QByteArray &serialized);
-    static QByteArray serializeToBinary(Type eType, const OpenSSHKey &key);
+    static OpenSSHKey restoreFromBinary(Type eType, const QByteArray& serialized);
+    static QByteArray serializeToBinary(Type eType, const OpenSSHKey& key);
 
 private:
     bool extractPEM(const QByteArray& in, QByteArray& out);

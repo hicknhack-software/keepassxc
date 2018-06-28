@@ -92,7 +92,7 @@ private:
     static void resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb);
 
     static Database* exportIntoContainer(const KeeShareSettings::Reference& reference, const Group* sourceRoot);
-    static Result importContainerInto(const KeeShareSettings::Reference &reference, Group* targetGroup);
+    static Result importContainerInto(const KeeShareSettings::Reference& reference, Group* targetGroup);
 
     Result importFromReferenceContainer(const QString& path);
     QList<ShareObserver::Result> exportIntoReferenceContainers();

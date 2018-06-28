@@ -20,14 +20,14 @@
 #include "core/Database.h"
 #include "core/FilePath.h"
 #include "core/Group.h"
-#include "keeshare/KeeShare.h"
-#include "keeshare/SettingsWidgetKeeShare.h"
 #include "gui/DatabaseTabWidget.h"
 #include "gui/MessageWidget.h"
+#include "keeshare/KeeShare.h"
+#include "keeshare/SettingsWidgetKeeShare.h"
 #include <QApplication>
 #include <QObject>
 
-SettingsPageKeeShare::SettingsPageKeeShare(DatabaseTabWidget *tabWidget)
+SettingsPageKeeShare::SettingsPageKeeShare(DatabaseTabWidget* tabWidget)
     : m_tabWidget(tabWidget)
 {
 }
@@ -42,26 +42,26 @@ QIcon SettingsPageKeeShare::icon()
     return FilePath::instance()->icon("apps", "preferences-system-network-sharing");
 }
 
-QWidget *SettingsPageKeeShare::createWidget()
+QWidget* SettingsPageKeeShare::createWidget()
 {
-    auto *widget = new SettingsWidgetKeeShare();
-    QObject::connect(
-                widget, SIGNAL(settingsMessage(QString, MessageWidget::MessageType)),
-                m_tabWidget, SIGNAL(messageGlobal(QString, MessageWidget::MessageType)));
+    auto* widget = new SettingsWidgetKeeShare();
+    QObject::connect(widget,
+                     SIGNAL(settingsMessage(QString, MessageWidget::MessageType)),
+                     m_tabWidget,
+                     SIGNAL(messageGlobal(QString, MessageWidget::MessageType)));
     return widget;
 }
 
-void SettingsPageKeeShare::loadSettings(QWidget *widget)
+void SettingsPageKeeShare::loadSettings(QWidget* widget)
 {
     Q_UNUSED(widget);
     SettingsWidgetKeeShare* settingsWidget = reinterpret_cast<SettingsWidgetKeeShare*>(widget);
     settingsWidget->loadSettings();
 }
 
-void SettingsPageKeeShare::saveSettings(QWidget *widget)
+void SettingsPageKeeShare::saveSettings(QWidget* widget)
 {
     Q_UNUSED(widget);
     SettingsWidgetKeeShare* settingsWidget = reinterpret_cast<SettingsWidgetKeeShare*>(widget);
     return settingsWidget->saveSettings();
 }
-

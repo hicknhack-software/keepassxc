@@ -52,7 +52,7 @@ void TestRandom::teardown()
     Random::resetInstance();
 }
 
-void RandomBackendNull::randomize(void *data, int len)
+void RandomBackendNull::randomize(void* data, int len)
 {
     char* charData = reinterpret_cast<char*>(data);
 

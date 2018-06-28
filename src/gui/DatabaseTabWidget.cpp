@@ -855,7 +855,7 @@ void DatabaseTabWidget::connectDatabase(Database* newDb, Database* oldDb)
 #endif
 }
 
-void DatabaseTabWidget::handleDatabaseMessage(Database *db, QString message, MessageWidget::MessageType type)
+void DatabaseTabWidget::handleDatabaseMessage(Database* db, QString message, MessageWidget::MessageType type)
 {
     auto* databaseWidget = currentDatabaseWidget();
     if (!databaseWidget) {

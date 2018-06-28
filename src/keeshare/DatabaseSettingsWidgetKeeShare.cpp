@@ -24,8 +24,8 @@
 #include "keeshare/KeeShare.h"
 #include "keeshare/KeeShareSettings.h"
 
-#include <QStandardItemModel>
 #include <QMessageBox>
+#include <QStandardItemModel>
 
 DatabaseSettingsWidgetKeeShare::DatabaseSettingsWidgetKeeShare(QWidget* parent)
     : QWidget(parent)
@@ -38,13 +38,14 @@ DatabaseSettingsWidgetKeeShare::~DatabaseSettingsWidgetKeeShare()
 {
 }
 
-void DatabaseSettingsWidgetKeeShare::loadSettings(Database *db)
+void DatabaseSettingsWidgetKeeShare::loadSettings(Database* db)
 {
     m_db = db;
 
     m_referencesModel.reset(new QStandardItemModel());
 
-    m_referencesModel->setHorizontalHeaderLabels(QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path") << tr("Last Signer") << tr("Certificates"));
+    m_referencesModel->setHorizontalHeaderLabels(
+        QStringList() << tr("Breadcrumb") << tr("Type") << tr("Path") << tr("Last Signer") << tr("Certificates"));
     const QList<Group*> groups = db->rootGroup()->groupsRecursive(true);
     for (const Group* group : groups) {
         if (!KeeShare::isShared(group)) {
@@ -66,7 +67,5 @@ void DatabaseSettingsWidgetKeeShare::loadSettings(Database *db)
 
 void DatabaseSettingsWidgetKeeShare::saveSettings()
 {
-   // nothing to do - the tab is passive
+    // nothing to do - the tab is passive
 }
-
-
