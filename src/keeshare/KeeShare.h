@@ -21,10 +21,10 @@
 #include <QMap>
 #include <QObject>
 
+#include "core/Uuid.h"
 #include "gui/MessageWidget.h"
 #include "keeshare/KeeShareSettings.h"
 
-class CustomData;
 class Group;
 class Database;
 class ShareObserver;
@@ -35,34 +35,6 @@ class KeeShare : public QObject
 {
     Q_OBJECT
 public:
-    enum Type
-    {
-        Inactive = 0,
-        ImportFrom = 1 << 0,
-        ExportTo = 1 << 1,
-        SynchronizeWith = ImportFrom | ExportTo
-    };
-
-    struct Reference
-    {
-        Type type;
-        Uuid uuid;
-        QString path;
-        QString password;
-
-        Reference();
-        bool isNull() const;
-        bool isActive() const;
-        bool isExporting() const;
-        bool isImporting() const;
-        bool operator<(const Reference& other) const;
-        bool operator==(const Reference& other) const;
-
-        static QString serialize(const Reference &reference);
-        static Reference deserialize(const QString &raw);
-    };
-
-
     static KeeShare* instance();
     static void init(QObject* parent);
 
@@ -70,26 +42,32 @@ public:
     static QPixmap indicatorBadge(const Group* group, QPixmap pixmap);
 
     static bool isShared(const Group* group);
-    static bool isEnabled(const Database* db, Type sharing);
 
-    static KeeShareSettings settingsOf(const Database* database);
-    static void setSettingsTo(Database *database, const KeeShareSettings& settings);
-    static KeeShareSettings generateEncryptionSettingsFor(const Database* db);
+    static KeeShareSettings::Own own();
+    static KeeShareSettings::Active active();
+    static KeeShareSettings::Foreign foreign();
+    static void setForeign(const KeeShareSettings::Foreign &foreign);
+    static void setActive(const KeeShareSettings::Active &active);
+    static void setOwn(const KeeShareSettings::Own &own);
 
-    static Reference referenceOf(const CustomData* customData);
-    static void setReferenceTo(CustomData* customData, const Reference& reference);
-    static QString referenceTypeLabel(const Reference& reference);
+    static KeeShareSettings::Reference referenceOf(const Group *group);
+    static void setReferenceTo(Group* group, const KeeShareSettings::Reference& reference);
+    static QString referenceTypeLabel(const KeeShareSettings::Reference& reference);
 
     void connectDatabase(Database *newDb, Database *oldDb);
     void handleDatabaseOpened(Database *db);
     void handleDatabaseSaved(Database *db);
+
 signals:
+    void activeChanged();
     void sharingMessage(Database*, QString, MessageWidget::MessageType);
 
 private slots:
     void emitSharingMessage(const QString&, MessageWidget::MessageType);
-    void handleDatabaseDeleted(QObject *db);
-    void handleObserverDeleted(QObject *observer);
+    void handleDatabaseDeleted(QObject *);
+    void handleObserverDeleted(QObject *);
+    void handleSettingsChanged(const QString &);
+
 private:
     static KeeShare* m_instance;
 

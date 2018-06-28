@@ -46,9 +46,9 @@ void DatabaseSettingsPageKeeShare::loadSettings(QWidget *widget, Database *db)
     settingsWidget->loadSettings(db);
 }
 
-bool DatabaseSettingsPageKeeShare::saveSettings(QWidget *widget)
+void DatabaseSettingsPageKeeShare::saveSettings(QWidget *widget)
 {
     DatabaseSettingsWidgetKeeShare* settingsWidget = reinterpret_cast<DatabaseSettingsWidgetKeeShare*>(widget);
-    return settingsWidget->saveSettings();
+    settingsWidget->saveSettings();
 }
 

@@ -45,6 +45,7 @@
 #endif
 #ifdef WITH_XC_KEESHARE
 #include "keeshare/KeeShare.h"
+#include "keeshare/SettingsPageKeeShare.h"
 #endif
 #ifdef WITH_XC_BROWSER
 #include "browser/BrowserOptionDialog.h"
@@ -159,6 +160,7 @@ MainWindow::MainWindow()
 
 #ifdef WITH_XC_KEESHARE
     KeeShare::init(this);
+    m_ui->settingsWidget->addSettingsPage(new SettingsPageKeeShare(m_ui->tabWidget));
 #endif
     setWindowIcon(filePath()->applicationIcon());
     m_ui->globalMessageWidget->setHidden(true);

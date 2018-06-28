@@ -39,9 +39,11 @@
 
 QTEST_GUILESS_MAIN(TestSharing)
 
+Q_DECLARE_METATYPE(KeeShareSettings::Type)
 Q_DECLARE_METATYPE(KeeShareSettings::Key)
 Q_DECLARE_METATYPE(KeeShareSettings::Certificate)
 Q_DECLARE_METATYPE(QList<KeeShareSettings::Certificate>)
+Q_DECLARE_METATYPE(Uuid)
 
 void TestSharing::initTestCase()
 {
@@ -101,22 +103,37 @@ void TestSharing::testIdempotentDatabaseWriting()
 void TestSharing::testNullObjects()
 {
     const QString empty;
-    QXmlStreamReader keyReader(empty);
+    QXmlStreamReader reader(empty);
 
     const KeeShareSettings::Key nullKey;
     QVERIFY(nullKey.isNull());
-    const KeeShareSettings::Key xmlKey = KeeShareSettings::Key::deserialize(keyReader);
+    const KeeShareSettings::Key xmlKey = KeeShareSettings::Key::deserialize(reader);
     QVERIFY(xmlKey.isNull());
 
     const KeeShareSettings::Certificate certificate;
     QVERIFY(certificate.isNull());
-    const KeeShareSettings::Certificate xmlCertificate = KeeShareSettings::Certificate::deserialize(keyReader);
+    const KeeShareSettings::Certificate xmlCertificate = KeeShareSettings::Certificate::deserialize(reader);
     QVERIFY(xmlCertificate.isNull());
 
-    const KeeShareSettings nullSettings;
-    QVERIFY(nullSettings.isNull());
-    const KeeShareSettings xmlSettings = KeeShareSettings::deserialize(empty);
-    QVERIFY(xmlSettings.isNull());
+    const KeeShareSettings::Own own;
+    QVERIFY(own.isNull());
+    const KeeShareSettings::Own xmlOwn = KeeShareSettings::Own::deserialize(empty);
+    QVERIFY(xmlOwn.isNull());
+
+    const KeeShareSettings::Active active;
+    QVERIFY(active.isNull());
+    const KeeShareSettings::Active xmlActive = KeeShareSettings::Active::deserialize(empty);
+    QVERIFY(xmlActive.isNull());
+
+    const KeeShareSettings::Foreign foreign;
+    QVERIFY(foreign.isNull());
+    const KeeShareSettings::Foreign xmlForeign = KeeShareSettings::Foreign::deserialize(empty);
+    QVERIFY(xmlForeign.isNull());
+
+    const KeeShareSettings::Reference reference;
+    QVERIFY(reference.isNull());
+    const KeeShareSettings::Reference xmlReference = KeeShareSettings::Reference::deserialize(empty);
+    QVERIFY(xmlReference.isNull());
 }
 
 void TestSharing::testCertificateSerialization()
@@ -131,10 +148,14 @@ void TestSharing::testCertificateSerialization()
     QString buffer;
     QXmlStreamWriter writer(&buffer);
     writer.writeStartDocument();
-    KeeShareSettings::Certificate::serialize(writer, original, "Certificate");
+    writer.writeStartElement("Certificate");
+    KeeShareSettings::Certificate::serialize(writer, original);
+    writer.writeEndElement();
     writer.writeEndDocument();
     QXmlStreamReader reader(buffer);
-    KeeShareSettings::Certificate restored = KeeShareSettings::Certificate::deserialize(reader, "Certificate");
+    reader.readNextStartElement();
+    QVERIFY(reader.name() == "Certificate");
+    KeeShareSettings::Certificate restored = KeeShareSettings::Certificate::deserialize(reader);
 
     QCOMPARE(restored.key, original.key);
     QCOMPARE(restored.signer, original.signer);
@@ -159,43 +180,87 @@ void TestSharing::testKeySerialization()
     QString buffer;
     QXmlStreamWriter writer(&buffer);
     writer.writeStartDocument();
-    KeeShareSettings::Key::serialize(writer, original, "Key");
+    writer.writeStartElement("Key");
+    KeeShareSettings::Key::serialize(writer, original);
+    writer.writeEndElement();
     writer.writeEndDocument();
     QXmlStreamReader reader(buffer);
-    KeeShareSettings::Key restored = KeeShareSettings::Key::deserialize(reader, "Key");
+    reader.readNextStartElement();
+    QVERIFY(reader.name() == "Key");
+    KeeShareSettings::Key restored = KeeShareSettings::Key::deserialize(reader);
 
     QCOMPARE(restored.key, original.key);
     QCOMPARE(restored.sshKey().privateParts(), key.privateParts());
     QCOMPARE(restored.sshKey().type(), key.type());
 }
 
+void TestSharing::testReferenceSerialization()
+{
+    QFETCH(QString, password);
+    QFETCH(QString, path);
+    QFETCH(Uuid, uuid);
+    QFETCH(int, type);
+    KeeShareSettings::Reference original;
+    original.password = password;
+    original.path = path;
+    original.uuid = uuid;
+    original.type = static_cast<KeeShareSettings::Type>(type);
+
+    const QString serialized = KeeShareSettings::Reference::serialize(original);
+    const KeeShareSettings::Reference restored = KeeShareSettings::Reference::deserialize(serialized);
+
+    QCOMPARE(restored.password, original.password);
+    QCOMPARE(restored.path, original.path);
+    QCOMPARE(restored.uuid, original.uuid);
+    QCOMPARE(int(restored.type), int(original.type));
+}
+
+void TestSharing::testReferenceSerialization_data()
+{
+    QTest::addColumn<QString>("password");
+    QTest::addColumn<QString>("path");
+    QTest::addColumn<Uuid>("uuid");
+    QTest::addColumn<int>("type");
+    QTest::newRow("1") << "Password" << "/some/path" << Uuid::random() << int(KeeShareSettings::Inactive);
+    QTest::newRow("2") << "" << "" << Uuid() << int(KeeShareSettings::SynchronizeWith);
+    QTest::newRow("3") << "" << "/some/path" << Uuid() << int(KeeShareSettings::ExportTo);
+
+}
+
 void TestSharing::testSettingsSerialization()
 {
-
     QFETCH(bool, importing);
     QFETCH(bool, exporting);
     QFETCH(KeeShareSettings::Certificate, ownCertificate);
     QFETCH(KeeShareSettings::Key, ownKey);
     QFETCH(QList<KeeShareSettings::Certificate>, foreignCertificates);
 
-    KeeShareSettings original;
-    original.importing = importing;
-    original.exporting = exporting;
-    original.ownCertificate = ownCertificate;
-    original.ownKey = ownKey;
-    original.foreignCertificates = foreignCertificates;
+    KeeShareSettings::Own originalOwn;
+    KeeShareSettings::Foreign originalForeign;
+    KeeShareSettings::Active originalActive;
+    originalActive.in = importing;
+    originalActive.out = exporting;
+    originalOwn.certificate = ownCertificate;
+    originalOwn.key = ownKey;
+    originalForeign.certificates = foreignCertificates;
 
-    const QString serialized = KeeShareSettings::serialize(original);
-    KeeShareSettings restored = KeeShareSettings::deserialize(serialized);
+    const QString serializedActive = KeeShareSettings::Active::serialize(originalActive);
+    KeeShareSettings::Active restoredActive = KeeShareSettings::Active::deserialize(serializedActive);
 
-    QCOMPARE(restored.importing, importing);
-    QCOMPARE(restored.exporting, exporting);
-    QCOMPARE(restored.ownCertificate.key, ownCertificate.key);
-    QCOMPARE(restored.ownCertificate.trusted, ownCertificate.trusted);
-    QCOMPARE(restored.ownKey.key, ownKey.key);
-    QCOMPARE(restored.foreignCertificates.count(), foreignCertificates.count());
+    const QString serializedOwn = KeeShareSettings::Own::serialize(originalOwn);
+    KeeShareSettings::Own restoredOwn = KeeShareSettings::Own::deserialize(serializedOwn);
+
+    const QString serializedForeign = KeeShareSettings::Foreign::serialize(originalForeign);
+    KeeShareSettings::Foreign restoredForeign = KeeShareSettings::Foreign::deserialize(serializedForeign);
+
+    QCOMPARE(restoredActive.in, importing);
+    QCOMPARE(restoredActive.out, exporting);
+    QCOMPARE(restoredOwn.certificate.key, ownCertificate.key);
+    QCOMPARE(restoredOwn.certificate.trusted, ownCertificate.trusted);
+    QCOMPARE(restoredOwn.key.key, ownKey.key);
+    QCOMPARE(restoredForeign.certificates.count(), foreignCertificates.count());
     for( int i = 0; i < foreignCertificates.count(); ++i ){
-        QCOMPARE(restored.foreignCertificates[i].key, foreignCertificates[i].key);
+        QCOMPARE(restoredForeign.certificates[i].key, foreignCertificates[i].key);
     }
 }
 
@@ -238,3 +303,4 @@ const OpenSSHKey &TestSharing::stubkey(int index)
     }
     return *keys[index];
 }
+

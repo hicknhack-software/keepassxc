@@ -52,21 +52,25 @@ EditGroupWidgetKeeShare::EditGroupWidgetKeeShare(QWidget* parent)
     connect(m_ui->pathEdit, SIGNAL(textChanged(QString)), SLOT(setPath(QString)));
     connect(m_ui->pathSelectionButton, SIGNAL(pressed()), SLOT(selectPath()));
     connect(m_ui->typeComboBox, SIGNAL(currentIndexChanged(int)), SLOT(selectType()));
-    const auto types = QList<KeeShare::Type>() << KeeShare::Inactive << KeeShare::ImportFrom
-                                              << KeeShare::ExportTo << KeeShare::SynchronizeWith;
+
+    connect(KeeShare::instance(), SIGNAL(activeChanged()), SLOT(showSharingState()));
+
+    const auto types = QList<KeeShareSettings::Type>()
+            << KeeShareSettings::Inactive << KeeShareSettings::ImportFrom
+            << KeeShareSettings::ExportTo << KeeShareSettings::SynchronizeWith;
     for (const auto& type : types) {
         QString name;
         switch (type) {
-        case KeeShare::Inactive:
+        case KeeShareSettings::Inactive:
             name = tr("Inactive");
             break;
-        case KeeShare::ImportFrom:
+        case KeeShareSettings::ImportFrom:
             name = tr("Import from path");
             break;
-        case KeeShare::ExportTo:
+        case KeeShareSettings::ExportTo:
             name = tr("Export to path");
             break;
-        case KeeShare::SynchronizeWith:
+        case KeeShareSettings::SynchronizeWith:
             name = tr("Synchronize with path");
             break;
         }
@@ -78,13 +82,12 @@ EditGroupWidgetKeeShare::~EditGroupWidgetKeeShare()
 {
 }
 
-void EditGroupWidgetKeeShare::setGroup(Group* temporaryGroup, Database *database)
+void EditGroupWidgetKeeShare::setGroup(Group* temporaryGroup)
 {
     if (m_temporaryGroup) {
         m_temporaryGroup->disconnect(this);
     }
 
-    m_database = database;
     m_temporaryGroup = temporaryGroup;
 
     if (m_temporaryGroup) {
@@ -95,18 +98,17 @@ void EditGroupWidgetKeeShare::setGroup(Group* temporaryGroup, Database *database
 
 void EditGroupWidgetKeeShare::showSharingState()
 {
-    if(!m_temporaryGroup || !m_database){
+    if(!m_temporaryGroup){
         return;
     }
-    const auto importEnabled = KeeShare::isEnabled(m_database, KeeShare::ImportFrom);
-    const auto exportEnabled = KeeShare::isEnabled(m_database, KeeShare::ExportTo);
-    if (!importEnabled && !exportEnabled) {
+    const auto active = KeeShare::active();
+    if (!active.in && !active.out) {
         m_ui->messageWidget->showMessage(tr("Database sharing is disabled"), MessageWidget::Information);
     }
-    if (importEnabled && !exportEnabled) {
+    if (active.in && !active.out) {
         m_ui->messageWidget->showMessage(tr("Database export is disabled"), MessageWidget::Information);
     }
-    if (!importEnabled && exportEnabled) {
+    if (!active.in && active.out) {
         m_ui->messageWidget->showMessage(tr("Database import is disabled"), MessageWidget::Information);
     }
 }
@@ -120,7 +122,7 @@ void EditGroupWidgetKeeShare::update()
         m_ui->togglePasswordGeneratorButton->setChecked(false);
 
     } else {
-        const auto reference = KeeShare::referenceOf(m_temporaryGroup->customData());
+        const auto reference = KeeShare::referenceOf(m_temporaryGroup);
 
         m_ui->typeComboBox->setCurrentIndex(reference.type);
         m_ui->passwordEdit->setText(reference.password);
@@ -141,9 +143,9 @@ void EditGroupWidgetKeeShare::setGeneratedPassword(const QString& password)
     if (!m_temporaryGroup) {
         return;
     }
-    auto reference = KeeShare::referenceOf(m_temporaryGroup->customData());
+    auto reference = KeeShare::referenceOf(m_temporaryGroup);
     reference.password = password;
-    KeeShare::setReferenceTo(m_temporaryGroup->customData(), reference);
+    KeeShare::setReferenceTo(m_temporaryGroup, reference);
     m_ui->togglePasswordGeneratorButton->setChecked(false);
 }
 
@@ -152,9 +154,9 @@ void EditGroupWidgetKeeShare::setPath(const QString& path)
     if (!m_temporaryGroup) {
         return;
     }
-    auto reference = KeeShare::referenceOf(m_temporaryGroup->customData());
+    auto reference = KeeShare::referenceOf(m_temporaryGroup);
     reference.path = path;
-    KeeShare::setReferenceTo(m_temporaryGroup->customData(), reference);
+    KeeShare::setReferenceTo(m_temporaryGroup, reference);
 }
 
 void EditGroupWidgetKeeShare::selectPath()
@@ -167,15 +169,15 @@ void EditGroupWidgetKeeShare::selectPath()
     if (!dirExists) {
         defaultDirPath = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first();
     }
-    auto reference = KeeShare::referenceOf(m_temporaryGroup->customData());
+    auto reference = KeeShare::referenceOf(m_temporaryGroup);
     const auto filetype = tr("kdbx.share", "Filetype for KeeShare container");
-    const auto filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeePass2 KeeShare Container"), tr("All files"));
+    const auto filters = QString("%1 (*." + filetype + ");;%2 (*)").arg(tr("KeeShare Container"), tr("All files"));
     auto filename = reference.path;
     if (filename.isEmpty()) {
         filename = tr("%1.%2", "Template for KeeShare container").arg(m_temporaryGroup->name()).arg(filetype);
     }
     switch (reference.type) {
-    case KeeShare::ImportFrom:
+    case KeeShareSettings::ImportFrom:
         filename = fileDialog()->getFileName(this,
                                              tr("Select import source"),
                                              defaultDirPath,
@@ -185,12 +187,12 @@ void EditGroupWidgetKeeShare::selectPath()
                                              filetype,
                                              filename);
         break;
-    case KeeShare::ExportTo:
+    case KeeShareSettings::ExportTo:
         filename = fileDialog()->getFileName(
             this, tr("Select export target"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
-    case KeeShare::SynchronizeWith:
-    case KeeShare::Inactive:
+    case KeeShareSettings::SynchronizeWith:
+    case KeeShareSettings::Inactive:
         filename = fileDialog()->getFileName(
             this, tr("Select import/export file"), defaultDirPath, filters, nullptr, 0, filetype, filename);
         break;
@@ -209,9 +211,9 @@ void EditGroupWidgetKeeShare::selectPassword()
     if (!m_temporaryGroup) {
         return;
     }
-    auto reference = KeeShare::referenceOf(m_temporaryGroup->customData());
+    auto reference = KeeShare::referenceOf(m_temporaryGroup);
     reference.password = m_ui->passwordEdit->text();
-    KeeShare::setReferenceTo(m_temporaryGroup->customData(), reference);
+    KeeShare::setReferenceTo(m_temporaryGroup, reference);
 }
 
 void EditGroupWidgetKeeShare::selectType()
@@ -219,8 +221,8 @@ void EditGroupWidgetKeeShare::selectType()
     if (!m_temporaryGroup) {
         return;
     }
-    auto reference = KeeShare::referenceOf(m_temporaryGroup->customData());
-    reference.type = static_cast<KeeShare::Type>(m_ui->typeComboBox->currentData().toInt());
-    KeeShare::setReferenceTo(m_temporaryGroup->customData(), reference);
+    auto reference = KeeShare::referenceOf(m_temporaryGroup);
+    reference.type = static_cast<KeeShareSettings::Type>(m_ui->typeComboBox->currentData().toInt());
+    KeeShare::setReferenceTo(m_temporaryGroup, reference);
 }
 

@@ -31,7 +31,7 @@ public:
     QIcon icon() override;
     QWidget *createWidget() override;
     void loadSettings(QWidget *widget, Database *db) override;
-    bool saveSettings(QWidget *widget) override;
+    void saveSettings(QWidget *widget) override;
 };
 
 #endif // KEEPASSXC_DATABASESETTINGSPAGEKEESHARE_H

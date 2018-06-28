@@ -76,12 +76,10 @@ SettingsWidget::SettingsWidget(QWidget* parent)
     connect(this, SIGNAL(apply()), SLOT(saveSettings()));
     connect(this, SIGNAL(rejected()), SLOT(reject()));
 
-    connect(
-        m_generalUi->autoSaveAfterEveryChangeCheckBox, SIGNAL(toggled(bool)), this, SLOT(enableAutoSaveOnExit(bool)));
+    connect(m_generalUi->autoSaveAfterEveryChangeCheckBox, SIGNAL(toggled(bool)), this, SLOT(enableAutoSaveOnExit(bool)));
     connect(m_generalUi->systrayShowCheckBox, SIGNAL(toggled(bool)), this, SLOT(enableSystray(bool)));
 
-    connect(
-        m_secUi->clearClipboardCheckBox, SIGNAL(toggled(bool)), m_secUi->clearClipboardSpinBox, SLOT(setEnabled(bool)));
+    connect(m_secUi->clearClipboardCheckBox, SIGNAL(toggled(bool)), m_secUi->clearClipboardSpinBox, SLOT(setEnabled(bool)));
     connect(m_secUi->lockDatabaseIdleCheckBox,
             SIGNAL(toggled(bool)),
             m_secUi->lockDatabaseIdleSpinBox,

@@ -139,7 +139,6 @@ struct RSASigner
             raiseError();
             return QString();
         }
-        // TODO CK: manage memory allocated by gcry (sexp_find, mpi_aprint, ...)
         sexp[S] = gcry_sexp_find_token(sexp[Sig], "s", 1);
         mpi[S] = gcry_sexp_nth_mpi(sexp[S], 1, GCRYMPI_FMT_USG);
         Tools::Buffer buffer;

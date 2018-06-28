@@ -48,7 +48,7 @@ public:
     virtual QIcon icon() = 0;
     virtual QWidget* createWidget() = 0;
     virtual void loadSettings(QWidget* widget, Database *db) = 0;
-    virtual bool saveSettings(QWidget* widget) = 0;
+    virtual void saveSettings(QWidget* widget) = 0;
 };
 
 class DatabaseSettingsWidget : public DialogyWidget

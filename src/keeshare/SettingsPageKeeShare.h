@@ -15,37 +15,28 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H
-#define KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H
+#ifndef KEEPASSXC_SETTINGSPAGEKEESHARE_H
+#define KEEPASSXC_SETTINGSPAGEKEESHARE_H
 
-#include <QScopedPointer>
-#include <QPointer>
 #include <QWidget>
+#include <QObject>
+#include <QPointer>
 
-class Database;
+#include "gui/SettingsWidget.h"
 
-class QStandardItemModel;
+class DatabaseTabWidget;
 
-namespace Ui
+class SettingsPageKeeShare : public ISettingsPage
 {
-    class DatabaseSettingsWidgetKeeShare;
-}
-
-class DatabaseSettingsWidgetKeeShare : public QWidget
-{
-    Q_OBJECT
 public:
-    explicit DatabaseSettingsWidgetKeeShare(QWidget* parent = nullptr);
-    ~DatabaseSettingsWidgetKeeShare();
-
-    void loadSettings(Database *db);
-    void saveSettings();
-
+    SettingsPageKeeShare(DatabaseTabWidget* tabWidget);
+    QString name() override;
+    QIcon icon() override;
+    QWidget *createWidget() override;
+    void loadSettings(QWidget *widget) override;
+    void saveSettings(QWidget *widget) override;
 private:
-    QScopedPointer<Ui::DatabaseSettingsWidgetKeeShare> m_ui;
-
-    QScopedPointer<QStandardItemModel> m_referencesModel;
-    QPointer<Database> m_db;
+    QPointer<DatabaseTabWidget> m_tabWidget;
 };
 
-#endif // KEEPASSXC_DATABASESETTINGSWIDGETKEESHARE_H
+#endif // KEEPASSXC_SETTINGSPAGEKEESHARE_H

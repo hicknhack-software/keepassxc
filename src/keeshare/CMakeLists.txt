@@ -2,6 +2,8 @@ if(WITH_XC_KEESHARE)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
     set(keeshare_SOURCES
+	SettingsPageKeeShare.cpp
+	SettingsWidgetKeeShare.cpp
 	DatabaseSettingsPageKeeShare.cpp
 	DatabaseSettingsWidgetKeeShare.cpp
 	group/EditGroupWidgetKeeShare.cpp

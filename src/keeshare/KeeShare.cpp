@@ -16,6 +16,7 @@
  */
 
 #include "KeeShare.h"
+#include "core/Config.h"
 #include "core/CustomData.h"
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
@@ -30,8 +31,10 @@
 #include <QMessageBox>
 
 namespace {
-static const QString KeeShare_Attribute("KeeShare");
-static const QChar KeeShareExt_Delimiter('|');
+static const QString KeeShare_Reference("KeeShare/Reference");
+static const QString KeeShare_Own("KeeShare/Settings.own");
+static const QString KeeShare_Foreign("KeeShare/Settings.foreign");
+static const QString KeeShare_Active("KeeShare/Settings.active");
 }
 
 KeeShare* KeeShare::m_instance = nullptr;
@@ -51,92 +54,51 @@ void KeeShare::init(QObject* parent)
     m_instance = new KeeShare(parent);
 }
 
-
-KeeShare::Reference::Reference()
-    : type(Type::Inactive)
-    , uuid(Uuid::random())
+KeeShareSettings::Own KeeShare::own()
 {
+    return KeeShareSettings::Own::deserialize(config()->get(KeeShare_Own).toString());
 }
 
-bool KeeShare::Reference::isNull() const
+KeeShareSettings::Active KeeShare::active()
 {
-    return type == Inactive && path.isEmpty() && password.isEmpty();
+    return KeeShareSettings::Active::deserialize(config()->get(KeeShare_Active).toString());
 }
 
-bool KeeShare::Reference::isActive() const
+KeeShareSettings::Foreign KeeShare::foreign()
 {
-    return type != Inactive && !path.isEmpty();
+    return KeeShareSettings::Foreign::deserialize(config()->get(KeeShare_Foreign).toString());
 }
 
-bool KeeShare::Reference::isExporting() const
+void KeeShare::setForeign(const KeeShareSettings::Foreign &foreign)
 {
-    return (type & ExportTo) != 0 && !path.isEmpty();
+    config()->set(KeeShare_Foreign, KeeShareSettings::Foreign::serialize(foreign));
 }
 
-bool KeeShare::Reference::isImporting() const
+void KeeShare::setActive(const KeeShareSettings::Active &active)
 {
-    return (type & ImportFrom) != 0 && !path.isEmpty();
+    config()->set(KeeShare_Active, KeeShareSettings::Active::serialize(active));
 }
 
-bool KeeShare::Reference::operator<(const Reference& other) const
+void KeeShare::setOwn(const KeeShareSettings::Own &own)
 {
-    if (type != other.type) {
-        return type < other.type;
-    }
-    return path < other.path;
-}
-
-bool KeeShare::Reference::operator==(const Reference& other) const
-{
-    return path == other.path && uuid == other.uuid && password == other.password && type == other.type;
-}
-
-QString KeeShare::Reference::serialize(const Reference &reference)
-{
-    const QStringList raw = QStringList()
-            << QString::number(static_cast<int>(reference.type))
-            << reference.uuid.toHex()
-            << reference.path.toLatin1().toBase64()
-            << reference.password.toLatin1().toBase64();
-    return raw.join(KeeShareExt_Delimiter);
-}
-
-KeeShare::Reference KeeShare::Reference::deserialize(const QString &raw)
-{
-    Reference reference;
-
-    const auto parts = raw.split(KeeShareExt_Delimiter);
-    if (parts.count() != 4) {
-        return reference;
-    }
-    reference.type = static_cast<Type>(parts[0].toInt());
-    reference.uuid = Uuid::fromHex(parts[1]);
-    reference.path = QByteArray::fromBase64(parts[2].toLatin1());
-    reference.password = QByteArray::fromBase64(parts[3].toLatin1());
-
-    return reference;
-}
-
-
-bool KeeShare::isEnabled(const Database* db, Type type)
-{
-    const KeeShareSettings settings = KeeShare::settingsOf(db);
-    return ((type & ImportFrom) != 0 && settings.importing)
-            || ((type & ExportTo) != 0 && settings.exporting);
+    config()->set(KeeShare_Own, KeeShareSettings::Own::serialize(own));
 }
 
 bool KeeShare::isShared(const Group* group)
 {
-    return group->customData()->contains(KeeShare_Attribute);
+    return group->customData()->contains(KeeShare_Reference);
 }
 
-KeeShare::Reference KeeShare::referenceOf(const CustomData* customData)
+KeeShareSettings::Reference KeeShare::referenceOf(const Group* group)
 {
-    static const Reference s_emptyReference;
-    if (!customData->contains(KeeShare_Attribute)) {
+    static const KeeShareSettings::Reference s_emptyReference;
+    const CustomData *customData = group->customData();
+    if (!customData->contains(KeeShare_Reference)) {
         return s_emptyReference;
     }
-    Reference reference = Reference::deserialize(customData->value(KeeShare_Attribute));
+    const auto encoded = customData->value(KeeShare_Reference);
+    const auto serialized = QString::fromUtf8(QByteArray::fromBase64(encoded.toLatin1()));
+    KeeShareSettings::Reference reference = KeeShareSettings::Reference::deserialize(serialized);
     if( reference.isNull() ){
         qWarning("Invalid sharing reference detected - sharing disabled");
         return s_emptyReference;
@@ -144,32 +106,16 @@ KeeShare::Reference KeeShare::referenceOf(const CustomData* customData)
     return reference;
 }
 
-KeeShareSettings KeeShare::settingsOf(const Database *database)
+void KeeShare::setReferenceTo(Group* group, const KeeShareSettings::Reference& reference)
 {
-    Q_ASSERT(database);
-    const auto* meta = database->metadata();
-    const auto* customData = meta->customData();
-    return KeeShareSettings::deserialize(customData->value(KeeShare_Attribute));
-}
-
-void KeeShare::setReferenceTo(CustomData* customData, const Reference& reference)
-{
+    CustomData *customData = group->customData();
     if (reference.isNull()) {
-        customData->remove(KeeShare_Attribute);
+        customData->remove(KeeShare_Reference);
         return;
     }
-    if (customData->contains(KeeShare_Attribute)) {
-        customData->set(KeeShare_Attribute, Reference::serialize(reference));
-    }
-    customData->set(KeeShare_Attribute, Reference::serialize(reference));
-}
-
-void KeeShare::setSettingsTo(Database *database, const KeeShareSettings &settings)
-{
-    Q_ASSERT( database );
-    auto* metadata = database->metadata();
-    auto* customData = metadata->customData();
-    customData->set(KeeShare_Attribute, KeeShareSettings::serialize(settings));
+    const auto serialized = KeeShareSettings::Reference::serialize(reference);
+    const auto encoded = serialized.toUtf8().toBase64();
+    customData->set(KeeShare_Reference, encoded);
 }
 
 QPixmap KeeShare::indicatorBadge(const Group* group, QPixmap pixmap)
@@ -177,8 +123,9 @@ QPixmap KeeShare::indicatorBadge(const Group* group, QPixmap pixmap)
     if (!isShared(group)) {
         return pixmap;
     }
-    const Reference reference = referenceOf(group->customData());
-    const bool enabled = isEnabled(group->database(), reference.type);
+    const auto reference = KeeShare::referenceOf(group);
+    const auto active = KeeShare::active();
+    const bool enabled = (reference.isImporting() && active.in) || (reference.isExporting() && active.out);
     const QPixmap badge = enabled ? databaseIcons()->iconPixmap(DatabaseIcons::SharedIconIndex)
                                   : databaseIcons()->iconPixmap(DatabaseIcons::UnsharedIconIndex);
     QImage canvas = pixmap.toImage();
@@ -190,16 +137,16 @@ QPixmap KeeShare::indicatorBadge(const Group* group, QPixmap pixmap)
     return pixmap;
 }
 
-QString KeeShare::referenceTypeLabel(const Reference& reference)
+QString KeeShare::referenceTypeLabel(const KeeShareSettings::Reference& reference)
 {
     switch (reference.type) {
-    case KeeShare::Inactive:
+    case KeeShareSettings::Inactive:
         return tr("Disabled share");
-    case KeeShare::ImportFrom:
+    case KeeShareSettings::ImportFrom:
         return tr("Import from");
-    case KeeShare::ExportTo:
+    case KeeShareSettings::ExportTo:
         return tr("Export to");
-    case KeeShare::SynchronizeWith:
+    case KeeShareSettings::SynchronizeWith:
         return tr("Synchronize with");
     }
     return "";
@@ -207,15 +154,9 @@ QString KeeShare::referenceTypeLabel(const Reference& reference)
 
 QString KeeShare::indicatorSuffix(const Group* group, const QString& text)
 {
+    // we not adjust the display name for now - it's just an alternative to the icon
     Q_UNUSED(group);
     return text;
-    //    if (!isShared(group)) {
-    //        return text;
-    //    }
-    //    const Reference reference = referenceOf(group->customData());
-    //    return reference.isActive()
-    //               ? tr("%1 [share active]", "Template for name with active sharing annotation").arg(text)
-    //               : tr("%1 [share inactive]", "Template for name with inactive sharing annotation").arg(text);
 }
 
 void KeeShare::connectDatabase(Database *newDb, Database *oldDb)
@@ -276,8 +217,15 @@ void KeeShare::handleObserverDeleted(QObject *observer)
     }
 }
 
+void KeeShare::handleSettingsChanged(const QString &key)
+{
+    if( key == KeeShare_Active ){
+        emit activeChanged();
+    }
+}
+
 KeeShare::KeeShare(QObject *parent)
     : QObject(parent)
 {
-
+    connect(config(), SIGNAL(changed(QString)), this, SLOT(handleSettingsChanged(QString)));
 }

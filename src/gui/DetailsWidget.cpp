@@ -285,7 +285,7 @@ void DetailsWidget::updateGroupSharingTab()
 {
     Q_ASSERT(m_currentGroup);
     setTabEnabled(m_ui->groupTabWidget, m_ui->groupShareTab, KeeShare::isShared(m_currentGroup));
-    auto reference = KeeShare::referenceOf(m_currentGroup->customData());
+    auto reference = KeeShare::referenceOf(m_currentGroup);
     m_ui->groupShareTypeLabel->setText(KeeShare::referenceTypeLabel(reference));
     m_ui->groupSharePathLabel->setText(reference.path);
 }

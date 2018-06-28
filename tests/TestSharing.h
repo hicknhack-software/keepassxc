@@ -35,6 +35,8 @@ private slots:
     void testCertificateSerialization();
     void testCertificateSerialization_data();
     void testKeySerialization();
+    void testReferenceSerialization();
+    void testReferenceSerialization_data();
     void testSettingsSerialization();
     void testSettingsSerialization_data();
 

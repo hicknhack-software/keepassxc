@@ -61,9 +61,9 @@ public:
         settingsPage->loadSettings(widget, db);
     }
 
-    bool saveSettings() const
+    void saveSettings() const
     {
-        return settingsPage->saveSettings(widget);
+        settingsPage->saveSettings(widget);
     }
 
 private:
@@ -281,9 +281,7 @@ void DatabaseSettingsWidget::save()
     m_db->setCipher(Uuid(m_uiEncryption->algorithmComboBox->currentData().toByteArray()));
 
     for( const ExtraPage& extraPage : asConst(m_extraPages) ){
-        if( ! extraPage.saveSettings() ){
-            return;
-        }
+        extraPage.saveSettings();
     }
 
     // Save kdf parameters

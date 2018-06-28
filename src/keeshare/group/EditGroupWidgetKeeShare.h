@@ -37,9 +37,9 @@ public:
     explicit EditGroupWidgetKeeShare(QWidget* parent = nullptr);
     ~EditGroupWidgetKeeShare();
 
-    void setGroup(Group *temporaryGroup, Database *database);
+    void setGroup(Group *temporaryGroup);
 
-private:
+private slots:
     void showSharingState();
 
 private slots:
@@ -54,7 +54,6 @@ private slots:
 private:
     QScopedPointer<Ui::EditGroupWidgetKeeShare> m_ui;
     QPointer<Group> m_temporaryGroup;
-    QPointer<Database> m_database;
 };
 
 #endif // KEEPASSXC_EDITGROUPWIDGETKEESHARE_H

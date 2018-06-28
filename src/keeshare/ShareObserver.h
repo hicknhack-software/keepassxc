@@ -26,7 +26,7 @@
 
 #include "core/Uuid.h"
 #include "gui/MessageWidget.h"
-#include "keeshare/KeeShare.h"
+#include "keeshare/KeeShareSettings.h"
 
 class BulkFileWatcher;
 class Entry;
@@ -91,8 +91,8 @@ private:
 
     static void resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb);
 
-    static Database* exportIntoContainer(const KeeShare::Reference& reference, const Group* sourceRoot);
-    static Result importContainerInto(const KeeShare::Reference &reference, Group* targetGroup);
+    static Database* exportIntoContainer(const KeeShareSettings::Reference& reference, const Group* sourceRoot);
+    static Result importContainerInto(const KeeShareSettings::Reference &reference, Group* targetGroup);
 
     Result importFromReferenceContainer(const QString& path);
     QList<ShareObserver::Result> exportIntoReferenceContainers();
@@ -103,8 +103,8 @@ private:
 
 private:
     Database* const m_db;
-    QMap<KeeShare::Reference, QPointer<Group>> m_referenceToGroup;
-    QMap<QPointer<Group>, KeeShare::Reference> m_groupToReference;
+    QMap<KeeShareSettings::Reference, QPointer<Group>> m_referenceToGroup;
+    QMap<QPointer<Group>, KeeShareSettings::Reference> m_groupToReference;
     QMap<QString, QPointer<Group>> m_shareToGroup;
 
     BulkFileWatcher* m_fileWatcher;

@@ -23,70 +23,121 @@
 
 #include "core/Uuid.h"
 #include "crypto/ssh/OpenSSHKey.h"
-#include "gui/MessageWidget.h"
 
 class CustomData;
-class Group;
-class Database;
 class QXmlStreamWriter;
 class QXmlStreamReader;
 
-class KeeShareSettings
+namespace KeeShareSettings
 {
-public:
-    enum Type
-    {
-        Inactive = 0,
-        ImportFrom = 1 << 0,
-        ExportTo = 1 << 1,
-        SynchronizeWith = ImportFrom | ExportTo
-    };
-
     struct Certificate
     {
         QByteArray key;
         QString signer;
         bool trusted;
 
+        bool operator==(const Certificate &other) const;
+        bool operator!=(const Certificate &other) const;
+
         Certificate() : trusted(false) {}
 
         bool isNull() const;
         QString fingerprint() const;
+        QString publicKey() const;
         OpenSSHKey sshKey() const;
 
         static void serialize(QXmlStreamWriter &writer, const Certificate &certificate);
-        static void serialize(QXmlStreamWriter &writer, const Certificate &certificate, const QString &element);
         static Certificate deserialize(QXmlStreamReader &reader);
-        static Certificate deserialize(QXmlStreamReader &reader, const QString &element);
     };
 
     struct Key
     {
         QByteArray key;
 
+        bool operator==(const Key &other) const;
+        bool operator!=(const Key &other) const;
+
         bool isNull() const;
+        QString privateKey() const;
         OpenSSHKey sshKey() const;
 
         static void serialize(QXmlStreamWriter &writer, const Key &key);
-        static void serialize(QXmlStreamWriter &writer, const Key &key, const QString &element);
         static Key deserialize(QXmlStreamReader &reader);
-        static Key deserialize(QXmlStreamReader &reader, const QString &element);
     };
 
-    bool importing;
-    bool exporting;
-    Key ownKey;
-    Certificate ownCertificate;
-    QList<Certificate> foreignCertificates;
+    struct Active
+    {
+        bool in;
+        bool out;
+        Active() : in(false), out(false) {}
+        bool isNull() const { return !in && !out; }
 
-    KeeShareSettings();
-    bool isNull() const;
+        static QString serialize(const Active &active);
+        static Active deserialize(const QString &raw);
+    };
 
-    static QString serialize(const KeeShareSettings &settings);
-    static KeeShareSettings deserialize(const QString &raw);
+    struct Own
+    {
+        Key key;
+        Certificate certificate;
 
+        bool operator==(const Own &other) const;
+        bool operator!=(const Own &other) const;
+        bool isNull() const { return key.isNull() && certificate.isNull(); }
 
-    static KeeShareSettings generateEncryptionSettingsFor(const Database *db);
+        static QString serialize(const Own &own);
+        static Own deserialize(const QString &raw);
+        static Own generate();
+    };
+
+    struct Foreign
+    {
+        QList<Certificate> certificates;
+
+        bool isNull() const { return certificates.isEmpty(); }
+
+        static QString serialize(const Foreign &foreign);
+        static Foreign deserialize(const QString &raw);
+    };
+
+    struct Sign
+    {
+        QString signature;
+        Certificate certificate;
+
+        bool isNull() const { return signature.isEmpty() && certificate.isNull(); }
+
+        static QString serialize(const Sign &sign);
+        static Sign deserialize(const QString &raw);
+    };
+
+    enum TypeFlag
+    {
+        Inactive = 0,
+        ImportFrom = 1 << 0,
+        ExportTo = 1 << 1,
+        SynchronizeWith = ImportFrom | ExportTo
+    };
+    Q_DECLARE_FLAGS(Type, TypeFlag)
+
+    struct Reference
+    {
+        Type type;
+        Uuid uuid;
+        QString path;
+        QString password;
+
+        Reference();
+        bool isNull() const;
+        bool isValid() const;
+        bool isExporting() const;
+        bool isImporting() const;
+        bool operator<(const Reference& other) const;
+        bool operator==(const Reference& other) const;
+
+        static QString serialize(const Reference &reference);
+        static Reference deserialize(const QString &raw);
+    };
 };
 
 #endif // KEEPASSXC_KEESHARESETTINGS_H
