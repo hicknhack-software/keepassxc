@@ -156,6 +156,9 @@ namespace KeeShareSettings
                 certificate.signer = reader.readElementText();
             } else if (reader.name() == "Key") {
                 certificate.key = QByteArray::fromBase64(reader.readElementText().toLatin1());
+            } else {
+                ::qWarning() << "Unknown KeeShareSettings element" << reader.name() << "in certificate\n";
+                reader.skipCurrentElement();
             }
         }
         return certificate;
@@ -247,7 +250,7 @@ namespace KeeShareSettings
                         }
                     }
                 } else {
-                    ::qWarning() << "Unknown KeeShareSettings element" << reader.name();
+                    ::qWarning() << "Unknown KeeShareSettings element" << reader.name() << "in active\n" << raw;
                     reader.skipCurrentElement();
                 }
             }
@@ -287,7 +290,7 @@ namespace KeeShareSettings
                 } else if (reader.name() == "PublicKey") {
                     own.certificate = Certificate::deserialize(reader);
                 } else {
-                    ::qWarning() << "Unknown KeeShareSettings element" << reader.name();
+                    ::qWarning() << "Unknown KeeShareSettings element" << reader.name() << "in own\n" << raw;
                     reader.skipCurrentElement();
                 }
             }
@@ -363,7 +366,7 @@ namespace KeeShareSettings
                         }
                     }
                 } else {
-                    ::qWarning() << "Unknown KeeShareSettings element" << reader.name();
+                    ::qWarning() << "Unknown KeeShareSettings element" << reader.name() << "in foreign\n" << raw;
                     reader.skipCurrentElement();
                 }
             }
@@ -457,7 +460,7 @@ namespace KeeShareSettings
                 } else if (reader.name() == "Password") {
                     reference.password = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
                 } else {
-                    ::qWarning() << "Unknown Reference element" << reader.name();
+                    ::qWarning() << "Unknown Reference element" << reader.name() << "in reference\n" << raw;
                     reader.skipCurrentElement();
                 }
             }
@@ -487,7 +490,7 @@ namespace KeeShareSettings
                 } else if (reader.name() == "Certificate") {
                     sign.certificate = KeeShareSettings::Certificate::deserialize(reader);
                 } else {
-                    ::qWarning() << "Unknown Sign element" << reader.name();
+                    ::qWarning() << "Unknown Sign element" << reader.name() << "in sign\n" << raw;
                     reader.skipCurrentElement();
                 }
             }

@@ -69,7 +69,7 @@ bool Merger::merge()
     changes << mergeDeletions(m_context);
     changes << mergeMetadata(m_context);
 
-    // qDebug("Merged %s", qPrintable(changes.join("\n\t")));
+    qDebug("Merged %s", qPrintable(changes.join("\n\t")));
 
     // At this point we have a list of changes we may want to show the user
     if (!changes.isEmpty()) {
@@ -347,23 +347,27 @@ Merger::ChangeList Merger::resolveEntryConflict_MergeHistories(const MergeContex
     if (comparison < 0) {
         Group* currentGroup = targetEntry->group();
         Entry* clonedEntry = sourceEntry->clone(Entry::CloneIncludeHistory);
-        qDebug("Merge %s/%s with alien on top under %s",
+        qDebug("Try merge %s/%s with alien on top under %s",
                qPrintable(targetEntry->title()),
                qPrintable(sourceEntry->title()),
                qPrintable(currentGroup->name()));
         changes << tr("Synchronizing from newer source %1 [%2]").arg(targetEntry->title(), targetEntry->uuidToHex());
+        qDebug("    ... merged changes");
         moveEntry(clonedEntry, currentGroup);
         mergeHistory(targetEntry, clonedEntry, mergeMethod);
         eraseEntry(targetEntry);
     } else {
-        qDebug("Merge %s/%s with local on top/under %s",
+        qDebug("Try merge %s/%s with local on top/under %s",
                qPrintable(targetEntry->title()),
                qPrintable(sourceEntry->title()),
                qPrintable(targetEntry->group()->name()));
         const bool changed = mergeHistory(sourceEntry, targetEntry, mergeMethod);
         if (changed) {
+            qDebug("    ... merged changes");
             changes
                 << tr("Synchronizing from older source %1 [%2]").arg(targetEntry->title(), targetEntry->uuidToHex());
+        } else {
+            qDebug("    ... no changes");
         }
     }
     return changes;
