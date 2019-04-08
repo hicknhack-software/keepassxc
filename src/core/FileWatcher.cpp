@@ -135,7 +135,7 @@ void BulkFileWatcher::clear()
     }
     m_watchedPaths.clear();
     m_watchedFilesInDirectory.clear();
-    m_ignoreFilesChangess.clear();
+    m_ignoreFilesChanges.clear();
 }
 
 void BulkFileWatcher::removePath(const QString& path)
@@ -166,7 +166,7 @@ void BulkFileWatcher::addPath(const QString& path)
         const bool directorySuccess = m_fileWatcher.addPath(directoryPath);
         m_watchedPaths[directoryPath] = directorySuccess;
     }
-    m_watchedFilesInDirectory[directoryPath][filePath] = info.exists();
+    m_watchedFilesInDirectory[directoryPath][filePath] = info.exists() ? info.lastModified().toMSecsSinceEpoch() : 0;
 }
 
 void BulkFileWatcher::handleFileChanged(const QString& path)
@@ -174,13 +174,15 @@ void BulkFileWatcher::handleFileChanged(const QString& path)
     const QFileInfo info(path);
     const QString filePath = info.absoluteFilePath();
     const QString directoryPath = info.absolutePath();
-    const QMap<QString, bool>& watchedFiles = m_watchedFilesInDirectory[directoryPath];
-    const bool created = !watchedFiles[filePath] && info.exists();
-    const bool deleted = watchedFiles[filePath] && !info.exists();
-    const bool changed = !created && !deleted;
+    const QMap<QString, qint64>& watchedFiles = m_watchedFilesInDirectory[directoryPath];
+    const qint64 lastModificationTime = info.lastModified().toMSecsSinceEpoch();
+    const bool created = 0 == watchedFiles[filePath] && info.exists();
+    const bool deleted = 0 != watchedFiles[filePath] && !info.exists();
+    const bool changed = !created && !deleted && lastModificationTime != watchedFiles[filePath];
+
     addPath(path);
 
-    if (m_ignoreFilesChangess[info.canonicalFilePath()] > Clock::currentDateTimeUtc()) {
+    if (m_ignoreFilesChanges[info.canonicalFilePath()] > Clock::currentDateTimeUtc()) {
         // changes are blocked
         return;
     }
@@ -203,35 +205,36 @@ void BulkFileWatcher::handleDirectoryChanged(const QString& path)
     qDebug("Directory changed %s", qPrintable(path));
     const QFileInfo directoryInfo(path);
     const QString directoryPath = directoryInfo.absoluteFilePath();
-    QMap<QString, bool>& watchedFiles = m_watchedFilesInDirectory[directoryPath];
+    QMap<QString, qint64>& watchedFiles = m_watchedFilesInDirectory[directoryPath];
     for (const QString& filename : watchedFiles.keys()) {
         const QFileInfo fileInfo(filename);
         const QString filePath = fileInfo.absoluteFilePath();
-        const bool existed = watchedFiles[filePath];
-        if (!fileInfo.exists() && existed) {
-            qDebug("Remove watch file %s", qPrintable(filePath));
+        const qint64 previousModificationTime = watchedFiles[filePath];
+        const qint64 lastModificationTime = fileInfo.lastModified().toMSecsSinceEpoch();
+        if (!fileInfo.exists() && previousModificationTime != 0) {
+            qDebug("Remove watch file %s", qPrintable(fileInfo.absoluteFilePath()));
             m_fileWatcher.removePath(filePath);
             m_watchedPaths.remove(filePath);
             watchedFiles.remove(filePath);
             scheduleSignal(Removed, filePath);
         }
-        if (!existed && fileInfo.exists()) {
-            qDebug("Add watch file %s", qPrintable(filePath));
+        if (previousModificationTime == 0 && fileInfo.exists()) {
+            qDebug("Add watch file %s", qPrintable(fileInfo.absoluteFilePath()));
             if (!m_watchedPaths.value(filePath)) {
                 const bool success = m_fileWatcher.addPath(filePath);
                 m_watchedPaths[filePath] = success;
-                watchedFiles[filePath] = fileInfo.exists();
+                watchedFiles[filePath] = lastModificationTime;
             }
             scheduleSignal(Created, filePath);
         }
-        if (existed && fileInfo.exists()) {
+        if (fileInfo.exists() && previousModificationTime != lastModificationTime) {
             // this case is handled using
             qDebug("Refresh watch file %s", qPrintable(fileInfo.absoluteFilePath()));
             m_fileWatcher.removePath(fileInfo.absolutePath());
             m_fileWatcher.addPath(fileInfo.absolutePath());
             scheduleSignal(Updated, filePath);
         }
-        m_watchedFilesInDirectory[directoryPath][filePath] = fileInfo.exists();
+        m_watchedFilesInDirectory[directoryPath][filePath] = fileInfo.exists() ? lastModificationTime : 0;
     }
 }
 
@@ -242,13 +245,16 @@ void BulkFileWatcher::emitSignals()
     for (const auto& path : queued.keys()) {
         const auto& signal = queued[path];
         if (signal.last() == Removed) {
+            qDebug("Emit %s removed", qPrintable(path));
             emit fileRemoved(path);
             continue;
         }
         if (signal.first() == Created) {
+            qDebug("Emit %s created", qPrintable(path));
             emit fileCreated(path);
             continue;
         }
+        qDebug("Emit %s changed", qPrintable(path));
         emit fileChanged(path);
     }
 }
@@ -268,7 +274,7 @@ void BulkFileWatcher::scheduleSignal(Signal signal, const QString& path)
 void BulkFileWatcher::ignoreFileChanges(const QString& path)
 {
     const QFileInfo info(path);
-    m_ignoreFilesChangess[info.canonicalFilePath()] = Clock::currentDateTimeUtc().addMSecs(FileChangeDelay);
+    m_ignoreFilesChanges[info.canonicalFilePath()] = Clock::currentDateTimeUtc().addMSecs(FileChangeDelay);
 }
 
 void BulkFileWatcher::observeFileChanges(bool delayed)
@@ -278,16 +284,16 @@ void BulkFileWatcher::observeFileChanges(bool delayed)
         timeout = TimerResolution;
     } else {
         const QDateTime current = Clock::currentDateTimeUtc();
-        for (const QString& key : m_ignoreFilesChangess.keys()) {
-            if (m_ignoreFilesChangess[key] < current) {
+        for (const QString& key : m_ignoreFilesChanges.keys()) {
+            if (m_ignoreFilesChanges[key] < current) {
                 // We assume that there was no concurrent change of the database
                 // during our block - so no need to reimport
                 qDebug("Remove block from %s", qPrintable(key));
-                m_ignoreFilesChangess.remove(key);
+                m_ignoreFilesChanges.remove(key);
                 continue;
             }
             qDebug("Keep block from %s", qPrintable(key));
-            timeout = static_cast<int>(current.msecsTo(m_ignoreFilesChangess[key]));
+            timeout = qMin(timeout, static_cast<int>(current.msecsTo(m_ignoreFilesChanges[key])));
         }
     }
     if (timeout > 0 && !m_fileWatchUnblockTimer.isActive()) {

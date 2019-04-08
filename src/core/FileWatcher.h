@@ -93,9 +93,9 @@ private:
 
 private:
     QMap<QString, bool> m_watchedPaths;
-    QMap<QString, QDateTime> m_ignoreFilesChangess;
+    QMap<QString, QDateTime> m_ignoreFilesChanges;
     QFileSystemWatcher m_fileWatcher;
-    QMap<QString, QMap<QString, bool>> m_watchedFilesInDirectory;
+    QMap<QString, QMap<QString, qint64>> m_watchedFilesInDirectory;
     // needed for Import/Export-References to prevent update after self-write
     QTimer m_fileWatchUnblockTimer;
     // needed to tolerate multiple signals for same event
