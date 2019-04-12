@@ -399,10 +399,10 @@ ShareObserver::Result ShareObserver::importSingedContainerInto(const KeeShareSet
         KeeShare::setForeign(foreign);
 
         if (trust.first == TrustedForever) {
-            qDebug("Synchronize %s %s with %s",
-                   qPrintable(reference.path),
-                   qPrintable(targetGroup->name()),
-                   qPrintable(sourceDb->rootGroup()->name()));
+            qWarning("Synchronize %s %s with %s",
+                     qPrintable(reference.path),
+                     qPrintable(targetGroup->name()),
+                     qPrintable(sourceDb->rootGroup()->name()));
             Merger merger(sourceDb->rootGroup(), targetGroup);
             merger.setForcedMergeMode(Group::Synchronize);
             const bool changed = merger.merge();
@@ -415,10 +415,10 @@ ShareObserver::Result ShareObserver::importSingedContainerInto(const KeeShareSet
     }
     case TrustedOnce:
     case Own: {
-        qDebug("Synchronize %s %s with %s",
-               qPrintable(reference.path),
-               qPrintable(targetGroup->name()),
-               qPrintable(sourceDb->rootGroup()->name()));
+        qWarning("Synchronize %s %s with %s",
+                 qPrintable(reference.path),
+                 qPrintable(targetGroup->name()),
+                 qPrintable(sourceDb->rootGroup()->name()));
         Merger merger(sourceDb->rootGroup(), targetGroup);
         merger.setForcedMergeMode(Group::Synchronize);
         const bool changed = merger.merge();
@@ -486,10 +486,10 @@ ShareObserver::Result ShareObserver::importUnsignedContainerInto(const KeeShareS
         KeeShare::setForeign(foreign);
 
         if (trust.first == TrustedForever) {
-            qDebug("Synchronize %s %s with %s",
-                   qPrintable(reference.path),
-                   qPrintable(targetGroup->name()),
-                   qPrintable(sourceDb->rootGroup()->name()));
+            qWarning("Synchronize %s %s with %s",
+                     qPrintable(reference.path),
+                     qPrintable(targetGroup->name()),
+                     qPrintable(sourceDb->rootGroup()->name()));
             Merger merger(sourceDb->rootGroup(), targetGroup);
             merger.setForcedMergeMode(Group::Synchronize);
             const bool changed = merger.merge();
@@ -501,10 +501,10 @@ ShareObserver::Result ShareObserver::importUnsignedContainerInto(const KeeShareS
     }
 
     case TrustedOnce: {
-        qDebug("Synchronize %s %s with %s",
-               qPrintable(reference.path),
-               qPrintable(targetGroup->name()),
-               qPrintable(sourceDb->rootGroup()->name()));
+        qWarning("Synchronize %s %s with %s",
+                 qPrintable(reference.path),
+                 qPrintable(targetGroup->name()),
+                 qPrintable(sourceDb->rootGroup()->name()));
         Merger merger(sourceDb->rootGroup(), targetGroup);
         merger.setForcedMergeMode(Group::Synchronize);
         const bool changed = merger.merge();
