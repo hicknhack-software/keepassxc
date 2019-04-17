@@ -43,6 +43,7 @@ Q_DECLARE_METATYPE(KeeShareSettings::Key)
 Q_DECLARE_METATYPE(KeeShareSettings::Certificate)
 Q_DECLARE_METATYPE(KeeShareSettings::Trust)
 Q_DECLARE_METATYPE(KeeShareSettings::ScopedCertificate)
+Q_DECLARE_METATYPE(KeeShareSettings::Reference)
 Q_DECLARE_METATYPE(QList<KeeShareSettings::ScopedCertificate>)
 
 void TestSharing::initTestCase()
@@ -233,6 +234,45 @@ void TestSharing::testReferenceSerialization_data()
                        << "" << QUuid() << int(KeeShareSettings::SynchronizeWith);
     QTest::newRow("3") << ""
                        << "/some/path" << QUuid() << int(KeeShareSettings::ExportTo);
+}
+
+void TestSharing::testReferenceSerialization_verioningToCurrent()
+{
+    QFETCH(QString, serialized);
+    QFETCH(KeeShareSettings::Reference, transformed);
+
+    const KeeShareSettings::Reference restored = KeeShareSettings::Reference::deserialize(serialized);
+
+    QCOMPARE(restored.password, transformed.password);
+    QCOMPARE(restored.path, transformed.path);
+    QCOMPARE(restored.paths, transformed.paths);
+    QCOMPARE(restored.uuid, transformed.uuid);
+    QCOMPARE(int(restored.type), int(transformed.type));
+}
+
+void TestSharing::testReferenceSerialization_verioningToCurrent_data()
+{
+    QTest::addColumn<QString>("serialized");
+    QTest::addColumn<KeeShareSettings::Reference>("transformed");
+
+    KeeShareSettings::Reference original;
+    original.password = "password";
+    original.path = "path";
+    original.uuid = QUuid::createUuid();
+    original.type = static_cast<KeeShareSettings::Type>(KeeShareSettings::ImportFrom | KeeShareSettings::ExportTo);
+
+    KeeShareSettings::Reference transformed = original;
+    transformed.paths[""] = original.path;
+
+    QString serialized;
+    QXmlStreamWriter writer(&serialized);
+    writer.setCodec(QTextCodec::codecForName("UTF-8"));
+    writer.writeStartDocument();
+    writer.writeStartElement("KeeShare");
+    KeeShareSettings::Reference::Version0::serialize(writer, original);
+    writer.writeEndElement();
+    writer.writeEndDocument();
+    QTest::newRow("0 - current") << serialized << transformed;
 }
 
 void TestSharing::testSettingsSerialization()

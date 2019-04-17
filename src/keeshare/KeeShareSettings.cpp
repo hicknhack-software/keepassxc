@@ -28,6 +28,8 @@
 #include <QPainter>
 #include <QPushButton>
 
+#include <QDebug>
+
 #include <functional>
 
 namespace KeeShareSettings
@@ -415,23 +417,8 @@ namespace KeeShareSettings
     QString Reference::serialize(const Reference& reference)
     {
         return xmlSerialize([&](QXmlStreamWriter& writer) {
-            writer.writeStartElement("Type");
-            if ((reference.type & ImportFrom) == ImportFrom) {
-                writer.writeEmptyElement("Import");
-            }
-            if ((reference.type & ExportTo) == ExportTo) {
-                writer.writeEmptyElement("Export");
-            }
-            writer.writeEndElement();
-            writer.writeStartElement("Group");
-            writer.writeCharacters(reference.uuid.toRfc4122().toBase64());
-            writer.writeEndElement();
-            writer.writeStartElement("Path");
-            writer.writeCharacters(reference.path.toUtf8().toBase64());
-            writer.writeEndElement();
-            writer.writeStartElement("Password");
-            writer.writeCharacters(reference.password.toUtf8().toBase64());
-            writer.writeEndElement();
+            // deprecated: Version0::serialize(writer, reference);
+            Version1::serialize(writer, reference);
         });
     }
 
@@ -440,31 +427,121 @@ namespace KeeShareSettings
         Reference reference;
         xmlDeserialize(raw, [&](QXmlStreamReader& reader) {
             while (!reader.error() && reader.readNextStartElement()) {
-                if (reader.name() == "Type") {
-                    while (reader.readNextStartElement()) {
-                        if (reader.name() == "Import") {
-                            reference.type |= ImportFrom;
+                if (reader.name() == "Reference") {
+                    // Reference and version are introduced with version 1
+                    auto deserializer = &Version1::deserialize;
+                    const auto version = reader.attributes().value("version").toInt();
+                    switch (version) {
+                    case 1:
+                        deserializer = &Version1::deserialize;
+                        break;
+                    default:
+                        qWarning("Unknown keeshare reference version %d", version);
+                        break;
+                    }
+                    while (!reader.error() && reader.readNextStartElement()) {
+                        const auto read = deserializer(reader, reference);
+                        if (!read) {
+                            ::qWarning() << "Unknown Reference element" << reader.name();
                             reader.skipCurrentElement();
-                        } else if (reader.name() == "Export") {
-                            reference.type |= ExportTo;
-                            reader.skipCurrentElement();
-                        } else {
-                            break;
                         }
                     }
-                } else if (reader.name() == "Group") {
-                    reference.uuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
-                } else if (reader.name() == "Path") {
-                    reference.path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
-                } else if (reader.name() == "Password") {
-                    reference.password = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
-                } else {
-                    ::qWarning() << "Unknown Reference element" << reader.name();
                     reader.skipCurrentElement();
+                } else {
+                    const auto read = Version1::deserialize(reader, reference);
+                    if (!read) {
+                        ::qWarning() << "Unknown Reference element" << reader.name();
+                        reader.skipCurrentElement();
+                    }
                 }
             }
         });
         return reference;
+    }
+
+    void Reference::Version0::serialize(QXmlStreamWriter& writer, const Reference& reference)
+    {
+        writer.writeStartElement("Type");
+        if ((reference.type & ImportFrom) == ImportFrom) {
+            writer.writeEmptyElement("Import");
+        }
+        if ((reference.type & ExportTo) == ExportTo) {
+            writer.writeEmptyElement("Export");
+        }
+        writer.writeEndElement();
+        writer.writeStartElement("Group");
+        writer.writeCharacters(reference.uuid.toRfc4122().toBase64());
+        writer.writeEndElement();
+        writer.writeStartElement("Path");
+        writer.writeCharacters(reference.path.toUtf8().toBase64());
+        writer.writeEndElement();
+        writer.writeStartElement("Password");
+        writer.writeCharacters(reference.password.toUtf8().toBase64());
+        writer.writeEndElement();
+    }
+
+    void Reference::Version1::serialize(QXmlStreamWriter& writer, const Reference& reference)
+    {
+        writer.writeStartElement("Reference");
+        writer.writeAttribute("version", QString::number(1));
+
+        Version0::serialize(writer, reference);
+        writer.writeStartElement("Paths");
+        for (const auto path : reference.paths) {
+            writer.writeStartElement(path);
+            writer.writeCharacters(reference.paths[path].toUtf8().toBase64());
+            writer.writeEndElement();
+        }
+        writer.writeEndElement();
+
+        writer.writeEndElement();
+    }
+
+    bool Reference::Version0::deserialize(QXmlStreamReader& reader, Reference& reference)
+    {
+        if (reader.name() == "Type") {
+            while (reader.readNextStartElement()) {
+                if (reader.name() == "Import") {
+                    reference.type |= ImportFrom;
+                    reader.skipCurrentElement();
+                } else if (reader.name() == "Export") {
+                    reference.type |= ExportTo;
+                    reader.skipCurrentElement();
+                } else {
+                    break;
+                }
+            }
+            return true;
+        } else if (reader.name() == "Group") {
+            reference.uuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+            return true;
+        } else if (reader.name() == "Path") {
+            reference.path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+            return true;
+        } else if (reader.name() == "Password") {
+            reference.password = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+            return true;
+        }
+        return false;
+    }
+
+    bool Reference::Version1::deserialize(QXmlStreamReader& reader, Reference& reference)
+    {
+        const auto read = Version0::deserialize(reader, reference);
+        if (read) {
+            // the default path
+            reference.paths[""] = reference.path;
+            return true;
+        }
+        if (reader.name() == "Paths") {
+            while (reader.readNextStartElement()) {
+                const auto identifier = reader.name();
+                const auto path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+                reference.paths[identifier.toString()] = path;
+            }
+            return true;
+        }
+        return false;
     }
 
     QString Sign::serialize(const Sign& sign)

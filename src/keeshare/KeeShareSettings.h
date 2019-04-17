@@ -162,10 +162,27 @@ namespace KeeShareSettings
     {
         Type type;
         QUuid uuid;
-        QString path;
+        QString path; // currently used path
+        QMap<QString, QString> paths; // defined paths
         QString password;
 
+        struct Version0
+        {
+            static void serialize(QXmlStreamWriter& writer, const Reference& reference);
+            static bool deserialize(QXmlStreamReader& reader, Reference& reference);
+        };
+
+        struct Version1
+        {
+            static void serialize(QXmlStreamWriter& writer, const Reference& reference);
+            static bool deserialize(QXmlStreamReader& reader, Reference& reference);
+        };
+
         Reference();
+        Reference(const Reference&) = default;
+        Reference& operator=(const Reference&) = default;
+        Reference(Reference&&) = default;
+        Reference& operator=(Reference&&) = default;
         bool isNull() const;
         bool isValid() const;
         bool isExporting() const;

@@ -37,6 +37,8 @@ private slots:
     void testKeySerialization();
     void testReferenceSerialization();
     void testReferenceSerialization_data();
+    void testReferenceSerialization_verioningToCurrent();
+    void testReferenceSerialization_verioningToCurrent_data();
     void testSettingsSerialization();
     void testSettingsSerialization_data();
 
