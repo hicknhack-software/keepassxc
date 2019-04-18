@@ -151,6 +151,12 @@ namespace
         return {UntrustedOnce, certificate};
     }
 
+    QString resolvedPathWith(const QString& path, const Database& database)
+    {
+        const QFileInfo info(database.filePath());
+        return info.absoluteDir().absoluteFilePath(path);
+    }
+
 } // End Namespace
 
 ShareObserver::ShareObserver(QSharedPointer<Database> db, QObject* parent)
@@ -193,18 +199,20 @@ void ShareObserver::reinitialize()
     QList<Update> updated;
     const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
     for (Group* group : groups) {
-        Update couple{group, m_groupToReference.value(group), KeeShare::referenceOf(group)};
+        const Update couple{group, m_groupToReference.value(group), KeeShare::referenceOf(group)};
         if (couple.oldReference == couple.newReference) {
             continue;
         }
 
         m_groupToReference.remove(couple.group);
         m_referenceToGroup.remove(couple.oldReference);
-        m_shareToGroup.remove(couple.oldReference.path);
+        const auto oldResolvedPath = resolvedPathWith(couple.oldReference.path, *m_db);
+        m_shareToGroup.remove(oldResolvedPath);
         if (couple.newReference.isValid()) {
             m_groupToReference[couple.group] = couple.newReference;
             m_referenceToGroup[couple.newReference] = couple.group;
-            m_shareToGroup[couple.newReference.path] = couple.group;
+            const auto newResolvedPath = resolvedPathWith(couple.newReference.path, *m_db);
+            m_shareToGroup[newResolvedPath] = couple.group;
         }
         updated << couple;
     }
@@ -216,11 +224,13 @@ void ShareObserver::reinitialize()
     QMap<QString, QStringList> exported;
     for (const auto& update : asConst(updated)) {
         if (!update.oldReference.path.isEmpty()) {
-            m_fileWatcher->removePath(update.oldReference.path);
+            const auto oldResolvedPath = resolvedPathWith(update.oldReference.path, *m_db);
+            m_fileWatcher->removePath(oldResolvedPath);
         }
 
         if (!update.newReference.path.isEmpty() && update.newReference.type != KeeShareSettings::Inactive) {
-            m_fileWatcher->addPath(update.newReference.path);
+            const auto newResolvedPath = resolvedPathWith(update.newReference.path, *m_db);
+            m_fileWatcher->addPath(newResolvedPath);
         }
         if (update.newReference.isExporting()) {
             exported[update.newReference.path] << update.group->name();
@@ -322,14 +332,16 @@ void ShareObserver::handleFileUpdated(const QString& path)
     notifyAbout(success, warning, error);
 }
 
-ShareObserver::Result ShareObserver::importSingedContainerInto(const KeeShareSettings::Reference& reference,
+ShareObserver::Result ShareObserver::importSignedContainerInto(const QString& realPath,
+                                                               const KeeShareSettings::Reference& reference,
                                                                Group* targetGroup)
 {
 #if !defined(WITH_XC_KEESHARE_SECURE)
     Q_UNUSED(targetGroup);
+    Q_UNUSED(realPath);
     return {reference.path, Result::Warning, tr("Signed share container are not supported - import prevented")};
 #else
-    QuaZip zip(reference.path);
+    QuaZip zip(realPath);
     if (!zip.open(QuaZip::mdUnzip)) {
         qCritical("Unable to open file %s.", qPrintable(reference.path));
         return {reference.path, Result::Error, tr("File is not readable")};
@@ -434,14 +446,16 @@ ShareObserver::Result ShareObserver::importSingedContainerInto(const KeeShareSet
 #endif
 }
 
-ShareObserver::Result ShareObserver::importUnsignedContainerInto(const KeeShareSettings::Reference& reference,
+ShareObserver::Result ShareObserver::importUnsignedContainerInto(const QString& realPath,
+                                                                 const KeeShareSettings::Reference& reference,
                                                                  Group* targetGroup)
 {
 #if !defined(WITH_XC_KEESHARE_INSECURE)
     Q_UNUSED(targetGroup);
+    Q_UNUSED(realPath);
     return {reference.path, Result::Warning, tr("Unsigned share container are not supported - import prevented")};
 #else
-    QFile file(reference.path);
+    QFile file(realPath);
     if (!file.open(QIODevice::ReadOnly)) {
         qCritical("Unable to open file %s.", qPrintable(reference.path));
         return {reference.path, Result::Error, tr("File is not readable")};
@@ -520,20 +534,21 @@ ShareObserver::Result ShareObserver::importUnsignedContainerInto(const KeeShareS
 #endif
 }
 
-ShareObserver::Result ShareObserver::importContainerInto(const KeeShareSettings::Reference& reference,
+ShareObserver::Result ShareObserver::importContainerInto(const QString& realPath,
+                                                         const KeeShareSettings::Reference& reference,
                                                          Group* targetGroup)
 {
-    const QFileInfo info(reference.path);
+    const QFileInfo info(realPath);
     if (!info.exists()) {
         qCritical("File %s does not exist.", qPrintable(info.absoluteFilePath()));
         return {reference.path, Result::Warning, tr("File does not exist")};
     }
 
     if (isOfExportType(info, KeeShare::signedContainerFileType())) {
-        return importSingedContainerInto(reference, targetGroup);
+        return importSignedContainerInto(realPath, reference, targetGroup);
     }
     if (isOfExportType(info, KeeShare::unsignedContainerFileType())) {
-        return importUnsignedContainerInto(reference, targetGroup);
+        return importUnsignedContainerInto(realPath, reference, targetGroup);
     }
     return {reference.path, Result::Error, tr("Unknown share container type")};
 }
@@ -543,7 +558,8 @@ ShareObserver::Result ShareObserver::importFromReferenceContainer(const QString&
     if (!KeeShare::active().in) {
         return {};
     }
-    auto shareGroup = m_shareToGroup.value(path);
+    const auto changePath = resolvedPathWith(path, *m_db);
+    auto shareGroup = m_shareToGroup.value(changePath);
     if (!shareGroup) {
         qWarning("Source for %s does not exist", qPrintable(path));
         Q_ASSERT(shareGroup);
@@ -561,7 +577,8 @@ ShareObserver::Result ShareObserver::importFromReferenceContainer(const QString&
 
     Q_ASSERT(shareGroup->database() == m_db);
     Q_ASSERT(shareGroup == m_db->rootGroup()->findGroupByUuid(shareGroup->uuid()));
-    return importContainerInto(reference, shareGroup);
+    const auto resolvedPath = resolvedPathWith(reference.path, *m_db);
+    return importContainerInto(resolvedPath, reference, shareGroup);
 }
 
 void ShareObserver::resolveReferenceAttributes(Entry* targetEntry, const Database* sourceDb)
@@ -643,11 +660,13 @@ QSharedPointer<Database> ShareObserver::database()
     return m_db;
 }
 
-ShareObserver::Result ShareObserver::exportIntoReferenceSignedContainer(const KeeShareSettings::Reference& reference,
+ShareObserver::Result ShareObserver::exportIntoReferenceSignedContainer(const QString& realPath,
+                                                                        const KeeShareSettings::Reference& reference,
                                                                         Database* targetDb)
 {
 #if !defined(WITH_XC_KEESHARE_SECURE)
     Q_UNUSED(targetDb);
+    Q_UNUSED(realPath);
     return {
         reference.path, Result::Warning, tr("Overwriting signed share container is not supported - export prevented")};
 #else
@@ -663,7 +682,7 @@ ShareObserver::Result ShareObserver::exportIntoReferenceSignedContainer(const Ke
         }
     }
     const auto own = KeeShare::own();
-    QuaZip zip(reference.path);
+    QuaZip zip(realPath);
     zip.setFileNameCodec("UTF-8");
     const bool zipOpened = zip.open(QuaZip::mdCreate);
     if (!zipOpened) {
@@ -719,16 +738,18 @@ ShareObserver::Result ShareObserver::exportIntoReferenceSignedContainer(const Ke
 #endif
 }
 
-ShareObserver::Result ShareObserver::exportIntoReferenceUnsignedContainer(const KeeShareSettings::Reference& reference,
+ShareObserver::Result ShareObserver::exportIntoReferenceUnsignedContainer(const QString& realPath,
+                                                                          const KeeShareSettings::Reference& reference,
                                                                           Database* targetDb)
 {
 #if !defined(WITH_XC_KEESHARE_INSECURE)
     Q_UNUSED(targetDb);
+    Q_UNUSED(realPath);
     return {reference.path,
             Result::Warning,
             tr("Overwriting unsigned share container is not supported - export prevented")};
 #else
-    QFile file(reference.path);
+    QFile file(realPath);
     const bool fileOpened = file.open(QIODevice::WriteOnly);
     if (!fileOpened) {
         ::qWarning("Opening export file failed");
@@ -782,16 +803,17 @@ QList<ShareObserver::Result> ShareObserver::exportIntoReferenceContainers()
 
     for (auto it = references.cbegin(); it != references.cend(); ++it) {
         const auto& reference = it.value().first();
-        m_fileWatcher->ignoreFileChanges(reference.config.path);
+        const QString resolvedPath = resolvedPathWith(reference.config.path, *m_db);
+        m_fileWatcher->ignoreFileChanges(resolvedPath);
         QScopedPointer<Database> targetDb(exportIntoContainer(reference.config, reference.group));
-        QFileInfo info(reference.config.path);
+        QFileInfo info(resolvedPath);
         if (isOfExportType(info, KeeShare::signedContainerFileType())) {
-            results << exportIntoReferenceSignedContainer(reference.config, targetDb.data());
+            results << exportIntoReferenceSignedContainer(resolvedPath, reference.config, targetDb.data());
             m_fileWatcher->observeFileChanges(true);
             continue;
         }
         if (isOfExportType(info, KeeShare::unsignedContainerFileType())) {
-            results << exportIntoReferenceUnsignedContainer(reference.config, targetDb.data());
+            results << exportIntoReferenceUnsignedContainer(resolvedPath, reference.config, targetDb.data());
             m_fileWatcher->observeFileChanges(true);
             continue;
         }
