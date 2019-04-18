@@ -92,20 +92,20 @@ namespace
         QMessageBox warning;
         if (sign.signature.isEmpty()) {
             warning.setIcon(QMessageBox::Warning);
-            warning.setWindowTitle(ShareImport::tr("Import from container without signature"));
-            warning.setText(ShareImport::tr("We cannot verify the source of the shared container because it is not "
-                                            "signed. Do you really want to import from %1?")
+            warning.setWindowTitle(ShareObserver::tr("Import from container without signature"));
+            warning.setText(ShareObserver::tr("We cannot verify the source of the shared container because it is not "
+                                              "signed. Do you really want to import from %1?")
                                 .arg(reference.path));
         } else {
             warning.setIcon(QMessageBox::Question);
-            warning.setWindowTitle(ShareImport::tr("Import from container with certificate"));
-            warning.setText(ShareImport::tr("Do you want to trust %1 with the fingerprint of %2 from %3?")
+            warning.setWindowTitle(ShareObserver::tr("Import from container with certificate"));
+            warning.setText(ShareObserver::tr("Do you want to trust %1 with the fingerprint of %2 from %3?")
                                 .arg(certificate.signer, certificate.fingerprint(), reference.path));
         }
-        auto untrustedOnce = warning.addButton(ShareImport::tr("Not this time"), QMessageBox::ButtonRole::NoRole);
-        auto untrustedForever = warning.addButton(ShareImport::tr("Never"), QMessageBox::ButtonRole::NoRole);
-        auto trustedForever = warning.addButton(ShareImport::tr("Always"), QMessageBox::ButtonRole::YesRole);
-        auto trustedOnce = warning.addButton(ShareImport::tr("Just this time"), QMessageBox::ButtonRole::YesRole);
+        auto untrustedOnce = warning.addButton(ShareObserver::tr("Not this time"), QMessageBox::ButtonRole::NoRole);
+        auto untrustedForever = warning.addButton(ShareObserver::tr("Never"), QMessageBox::ButtonRole::NoRole);
+        auto trustedForever = warning.addButton(ShareObserver::tr("Always"), QMessageBox::ButtonRole::YesRole);
+        auto trustedOnce = warning.addButton(ShareObserver::tr("Just this time"), QMessageBox::ButtonRole::YesRole);
         warning.setDefaultButton(untrustedOnce);
         warning.exec();
         if (warning.clickedButton() == trustedForever) {
@@ -131,12 +131,12 @@ namespace
         Q_UNUSED(resolvedPath);
         return {reference.path,
                 ShareObserver::Result::Warning,
-                tr("Signed share container are not supported - import prevented")};
+                ShareObserver::tr("Signed share container are not supported - import prevented")};
 #else
         QuaZip zip(resolvedPath);
         if (!zip.open(QuaZip::mdUnzip)) {
             qCritical("Unable to open file %s.", qPrintable(reference.path));
-            return {reference.path, ShareObserver::Result::Error, ShareImport::tr("File is not readable")};
+            return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("File is not readable")};
         }
         const auto expected = QSet<QString>() << KeeShare::signatureFileName() << KeeShare::containerFileName();
         const auto files = zip.getFileInfoList();
@@ -146,7 +146,7 @@ namespace
         }
         if (expected != actual) {
             qCritical("Invalid sharing container %s.", qPrintable(reference.path));
-            return {reference.path, ShareObserver::Result::Error, ShareImport::tr("Invalid sharing container")};
+            return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("Invalid sharing container")};
         }
 
         zip.setCurrentFile(KeeShare::signatureFileName());
@@ -180,7 +180,7 @@ namespace
         switch (trust.first) {
         case Invalid:
             qWarning("Prevent untrusted import");
-            return {reference.path, ShareObserver::Result::Error, ShareImport::tr("Untrusted import prevented")};
+            return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("Untrusted import prevented")};
 
         case UntrustedForever:
         case TrustedForever: {
@@ -212,7 +212,7 @@ namespace
                 const bool changed = merger.merge();
                 if (changed) {
                     return {
-                        reference.path, ShareObserver::Result::Success, ShareImport::tr("Successful signed import")};
+                        reference.path, ShareObserver::Result::Success, ShareObserver::tr("Successful signed import")};
                 }
             }
             // Silent ignore of untrusted import or unchanging import
@@ -228,13 +228,13 @@ namespace
             merger.setForcedMergeMode(Group::Synchronize);
             const bool changed = merger.merge();
             if (changed) {
-                return {reference.path, ShareObserver::Result::Success, ShareImport::tr("Successful signed import")};
+                return {reference.path, ShareObserver::Result::Success, ShareObserver::tr("Successful signed import")};
             }
             return {};
         }
         default:
             Q_ASSERT(false);
-            return {reference.path, ShareObserver::Result::Error, ShareImport::tr("Unexpected error")};
+            return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("Unexpected error")};
         }
 #endif
     }
@@ -247,12 +247,12 @@ namespace
         Q_UNUSED(resolvedPath);
         return {reference.path,
                 ShareObserver::Result::Warning,
-                tr("Unsigned share container are not supported - import prevented")};
+                ShareObserver::tr("Unsigned share container are not supported - import prevented")};
 #else
         QFile file(resolvedPath);
         if (!file.open(QIODevice::ReadOnly)) {
             qCritical("Unable to open file %s.", qPrintable(reference.path));
-            return {reference.path, ShareObserver::Result::Error, ShareImport::tr("File is not readable")};
+            return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("File is not readable")};
         }
         auto payload = file.readAll();
         file.close();
@@ -303,7 +303,7 @@ namespace
                 const bool changed = merger.merge();
                 if (changed) {
                     return {
-                        reference.path, ShareObserver::Result::Success, ShareImport::tr("Successful signed import")};
+                        reference.path, ShareObserver::Result::Success, ShareObserver::tr("Successful signed import")};
                 }
             }
             return {};
@@ -318,13 +318,14 @@ namespace
             merger.setForcedMergeMode(Group::Synchronize);
             const bool changed = merger.merge();
             if (changed) {
-                return {reference.path, ShareObserver::Result::Success, ShareImport::tr("Successful unsigned import")};
+                return {
+                    reference.path, ShareObserver::Result::Success, ShareObserver::tr("Successful unsigned import")};
             }
             return {};
         }
         default:
             qWarning("Prevent untrusted import");
-            return {reference.path, ShareObserver::Result::Warning, ShareImport::tr("Untrusted import prevented")};
+            return {reference.path, ShareObserver::Result::Warning, ShareObserver::tr("Untrusted import prevented")};
         }
 #endif
     }
@@ -338,7 +339,7 @@ ShareObserver::Result ShareImport::containerInto(const QString& resolvedPath,
     const QFileInfo info(resolvedPath);
     if (!info.exists()) {
         qCritical("File %s does not exist.", qPrintable(info.absoluteFilePath()));
-        return {reference.path, ShareObserver::Result::Warning, tr("File does not exist")};
+        return {reference.path, ShareObserver::Result::Warning, ShareObserver::tr("File does not exist")};
     }
 
     if (KeeShare::isContainerType(info, KeeShare::signedContainerFileType())) {
@@ -347,5 +348,5 @@ ShareObserver::Result ShareImport::containerInto(const QString& resolvedPath,
     if (KeeShare::isContainerType(info, KeeShare::unsignedContainerFileType())) {
         return unsignedContainerInto(resolvedPath, reference, targetGroup);
     }
-    return {reference.path, ShareObserver::Result::Error, tr("Unknown share container type")};
+    return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("Unknown share container type")};
 }

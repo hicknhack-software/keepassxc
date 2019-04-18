@@ -111,7 +111,7 @@ namespace
         Q_UNUSED(resolvedPath);
         return {reference.path,
                 ShareObserver::Result::Warning,
-                tr("Overwriting signed share container is not supported - export prevented")};
+                ShareObserver::tr("Overwriting signed share container is not supported - export prevented")};
 #else
         QByteArray bytes;
         {
@@ -132,7 +132,7 @@ namespace
             ::qWarning("Opening export file failed: %d", zip.getZipError());
             return {reference.path,
                     ShareObserver::Result::Error,
-                    ShareExport::tr("Could not write export container (%1)").arg(zip.getZipError())};
+                    ShareObserver::tr("Could not write export container (%1)").arg(zip.getZipError())};
         }
         {
             QuaZipFile file(&zip);
@@ -141,7 +141,7 @@ namespace
                 ::qWarning("Embedding signature failed: Could not open file to write (%d)", zip.getZipError());
                 return {reference.path,
                         ShareObserver::Result::Error,
-                        ShareExport::tr("Could not embed signature: Could not open file to write (%1)")
+                        ShareObserver::tr("Could not embed signature: Could not open file to write (%1)")
                             .arg(file.getZipError())};
             }
             QTextStream stream(&file);
@@ -158,7 +158,7 @@ namespace
                 return {
                     reference.path,
                     ShareObserver::Result::Error,
-                    ShareExport::tr("Could not embed signature: Could not write file (%1)").arg(file.getZipError())};
+                    ShareObserver::tr("Could not embed signature: Could not write file (%1)").arg(file.getZipError())};
             }
             file.close();
         }
@@ -169,15 +169,16 @@ namespace
                 ::qWarning("Embedding database failed: Could not open file to write (%d)", zip.getZipError());
                 return {reference.path,
                         ShareObserver::Result::Error,
-                        ShareExport::tr("Could not embed database: Could not open file to write (%1)")
+                        ShareObserver::tr("Could not embed database: Could not open file to write (%1)")
                             .arg(file.getZipError())};
             }
             file.write(bytes);
             if (file.getZipError() != ZIP_OK) {
                 ::qWarning("Embedding database failed: Could not write file (%d)", zip.getZipError());
-                return {reference.path,
-                        ShareObserver::Result::Error,
-                        ShareExport::tr("Could not embed database: Could not write file (%1)").arg(file.getZipError())};
+                return {
+                    reference.path,
+                    ShareObserver::Result::Error,
+                    ShareObserver::tr("Could not embed database: Could not write file (%1)").arg(file.getZipError())};
             }
             file.close();
         }
@@ -194,13 +195,14 @@ namespace
         Q_UNUSED(resolvedPath);
         return {reference.path,
                 ShareObserver::Result::Warning,
-                tr("Overwriting unsigned share container is not supported - export prevented")};
+                ShareObserver::tr("Overwriting unsigned share container is not supported - export prevented")};
 #else
         QFile file(resolvedPath);
         const bool fileOpened = file.open(QIODevice::WriteOnly);
         if (!fileOpened) {
             ::qWarning("Opening export file failed");
-            return {reference.path, ShareObserver::Result::Error, ShareExport::tr("Could not write export container")};
+            return {
+                reference.path, ShareObserver::Result::Error, ShareObserver::tr("Could not write export container")};
         }
         KeePass2Writer writer;
         writer.writeDatabase(&file, targetDb);
@@ -228,5 +230,9 @@ ShareObserver::Result ShareExport::intoContainer(const QString& resolvedPath,
         return intoUnsignedContainer(resolvedPath, reference, targetDb.data());
     }
     Q_ASSERT(false);
+<<<<<<< HEAD
     return {reference.path, ShareObserver::Result::Error, tr("Unexpected export error occurred")};
+=======
+    return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("Unexpected export error occurred")};
+>>>>>>> Extract ShareImport and ShareExport
 }
