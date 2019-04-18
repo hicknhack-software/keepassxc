@@ -61,7 +61,10 @@ public:
 
     static const QString& signedContainerFileType();
     static const QString& unsignedContainerFileType();
+    static bool isContainerType(const QFileInfo& fileInfo, const QString type);
 
+    static const QString& signatureFileName();
+    static const QString& containerFileName();
 signals:
     void activeChanged();
     void sharingMessage(QString, MessageWidget::MessageType);

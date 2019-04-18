@@ -258,9 +258,26 @@ const QString& KeeShare::unsignedContainerFileType()
     return filetype;
 }
 
+bool KeeShare::isContainerType(const QFileInfo& fileInfo, const QString type)
+{
+    return fileInfo.fileName().endsWith(type, Qt::CaseInsensitive);
+}
+
 void KeeShare::handleSettingsChanged(const QString& key)
 {
     if (key == KeeShare_Active) {
         emit activeChanged();
     }
+}
+
+const QString& KeeShare::signatureFileName()
+{
+    static const QString fileName("container.share.signature");
+    return fileName;
+}
+
+const QString& KeeShare::containerFileName()
+{
+    static const QString fileName("container.share.kdbx");
+    return fileName;
 }
