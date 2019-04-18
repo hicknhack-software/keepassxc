@@ -36,6 +36,14 @@ namespace KeeShareSettings
 {
     namespace
     {
+        const QString& referenceSwitch()
+        {
+            // this may be come from the KeePassXC settings - this way it would be independend of upgrades etc.
+            // (we could use some kind of unique id or let the user choose so paths could be reused)
+            static const QString switcher = QString("%1 %2").arg(QSysInfo::productType(), QSysInfo::productVersion());
+            return switcher;
+        }
+
         Certificate packCertificate(const OpenSSHKey& key, const QString& signer)
         {
             KeeShareSettings::Certificate extracted;
@@ -529,8 +537,11 @@ namespace KeeShareSettings
     {
         const auto read = Version0::deserialize(reader, reference);
         if (read) {
-            // the default path
-            reference.paths[""] = reference.path;
+            const auto& switcher = referenceSwitch();
+            if (!reference.paths.contains(switcher)) {
+                // set the default path when migrating
+                reference.paths[switcher] = reference.path;
+            }
             return true;
         }
         if (reader.name() == "Paths") {
