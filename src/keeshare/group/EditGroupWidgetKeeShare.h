@@ -21,9 +21,14 @@
 #include <QPointer>
 #include <QStandardItemModel>
 #include <QWidget>
+#include <QLabel>
+#include <QFormLayout>
+
+#include <QStyledItemDelegate>
 
 class Group;
 class Database;
+class PathLineEdit;
 
 namespace Ui
 {
@@ -38,9 +43,11 @@ public:
     ~EditGroupWidgetKeeShare();
 
     void setGroup(Group* temporaryGroup, QSharedPointer<Database> database);
-
-private slots:
-    void showSharingState();
+private:
+    void reset();
+    void reinitialize();
+    void addOverrides(QFormLayout *layout, const QSet<QString> &keys);
+    void removeOverrides(QFormLayout *layout, const QSet<QString> &keys);
 
 private slots:
     void update();
@@ -51,11 +58,14 @@ private slots:
     void selectPath();
     void setGeneratedPassword(const QString& password);
     void togglePasswordGeneratorButton(bool checked);
+    void showSharingState();
 
 private:
     QScopedPointer<Ui::EditGroupWidgetKeeShare> m_ui;
     QPointer<Group> m_temporaryGroup;
     QSharedPointer<Database> m_database;
+    QMap<QString, QLabel*> m_overrideLabels;
+    QMap<QString, PathLineEdit*> m_overridePathEdits;
 };
 
 #endif // KEEPASSXC_EDITGROUPWIDGETKEESHARE_H

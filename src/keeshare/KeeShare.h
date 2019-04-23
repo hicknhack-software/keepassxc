@@ -63,6 +63,16 @@ public:
     static const QString& unsignedContainerFileType();
     static bool isContainerType(const QFileInfo& fileInfo, const QString type);
 
+    static QString resolvedFilePathWith(const KeeShareSettings::Reference& reference, const Database& database);
+    static QString resolvedFilePathWith(const QString& path, const Database& database);
+    static QString resolvedFilePathWith(const QString& path, const QString& referencePath);
+    static QString unresolvedFilePath(const KeeShareSettings::Reference& reference);
+    static QString unresolvedFilePath(const KeeShareSettings::Reference& reference, const QString& switcher);
+    static QString unresolvedPath(const KeeShareSettings::Reference& reference);
+    static QString unresolvedPath(const KeeShareSettings::Reference& reference, const QString& switcher);
+
+    static const QString& referenceSwitch();
+
     static const QString& signatureFileName();
     static const QString& containerFileName();
 signals:

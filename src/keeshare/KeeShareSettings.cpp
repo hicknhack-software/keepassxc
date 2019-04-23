@@ -22,6 +22,7 @@
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "crypto/ssh/OpenSSHKey.h"
+#include "keeshare/KeeShare.h"
 #include "keeshare/Signature.h"
 
 #include <QMessageBox>
@@ -36,14 +37,6 @@ namespace KeeShareSettings
 {
     namespace
     {
-        const QString& referenceSwitch()
-        {
-            // this may be come from the KeePassXC settings - this way it would be independend of upgrades etc.
-            // (we could use some kind of unique id or let the user choose so paths could be reused)
-            static const QString switcher = QString("%1 %2").arg(QSysInfo::productType(), QSysInfo::productVersion());
-            return switcher;
-        }
-
         Certificate packCertificate(const OpenSSHKey& key, const QString& signer)
         {
             KeeShareSettings::Certificate extracted;
@@ -391,22 +384,22 @@ namespace KeeShareSettings
 
     bool Reference::isNull() const
     {
-        return type == Inactive && path.isEmpty() && password.isEmpty();
+        return type == Inactive && KeeShare::unresolvedFilePath(*this).isEmpty() && password.isEmpty();
     }
 
     bool Reference::isValid() const
     {
-        return type != Inactive && !path.isEmpty();
+        return type != Inactive && !KeeShare::unresolvedFilePath(*this).isEmpty();
     }
 
     bool Reference::isExporting() const
     {
-        return (type & ExportTo) != 0 && !path.isEmpty();
+        return (type & ExportTo) != 0 && !KeeShare::unresolvedFilePath(*this).isEmpty();
     }
 
     bool Reference::isImporting() const
     {
-        return (type & ImportFrom) != 0 && !path.isEmpty();
+        return (type & ImportFrom) != 0 && !KeeShare::unresolvedFilePath(*this).isEmpty();
     }
 
     bool Reference::operator<(const Reference& other) const
@@ -414,12 +407,13 @@ namespace KeeShareSettings
         if (type != other.type) {
             return type < other.type;
         }
-        return path < other.path;
+        return KeeShare::unresolvedFilePath(*this) < KeeShare::unresolvedFilePath(other);
     }
 
     bool Reference::operator==(const Reference& other) const
     {
-        return path == other.path && uuid == other.uuid && password == other.password && type == other.type;
+        return path == other.path && paths == other.paths && name == other.name && uuid == other.uuid && password == other.password
+               && type == other.type;
     }
 
     QString Reference::serialize(const Reference& reference)
@@ -456,7 +450,7 @@ namespace KeeShareSettings
                     }
                     reader.skipCurrentElement();
                 } else {
-                    const auto read = Version1::deserialize(reader, reference);
+                    const auto read = Version0::deserialize(reader, reference);
                     if (!read) {
                         ::qWarning() << "Unknown Reference element" << reader.name();
                         reader.skipCurrentElement();
@@ -481,7 +475,7 @@ namespace KeeShareSettings
         writer.writeCharacters(reference.uuid.toRfc4122().toBase64());
         writer.writeEndElement();
         writer.writeStartElement("Path");
-        writer.writeCharacters(reference.path.toUtf8().toBase64());
+        writer.writeCharacters(KeeShare::unresolvedFilePath(reference).toUtf8().toBase64());
         writer.writeEndElement();
         writer.writeStartElement("Password");
         writer.writeCharacters(reference.password.toUtf8().toBase64());
@@ -493,13 +487,33 @@ namespace KeeShareSettings
         writer.writeStartElement("Reference");
         writer.writeAttribute("version", QString::number(1));
 
-        Version0::serialize(writer, reference);
+        writer.writeStartElement("Type");
+        if ((reference.type & ImportFrom) == ImportFrom) {
+            writer.writeEmptyElement("Import");
+        }
+        if ((reference.type & ExportTo) == ExportTo) {
+            writer.writeEmptyElement("Export");
+        }
+        writer.writeEndElement();
+        writer.writeStartElement("Group");
+        writer.writeCharacters(reference.uuid.toRfc4122().toBase64());
+        writer.writeEndElement();
+        writer.writeStartElement("Name");
+        writer.writeCharacters(reference.name.toUtf8().toBase64());
+        writer.writeEndElement();
+        writer.writeStartElement("Path");
+        writer.writeCharacters(reference.path.toUtf8().toBase64());
+        writer.writeEndElement();
         writer.writeStartElement("Paths");
-        for (const auto path : reference.paths) {
-            writer.writeStartElement(path);
-            writer.writeCharacters(reference.paths[path].toUtf8().toBase64());
+        for (const auto key : reference.paths.keys()) {
+            writer.writeStartElement("Path");
+            writer.writeAttribute("reference", key);
+            writer.writeCharacters(reference.paths[key].toUtf8().toBase64());
             writer.writeEndElement();
         }
+        writer.writeEndElement();
+        writer.writeStartElement("Password");
+        writer.writeCharacters(reference.password.toUtf8().toBase64());
         writer.writeEndElement();
 
         writer.writeEndElement();
@@ -520,13 +534,18 @@ namespace KeeShareSettings
                 }
             }
             return true;
-        } else if (reader.name() == "Group") {
+        }
+        if (reader.name() == "Group") {
             reference.uuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
-        } else if (reader.name() == "Path") {
-            reference.path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+        }
+        if (reader.name() == "Path") {
+            const QFileInfo info(QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1())));
+            reference.path = info.path();
+            reference.name = info.fileName();
             return true;
-        } else if (reader.name() == "Password") {
+        }
+        if (reader.name() == "Password") {
             reference.password = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
@@ -535,21 +554,46 @@ namespace KeeShareSettings
 
     bool Reference::Version1::deserialize(QXmlStreamReader& reader, Reference& reference)
     {
-        const auto read = Version0::deserialize(reader, reference);
-        if (read) {
-            const auto& switcher = referenceSwitch();
-            if (!reference.paths.contains(switcher)) {
-                // set the default path when migrating
-                reference.paths[switcher] = reference.path;
+        if (reader.name() == "Type") {
+            while (reader.readNextStartElement()) {
+                if (reader.name() == "Import") {
+                    reference.type |= ImportFrom;
+                    reader.skipCurrentElement();
+                } else if (reader.name() == "Export") {
+                    reference.type |= ExportTo;
+                    reader.skipCurrentElement();
+                } else {
+                    break;
+                }
             }
+            return true;
+        }
+        if (reader.name() == "Group") {
+            reference.uuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+            return true;
+        }
+        if (reader.name() == "Path") {
+            reference.path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
         if (reader.name() == "Paths") {
             while (reader.readNextStartElement()) {
-                const auto identifier = reader.name();
-                const auto path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
-                reference.paths[identifier.toString()] = path;
+                if (reader.name() == "Path") {
+                    const auto switcher = reader.attributes().value("reference").toString();
+                    const auto path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+                    reference.paths[switcher] = path;
+                } else {
+                    break;
+                }
             }
+            return true;
+        }
+        if (reader.name() == "Name") {
+            reference.name = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+            return true;
+        }
+        if (reader.name() == "Password") {
+            reference.password = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
         return false;

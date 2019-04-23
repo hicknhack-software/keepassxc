@@ -162,8 +162,9 @@ namespace KeeShareSettings
     {
         Type type;
         QUuid uuid;
-        QString path; // currently used path
+        QString path;
         QMap<QString, QString> paths; // defined paths
+        QString name;
         QString password;
 
         struct Version0

@@ -302,9 +302,16 @@ void EntryPreviewWidget::updateGroupSharingTab()
 {
     Q_ASSERT(m_currentGroup);
     setTabEnabled(m_ui->groupTabWidget, m_ui->groupShareTab, KeeShare::isShared(m_currentGroup));
-    auto reference = KeeShare::referenceOf(m_currentGroup);
+    const auto reference = KeeShare::referenceOf(m_currentGroup);
     m_ui->groupShareTypeLabel->setText(KeeShare::referenceTypeLabel(reference));
-    m_ui->groupSharePathLabel->setText(reference.path);
+    const auto unresolvedPath = KeeShare::unresolvedFilePath(reference);
+    const auto resolvedPath = KeeShare::resolvedFilePathWith(reference, *m_currentGroup->database());
+    m_ui->groupSharePathLabel->setText(unresolvedPath);
+    m_ui->groupShareAbsolutePathLabel->setVisible(resolvedPath != unresolvedPath);
+    if (resolvedPath != unresolvedPath) {
+        m_ui->groupShareAbsolutePathLabel->setText(resolvedPath);
+    }
+    m_ui->groupShareOverrideLabel->setVisible(unresolvedPath != reference.path);
 }
 #endif
 

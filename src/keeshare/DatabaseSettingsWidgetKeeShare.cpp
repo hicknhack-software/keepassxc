@@ -59,7 +59,7 @@ void DatabaseSettingsWidgetKeeShare::loadSettings(QSharedPointer<Database> db)
         QList<QStandardItem*> row = QList<QStandardItem*>();
         row << new QStandardItem(hierarchy.join(tr(" > ", "Breadcrumb separator")));
         row << new QStandardItem(KeeShare::referenceTypeLabel(reference));
-        row << new QStandardItem(reference.path);
+        row << new QStandardItem(KeeShare::unresolvedFilePath(reference));
         m_referencesModel->appendRow(row);
     }
 

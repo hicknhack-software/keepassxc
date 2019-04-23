@@ -10,7 +10,7 @@
     <height>508</height>
    </rect>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0">
    <property name="leftMargin">
     <number>0</number>
    </property>
@@ -24,26 +24,17 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QGroupBox" name="activeGroupBox">
-     <property name="title">
-      <string>Active</string>
+    <widget class="QCheckBox" name="enableExportCheckBox">
+     <property name="text">
+      <string>Enable KeeShare export</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout">
-      <item row="3" column="0">
-       <widget class="QCheckBox" name="enableExportCheckBox">
-        <property name="text">
-         <string>Allow export</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QCheckBox" name="enableImportCheckBox">
-        <property name="text">
-         <string>Allow import</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="enableImportCheckBox">
+     <property name="text">
+      <string>Enable KeeShare import</string>
+     </property>
     </widget>
    </item>
    <item>

@@ -73,6 +73,7 @@ private slots:
 
 private:
     Result importShare(const QString& path);
+    Result importShare(const KeeShareSettings::Reference& reference);
     QList<Result> exportShares();
 
     void deinitialize();

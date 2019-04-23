@@ -26,7 +26,9 @@
 #include "crypto/ssh/OpenSSHKey.h"
 #include "gui/FileDialog.h"
 #include "keeshare/KeeShare.h"
+#include "keeshare/PathLineEdit.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QStandardPaths>
 
@@ -77,8 +79,10 @@ EditGroupWidgetKeeShare::EditGroupWidgetKeeShare(QWidget* parent)
             name = tr("Synchronize");
             break;
         }
-        m_ui->typeComboBox->insertItem(type, name, static_cast<int>(type));
+        m_ui->typeComboBox->insertItem(static_cast<int>(type), name, static_cast<int>(type));
     }
+
+    addOverrides(m_ui->pathLocalOverridesLayout, { KeeShare::referenceSwitch() });
 }
 
 EditGroupWidgetKeeShare::~EditGroupWidgetKeeShare()
@@ -115,10 +119,10 @@ void EditGroupWidgetKeeShare::showSharingState()
     supportedExtensions << KeeShare::signedContainerFileType();
 #endif
     const auto reference = KeeShare::referenceOf(m_temporaryGroup);
-    if (!reference.path.isEmpty()) {
+    if (!KeeShare::unresolvedFilePath(reference).isEmpty()) {
         bool supported = false;
         for (const auto& extension : supportedExtensions) {
-            if (reference.path.endsWith(extension, Qt::CaseInsensitive)) {
+            if (KeeShare::unresolvedFilePath(reference).endsWith(extension, Qt::CaseInsensitive)) {
                 supported = true;
                 break;
             }
@@ -140,7 +144,7 @@ void EditGroupWidgetKeeShare::showSharingState()
                 continue;
             }
             const auto other = KeeShare::referenceOf(group);
-            if (other.path != reference.path) {
+            if (KeeShare::unresolvedFilePath(other) != KeeShare::unresolvedFilePath(reference)) {
                 continue;
             }
             multipleImport |= other.isImporting() && reference.isImporting();
@@ -149,18 +153,21 @@ void EditGroupWidgetKeeShare::showSharingState()
                 (other.isImporting() && reference.isExporting()) || (other.isExporting() && reference.isImporting());
         }
         if (conflictExport) {
-            m_ui->messageWidget->showMessage(tr("%1 is already being exported by this database.").arg(reference.path),
-                                             MessageWidget::Error);
+            m_ui->messageWidget->showMessage(
+                tr("%1 is already being exported by this database.").arg(KeeShare::unresolvedFilePath(reference)),
+                MessageWidget::Error);
             return;
         }
         if (multipleImport) {
-            m_ui->messageWidget->showMessage(tr("%1 is already being imported by this database.").arg(reference.path),
-                                             MessageWidget::Warning);
+            m_ui->messageWidget->showMessage(
+                tr("%1 is already being imported by this database.").arg(KeeShare::unresolvedFilePath(reference)),
+                MessageWidget::Warning);
             return;
         }
         if (cycleImportExport) {
             m_ui->messageWidget->showMessage(
-                tr("%1 is being imported and exported by different groups in this database.").arg(reference.path),
+                tr("%1 is being imported and exported by different groups in this database.")
+                    .arg(KeeShare::unresolvedFilePath(reference)),
                 MessageWidget::Warning);
             return;
         }
@@ -187,19 +194,98 @@ void EditGroupWidgetKeeShare::showSharingState()
     }
 }
 
+void EditGroupWidgetKeeShare::reset()
+{
+    m_ui->passwordEdit->clear();
+    m_ui->pathEdit->clear();
+    m_ui->pathOverrides->hide();
+    while (m_ui->pathLocalOverridesLayout->rowCount() > 0) {
+        m_ui->pathLocalOverridesLayout->removeRow(0);
+    }
+    while (m_ui->pathRemoteOverridesLayout->rowCount() > 0) {
+        m_ui->pathRemoteOverridesLayout->removeRow(0);
+    }
+    m_overrideLabels.clear();
+    m_overridePathEdits.clear();
+    m_ui->typeComboBox->setCurrentIndex(KeeShareSettings::Inactive);
+    m_ui->passwordGenerator->hide();
+}
+
+void EditGroupWidgetKeeShare::addOverrides(QFormLayout *layout, const QSet<QString> &keys)
+{
+    for (const auto &key : keys) {
+        auto* systemLabel = new QLabel(m_ui->pathLocalOverrides);
+        auto* pathLineEdit = new PathLineEdit(m_ui->pathLocalOverrides);
+        Q_ASSERT(!m_overrideLabels.contains(key));
+        Q_ASSERT(!m_overridePathEdits.contains(key));
+        pathLineEdit->setDialogTitle(tr("Select an alternative share path"));
+        pathLineEdit->setDialogDefaultDirectoryConfigKey("KeeShare/LastShareDir");
+        m_overrideLabels[key] = systemLabel;
+        m_overridePathEdits[key] = pathLineEdit;
+        layout->addRow(systemLabel, pathLineEdit);
+    }
+}
+
+void EditGroupWidgetKeeShare::removeOverrides(QFormLayout *layout, const QSet<QString> &keys)
+{
+    for (const auto &key : keys) {
+        auto *systemLabel = m_overrideLabels.take(key);
+        auto *pathLineEdit = m_overridePathEdits.take(key);
+        if (systemLabel){
+            layout->removeWidget(systemLabel);
+            delete systemLabel;
+        }
+        if (pathLineEdit) {
+            layout->removeWidget(pathLineEdit);
+            delete pathLineEdit;
+        }
+    }
+}
+
+void EditGroupWidgetKeeShare::reinitialize()
+{
+    const auto reference = KeeShare::referenceOf(m_temporaryGroup);
+
+    m_ui->typeComboBox->setCurrentIndex(static_cast<int>(reference.type));
+    m_ui->passwordEdit->setText(reference.password);
+    m_ui->pathEdit->setText(KeeShare::unresolvedFilePath(reference, ""));
+    m_ui->pathLocalOverrides->show();
+    m_ui->pathOverrides->setVisible(!reference.path.isEmpty());
+
+    const auto currentKey = KeeShare::referenceSwitch();
+    const auto currentKeys = QSet<QString>{ currentKey };
+    const auto requestedKeys = reference.paths.keys().toSet();
+    const auto existingKeys = m_overrideLabels.keys().toSet();
+    const auto removedKeys = existingKeys - requestedKeys;
+    const auto addedKeys = requestedKeys - existingKeys;
+
+    addOverrides(m_ui->pathRemoteOverridesLayout, addedKeys - currentKeys);
+    removeOverrides(m_ui->pathRemoteOverridesLayout, removedKeys - currentKeys);
+
+    m_ui->pathLocalPreview->setText(KeeShare::resolvedFilePathWith(reference, *m_database));
+
+    for (const auto &key : requestedKeys + currentKeys) {
+        auto *systemLabel = m_overrideLabels[key];
+        auto *pathLineEdit = m_overridePathEdits[key];
+        systemLabel->setText(tr("Path to \"%1\" on \"%2\"").arg(reference.name).arg(key));
+        systemLabel->setEnabled(key == currentKey);
+        pathLineEdit->setPlaceholderPath(reference.path);
+        pathLineEdit->setEnabled(key == currentKey);
+        if (reference.paths.contains(key)){
+            pathLineEdit->setPath(KeeShare::unresolvedPath(reference, key));
+        }
+    }
+
+
+    showSharingState();
+}
+
 void EditGroupWidgetKeeShare::update()
 {
     if (!m_temporaryGroup) {
-        m_ui->passwordEdit->clear();
-        m_ui->pathEdit->clear();
+        reset();
     } else {
-        const auto reference = KeeShare::referenceOf(m_temporaryGroup);
-
-        m_ui->typeComboBox->setCurrentIndex(reference.type);
-        m_ui->passwordEdit->setText(reference.password);
-        m_ui->pathEdit->setText(reference.path);
-
-        showSharingState();
+        reinitialize();
     }
 
     m_ui->passwordGenerator->hide();
@@ -212,10 +298,7 @@ void EditGroupWidgetKeeShare::clearInputs()
     if (m_temporaryGroup) {
         KeeShare::setReferenceTo(m_temporaryGroup, KeeShareSettings::Reference());
     }
-    m_ui->passwordEdit->clear();
-    m_ui->pathEdit->clear();
-    m_ui->typeComboBox->setCurrentIndex(KeeShareSettings::Inactive);
-    m_ui->passwordGenerator->setVisible(false);
+    reset();
 }
 
 void EditGroupWidgetKeeShare::togglePasswordGeneratorButton(bool checked)
@@ -241,7 +324,10 @@ void EditGroupWidgetKeeShare::selectPath()
         return;
     }
     auto reference = KeeShare::referenceOf(m_temporaryGroup);
-    reference.path = m_ui->pathEdit->text();
+    const auto switcher = KeeShare::referenceSwitch();
+    const QFileInfo info(m_ui->pathEdit->text());
+    reference.path = info.path();
+    reference.name = info.fileName();
     KeeShare::setReferenceTo(m_temporaryGroup, reference);
 }
 
@@ -250,7 +336,7 @@ void EditGroupWidgetKeeShare::launchPathSelectionDialog()
     if (!m_temporaryGroup) {
         return;
     }
-    QString defaultDirPath = config()->get("KeeShare/LastShareDir").toString();
+    QString defaultDirPath = m_database->filePath();
     const bool dirExists = !defaultDirPath.isEmpty() && QDir(defaultDirPath).exists();
     if (!dirExists) {
         defaultDirPath = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).first();
@@ -278,7 +364,7 @@ void EditGroupWidgetKeeShare::launchPathSelectionDialog()
 #endif
 
     const auto filters = knownFilters.join(";;");
-    auto filename = reference.path;
+    auto filename = KeeShare::unresolvedFilePath(reference);
     if (filename.isEmpty()) {
         filename = m_temporaryGroup->name();
     }
@@ -332,7 +418,6 @@ void EditGroupWidgetKeeShare::launchPathSelectionDialog()
 
     m_ui->pathEdit->setText(filename);
     selectPath();
-    config()->set("KeeShare/LastShareDir", QFileInfo(filename).absolutePath());
 }
 
 void EditGroupWidgetKeeShare::selectPassword()

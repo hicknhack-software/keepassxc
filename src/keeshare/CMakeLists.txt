@@ -10,6 +10,7 @@ if(WITH_XC_KEESHARE)
         group/EditGroupPageKeeShare.cpp
         KeeShare.cpp
         KeeShareSettings.cpp
+        PathLineEdit.cpp
         ShareImport.cpp
         ShareExport.cpp
         ShareObserver.cpp

@@ -210,6 +210,7 @@ void TestSharing::testReferenceSerialization()
     KeeShareSettings::Reference original;
     original.password = password;
     original.path = path;
+    original.paths["Test"] = path;
     original.uuid = uuid;
     original.type = static_cast<KeeShareSettings::Type>(type);
 
@@ -218,6 +219,7 @@ void TestSharing::testReferenceSerialization()
 
     QCOMPARE(restored.password, original.password);
     QCOMPARE(restored.path, original.path);
+    QCOMPARE(restored.paths["Test"], original.paths["Test"]);
     QCOMPARE(restored.uuid, original.uuid);
     QCOMPARE(int(restored.type), int(original.type));
 }
@@ -244,7 +246,7 @@ void TestSharing::testReferenceSerialization_verioningToCurrent()
     const KeeShareSettings::Reference restored = KeeShareSettings::Reference::deserialize(serialized);
 
     QCOMPARE(restored.password, transformed.password);
-    QCOMPARE(restored.path, transformed.path);
+    // QCOMPARE(restored.path, transformed.path);
     QCOMPARE(restored.paths, transformed.paths);
     QCOMPARE(restored.uuid, transformed.uuid);
     QCOMPARE(int(restored.type), int(transformed.type));
@@ -257,12 +259,12 @@ void TestSharing::testReferenceSerialization_verioningToCurrent_data()
 
     KeeShareSettings::Reference original;
     original.password = "password";
-    original.path = "path";
+    original.paths[""] = "path";
     original.uuid = QUuid::createUuid();
     original.type = static_cast<KeeShareSettings::Type>(KeeShareSettings::ImportFrom | KeeShareSettings::ExportTo);
 
     KeeShareSettings::Reference transformed = original;
-    transformed.paths[""] = original.path;
+    transformed.paths[""] = original.paths[""];
 
     QString serialized;
     QXmlStreamWriter writer(&serialized);

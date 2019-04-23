@@ -26,11 +26,6 @@
 
 namespace
 {
-    QString resolvedPathWith(const QString& path, const Database& database)
-    {
-        const QFileInfo info(database.filePath());
-        return info.absoluteDir().absoluteFilePath(path);
-    }
 
 } // End Namespace
 
@@ -81,12 +76,12 @@ void ShareObserver::reinitialize()
 
         m_groupToReference.remove(couple.group);
         m_referenceToGroup.remove(couple.oldReference);
-        const auto oldResolvedPath = resolvedPathWith(couple.oldReference.path, *m_db);
+        const auto oldResolvedPath = KeeShare::resolvedFilePathWith(couple.oldReference, *m_db);
         m_shareToGroup.remove(oldResolvedPath);
         if (couple.newReference.isValid()) {
             m_groupToReference[couple.group] = couple.newReference;
             m_referenceToGroup[couple.newReference] = couple.group;
-            const auto newResolvedPath = resolvedPathWith(couple.newReference.path, *m_db);
+            const auto newResolvedPath = KeeShare::resolvedFilePathWith(couple.newReference, *m_db);
             m_shareToGroup[newResolvedPath] = couple.group;
         }
         updated << couple;
@@ -98,22 +93,23 @@ void ShareObserver::reinitialize()
     QMap<QString, QStringList> imported;
     QMap<QString, QStringList> exported;
     for (const auto& update : asConst(updated)) {
-        if (!update.oldReference.path.isEmpty()) {
-            const auto oldResolvedPath = resolvedPathWith(update.oldReference.path, *m_db);
+        if (!KeeShare::unresolvedFilePath(update.oldReference).isEmpty()) {
+            const auto oldResolvedPath = KeeShare::resolvedFilePathWith(update.oldReference, *m_db);
             m_fileWatcher->removePath(oldResolvedPath);
         }
 
-        if (!update.newReference.path.isEmpty() && update.newReference.type != KeeShareSettings::Inactive) {
-            const auto newResolvedPath = resolvedPathWith(update.newReference.path, *m_db);
+        if (!KeeShare::unresolvedFilePath(update.newReference).isEmpty()
+            && update.newReference.type != KeeShareSettings::Inactive) {
+            const auto newResolvedPath = KeeShare::resolvedFilePathWith(update.newReference, *m_db);
             m_fileWatcher->addPath(newResolvedPath);
         }
         if (update.newReference.isExporting()) {
-            exported[update.newReference.path] << update.group->name();
+            exported[KeeShare::unresolvedFilePath(update.newReference)] << update.group->name();
         }
 
         if (update.newReference.isImporting()) {
-            imported[update.newReference.path] << update.group->name();
-            const auto result = this->importShare(update.newReference.path);
+            imported[KeeShare::unresolvedFilePath(update.newReference)] << update.group->name();
+            const auto result = this->importShare(update.newReference);
             if (!result.isValid()) {
                 // tolerable result - blocked import or missing source
                 continue;
@@ -207,12 +203,30 @@ void ShareObserver::handleFileUpdated(const QString& path)
     notifyAbout(success, warning, error);
 }
 
+ShareObserver::Result ShareObserver::importShare(const KeeShareSettings::Reference& reference)
+{
+    if (!KeeShare::active().in || !reference.isImporting()) {
+        return {};
+    }
+    const auto resolvedPath = KeeShare::resolvedFilePathWith(reference, *m_db);
+    auto shareGroup = m_shareToGroup.value(resolvedPath);
+    if (!shareGroup) {
+        qWarning("Source for %s does not exist", qPrintable(KeeShare::unresolvedFilePath(reference)));
+        Q_ASSERT(shareGroup);
+        return {};
+    }
+
+    Q_ASSERT(shareGroup->database() == m_db);
+    Q_ASSERT(shareGroup == m_db->rootGroup()->findGroupByUuid(shareGroup->uuid()));
+    return ShareImport::containerInto(resolvedPath, reference, shareGroup);
+}
+
 ShareObserver::Result ShareObserver::importShare(const QString& path)
 {
     if (!KeeShare::active().in) {
         return {};
     }
-    const auto changePath = resolvedPathWith(path, *m_db);
+    const auto changePath = KeeShare::resolvedFilePathWith(path, *m_db);
     auto shareGroup = m_shareToGroup.value(changePath);
     if (!shareGroup) {
         qWarning("Source for %s does not exist", qPrintable(path));
@@ -231,7 +245,7 @@ ShareObserver::Result ShareObserver::importShare(const QString& path)
 
     Q_ASSERT(shareGroup->database() == m_db);
     Q_ASSERT(shareGroup == m_db->rootGroup()->findGroupByUuid(shareGroup->uuid()));
-    const auto resolvedPath = resolvedPathWith(reference.path, *m_db);
+    const auto resolvedPath = KeeShare::resolvedFilePathWith(reference, *m_db);
     return ShareImport::containerInto(resolvedPath, reference, shareGroup);
 }
 
@@ -256,12 +270,12 @@ QList<ShareObserver::Result> ShareObserver::exportShares()
         if (!reference.isExporting()) {
             continue;
         }
-        references[reference.path] << Reference{reference, group};
+        references[KeeShare::unresolvedFilePath(reference)] << Reference{reference, group};
     }
 
     for (auto it = references.cbegin(); it != references.cend(); ++it) {
         if (it.value().count() != 1) {
-            const auto path = it.value().first().config.path;
+            const auto path = KeeShare::unresolvedFilePath(it.value().first().config);
             QStringList groups;
             for (const auto& reference : it.value()) {
                 groups << reference.group->name();
@@ -277,9 +291,9 @@ QList<ShareObserver::Result> ShareObserver::exportShares()
 
     for (auto it = references.cbegin(); it != references.cend(); ++it) {
         const auto& reference = it.value().first();
-        const QString resolvedPath = resolvedPathWith(reference.config.path, *m_db);
+        const QString resolvedPath = KeeShare::resolvedFilePathWith(reference.config, *m_db);
         m_fileWatcher->ignoreFileChanges(resolvedPath);
-        ShareExport::intoContainer(resolvedPath, reference.config, reference.group);
+        results << ShareExport::intoContainer(resolvedPath, reference.config, reference.group);
         m_fileWatcher->observeFileChanges(true);
     }
     return results;

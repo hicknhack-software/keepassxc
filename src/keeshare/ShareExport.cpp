@@ -109,7 +109,7 @@ namespace
 #if !defined(WITH_XC_KEESHARE_SECURE)
         Q_UNUSED(targetDb);
         Q_UNUSED(resolvedPath);
-        return {reference.path,
+        return {KeeShare::unresolvedPath(reference),
                 ShareObserver::Result::Warning,
                 ShareObserver::tr("Overwriting signed share container is not supported - export prevented")};
 #else
@@ -121,7 +121,7 @@ namespace
             writer.writeDatabase(&buffer, targetDb);
             if (writer.hasError()) {
                 qWarning("Serializing export dabase failed: %s.", writer.errorString().toLatin1().data());
-                return {reference.path, ShareObserver::Result::Error, writer.errorString()};
+                return {KeeShare::unresolvedFilePath(reference), ShareObserver::Result::Error, writer.errorString()};
             }
         }
         const auto own = KeeShare::own();
@@ -130,7 +130,7 @@ namespace
         const bool zipOpened = zip.open(QuaZip::mdCreate);
         if (!zipOpened) {
             ::qWarning("Opening export file failed: %d", zip.getZipError());
-            return {reference.path,
+            return {KeeShare::unresolvedFilePath(reference),
                     ShareObserver::Result::Error,
                     ShareObserver::tr("Could not write export container (%1)").arg(zip.getZipError())};
         }
@@ -139,7 +139,7 @@ namespace
             const auto signatureOpened = file.open(QIODevice::WriteOnly, QuaZipNewInfo(KeeShare::signatureFileName()));
             if (!signatureOpened) {
                 ::qWarning("Embedding signature failed: Could not open file to write (%d)", zip.getZipError());
-                return {reference.path,
+                return {KeeShare::unresolvedFilePath(reference),
                         ShareObserver::Result::Error,
                         ShareObserver::tr("Could not embed signature: Could not open file to write (%1)")
                             .arg(file.getZipError())};
@@ -156,7 +156,7 @@ namespace
             if (file.getZipError() != ZIP_OK) {
                 ::qWarning("Embedding signature failed: Could not write file (%d)", zip.getZipError());
                 return {
-                    reference.path,
+                    KeeShare::unresolvedFilePath(reference),
                     ShareObserver::Result::Error,
                     ShareObserver::tr("Could not embed signature: Could not write file (%1)").arg(file.getZipError())};
             }
@@ -167,7 +167,7 @@ namespace
             const auto dbOpened = file.open(QIODevice::WriteOnly, QuaZipNewInfo(KeeShare::containerFileName()));
             if (!dbOpened) {
                 ::qWarning("Embedding database failed: Could not open file to write (%d)", zip.getZipError());
-                return {reference.path,
+                return {KeeShare::unresolvedFilePath(reference),
                         ShareObserver::Result::Error,
                         ShareObserver::tr("Could not embed database: Could not open file to write (%1)")
                             .arg(file.getZipError())};
@@ -176,14 +176,14 @@ namespace
             if (file.getZipError() != ZIP_OK) {
                 ::qWarning("Embedding database failed: Could not write file (%d)", zip.getZipError());
                 return {
-                    reference.path,
+                    KeeShare::unresolvedFilePath(reference),
                     ShareObserver::Result::Error,
                     ShareObserver::tr("Could not embed database: Could not write file (%1)").arg(file.getZipError())};
             }
             file.close();
         }
         zip.close();
-        return {reference.path};
+        return {KeeShare::unresolvedFilePath(reference)};
 #endif
     }
 
@@ -193,7 +193,7 @@ namespace
 #if !defined(WITH_XC_KEESHARE_INSECURE)
         Q_UNUSED(targetDb);
         Q_UNUSED(resolvedPath);
-        return {reference.path,
+        return {KeeShare::unresolvedPath(reference),
                 ShareObserver::Result::Warning,
                 ShareObserver::tr("Overwriting unsigned share container is not supported - export prevented")};
 #else
@@ -201,18 +201,19 @@ namespace
         const bool fileOpened = file.open(QIODevice::WriteOnly);
         if (!fileOpened) {
             ::qWarning("Opening export file failed");
-            return {
-                reference.path, ShareObserver::Result::Error, ShareObserver::tr("Could not write export container")};
+            return {KeeShare::unresolvedFilePath(reference),
+                    ShareObserver::Result::Error,
+                    ShareObserver::tr("Could not write export container")};
         }
         KeePass2Writer writer;
         writer.writeDatabase(&file, targetDb);
         if (writer.hasError()) {
             qWarning("Exporting dabase failed: %s.", writer.errorString().toLatin1().data());
-            return {reference.path, ShareObserver::Result::Error, writer.errorString()};
+            return {KeeShare::unresolvedFilePath(reference), ShareObserver::Result::Error, writer.errorString()};
         }
         file.close();
 #endif
-        return {reference.path};
+        return {KeeShare::unresolvedFilePath(reference)};
     }
 
 } // namespace
@@ -230,9 +231,7 @@ ShareObserver::Result ShareExport::intoContainer(const QString& resolvedPath,
         return intoUnsignedContainer(resolvedPath, reference, targetDb.data());
     }
     Q_ASSERT(false);
-<<<<<<< HEAD
-    return {reference.path, ShareObserver::Result::Error, tr("Unexpected export error occurred")};
-=======
-    return {reference.path, ShareObserver::Result::Error, ShareObserver::tr("Unexpected export error occurred")};
->>>>>>> Extract ShareImport and ShareExport
+    return {KeeShare::unresolvedFilePath(reference),
+            ShareObserver::Result::Error,
+            tr("Unexpected export error occurred")};
 }
