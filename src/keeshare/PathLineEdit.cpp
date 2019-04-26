@@ -24,9 +24,10 @@
 #include <QDir>
 #include <QStandardPaths>
 
-PathLineEdit::PathLineEdit(QWidget *parent)
+PathLineEdit::PathLineEdit(QWidget* parent)
     : QWidget(parent)
     , m_ui(new Ui::PathLineEdit)
+    , m_type(SelectInputOnly)
 {
     m_ui->setupUi(this);
 
@@ -39,24 +40,53 @@ PathLineEdit::~PathLineEdit()
 {
 }
 
-void PathLineEdit::setPath(const QString &path)
+void PathLineEdit::clear()
+{
+    m_ui->pathEdit->clear();
+}
+
+void PathLineEdit::setType(PathLineEdit::Type type)
+{
+    m_type = type;
+
+    m_ui->pathSelector->setVisible(m_type != SelectInputOnly);
+}
+
+void PathLineEdit::setPath(const QString& path)
 {
     m_ui->pathEdit->setText(path);
 }
 
-void PathLineEdit::setPlaceholderPath(const QString &path)
+void PathLineEdit::setPlaceholderPath(const QString& path)
 {
     m_ui->pathEdit->setPlaceholderText(path);
 }
 
-void PathLineEdit::setDialogDefaultDirectoryConfigKey(const QString &path)
+void PathLineEdit::setDialogDefaultDirectoryConfigKey(const QString& path)
 {
     m_dialogDirectoryConfigKey = path;
 }
 
-void PathLineEdit::setDialogTitle(const QString &title)
+void PathLineEdit::setDialogTitle(const QString& title)
 {
     m_dialogTitle = title;
+}
+
+void PathLineEdit::setDialogSupportedExtensions(const QList<QPair<QString, QString>>& extensionWithName,
+                                                const QString& fallbackExtension)
+{
+    m_dialogFallbackExtension = fallbackExtension;
+    m_dialogSupportedExtensionWithName = extensionWithName;
+}
+
+void PathLineEdit::setDialogUnsupportedExtensions(const QList<QString>& filters)
+{
+    m_dialogUnsupportedExtension = filters;
+}
+
+QString PathLineEdit::path() const
+{
+    return m_ui->pathEdit->text();
 }
 
 void PathLineEdit::handlePathEditingFinished()
@@ -76,7 +106,60 @@ void PathLineEdit::handlePathSelectorClicked()
     if (filename.isEmpty()) {
         filename = m_ui->pathEdit->placeholderText();
     }
-    filename = fileDialog()->getExistingDirectory(this, m_dialogTitle, defaultDirPath);
+
+    auto supportedExtensions = QStringList();
+    auto filters = QStringList();
+    for (auto it = m_dialogSupportedExtensionWithName.cbegin(); it != m_dialogSupportedExtensionWithName.cend(); ++it) {
+        if (!it->first.isEmpty()) {
+            filters << QString("%1 (*.%2)").arg(it->second, it->first);
+            supportedExtensions << it->first;
+        } else {
+            filters << QString("%1 (*)").arg(it->second, it->first);
+        }
+    }
+    auto unsupportedExtensions = m_dialogUnsupportedExtension;
+
+    switch (m_type) {
+    case SelectDirectory:
+        filename = fileDialog()->getExistingDirectory(this, m_dialogTitle, defaultDirPath);
+        break;
+    case SelectReadFile:
+        filename = fileDialog()->getFileName(this,
+                                             m_dialogTitle,
+                                             defaultDirPath,
+                                             filters.join(";;"),
+                                             nullptr,
+                                             QFileDialog::DontConfirmOverwrite,
+                                             m_dialogFallbackExtension,
+                                             filename);
+        break;
+    case SelectWriteFile:
+        filename = fileDialog()->getFileName(this,
+                                             m_dialogTitle,
+                                             defaultDirPath,
+                                             filters.join(";;"),
+                                             nullptr,
+                                             QFileDialog::Option(0),
+                                             m_dialogFallbackExtension,
+                                             filename);
+        break;
+    default:
+        Q_ASSERT(false);
+        return;
+    }
+
+    if (m_type != SelectDirectory) {
+        bool validFilename = false;
+        for (const auto& extension : supportedExtensions + unsupportedExtensions) {
+            if (filename.endsWith(extension, Qt::CaseInsensitive)) {
+                validFilename = true;
+                break;
+            }
+        }
+        if (!validFilename && !m_dialogFallbackExtension.isEmpty()) {
+            filename += (!filename.endsWith(".") ? "." : "") + m_dialogFallbackExtension;
+        }
+    }
 
     m_ui->pathEdit->setText(filename);
 

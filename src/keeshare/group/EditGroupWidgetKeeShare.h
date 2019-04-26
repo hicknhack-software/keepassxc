@@ -18,11 +18,11 @@
 #ifndef KEEPASSXC_EDITGROUPWIDGETKEESHARE_H
 #define KEEPASSXC_EDITGROUPWIDGETKEESHARE_H
 
+#include <QFormLayout>
+#include <QLabel>
 #include <QPointer>
 #include <QStandardItemModel>
 #include <QWidget>
-#include <QLabel>
-#include <QFormLayout>
 
 #include <QStyledItemDelegate>
 
@@ -43,18 +43,18 @@ public:
     ~EditGroupWidgetKeeShare();
 
     void setGroup(Group* temporaryGroup, QSharedPointer<Database> database);
+
 private:
     void reset();
     void reinitialize();
-    void addOverrides(QFormLayout *layout, const QSet<QString> &keys);
-    void removeOverrides(QFormLayout *layout, const QSet<QString> &keys);
+    void addOverrides(QFormLayout* layout, const QSet<QString>& keys);
+    void removeOverrides(QFormLayout* layout, const QSet<QString>& keys);
 
 private slots:
     void update();
     void clearInputs();
     void selectType();
     void selectPassword();
-    void launchPathSelectionDialog();
     void selectPath();
     void setGeneratedPassword(const QString& password);
     void togglePasswordGeneratorButton(bool checked);

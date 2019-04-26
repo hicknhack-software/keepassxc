@@ -19,8 +19,9 @@
 
 #include <QWidget>
 
-namespace Ui {
-class PathLineEdit;
+namespace Ui
+{
+    class PathLineEdit;
 }
 
 class PathLineEdit : public QWidget
@@ -28,31 +29,45 @@ class PathLineEdit : public QWidget
     Q_OBJECT
 
 public:
-    explicit PathLineEdit(QWidget *parent = nullptr);
+    explicit PathLineEdit(QWidget* parent = nullptr);
     ~PathLineEdit();
 
-//    enum DialogType {
-//        DialogTypeSelect,
-//        DialogTypeOverwrite
-//    };
+    enum Type
+    {
+        SelectInputOnly,
+        SelectDirectory,
+        SelectReadFile,
+        SelectWriteFile
+    };
 
-    void setPath(const QString &path);
-    void setPlaceholderPath(const QString &path);
-    // void setDialogDefaultPath(const QString &path){}
-    void setDialogDefaultDirectoryConfigKey(const QString &path);
-    void setDialogTitle(const QString &title);
+    void clear();
+    void setType(Type type);
+    void setPath(const QString& path);
+    void setPlaceholderPath(const QString& path);
+    void setDialogDefaultDirectoryConfigKey(const QString& path);
+    void setDialogTitle(const QString& title);
+    void setDialogSupportedExtensions(const QList<QPair<QString, QString>>& extensionWithName,
+                                      const QString& fallbackExtension = QString());
+    void setDialogUnsupportedExtensions(const QList<QString>& filters);
+
+    QString path() const;
 
 signals:
-    void pathChanged(const QString &text);
+    void pathChanged(const QString& text);
 
 private slots:
     void handlePathSelectorClicked();
     void handlePathEditingFinished();
+
 private:
     QScopedPointer<Ui::PathLineEdit> m_ui;
 
     QString m_dialogDirectoryConfigKey;
     QString m_dialogTitle;
+    QString m_dialogFallbackExtension;
+    QList<QPair<QString, QString>> m_dialogSupportedExtensionWithName;
+    QList<QString> m_dialogUnsupportedExtension;
+    Type m_type;
 };
 
 #endif // KEEPASSXC_PATHLINEEDIT_H
