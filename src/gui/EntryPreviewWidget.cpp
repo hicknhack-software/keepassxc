@@ -311,7 +311,7 @@ void EntryPreviewWidget::updateGroupSharingTab()
     if (resolvedPath != unresolvedPath) {
         m_ui->groupShareAbsolutePathLabel->setText(resolvedPath);
     }
-    m_ui->groupShareOverrideLabel->setVisible(unresolvedPath != reference.path);
+    m_ui->groupShareOverrideLabel->setVisible(unresolvedPath != reference.standardPath);
 }
 #endif
 

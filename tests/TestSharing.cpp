@@ -208,19 +208,19 @@ void TestSharing::testReferenceSerialization()
     QFETCH(QUuid, uuid);
     QFETCH(int, type);
     KeeShareSettings::Reference original;
-    original.password = password;
-    original.path = path;
-    original.paths["Test"] = path;
-    original.uuid = uuid;
+    original.containerPassword = password;
+    original.standardPath = path;
+    original.overridePaths["Test"] = path;
+    original.groupUuid = uuid;
     original.type = static_cast<KeeShareSettings::Type>(type);
 
     const QString serialized = KeeShareSettings::Reference::serialize(original);
     const KeeShareSettings::Reference restored = KeeShareSettings::Reference::deserialize(serialized);
 
-    QCOMPARE(restored.password, original.password);
-    QCOMPARE(restored.path, original.path);
-    QCOMPARE(restored.paths["Test"], original.paths["Test"]);
-    QCOMPARE(restored.uuid, original.uuid);
+    QCOMPARE(restored.containerPassword, original.containerPassword);
+    QCOMPARE(restored.standardPath, original.standardPath);
+    QCOMPARE(restored.overridePaths["Test"], original.overridePaths["Test"]);
+    QCOMPARE(restored.groupUuid, original.groupUuid);
     QCOMPARE(int(restored.type), int(original.type));
 }
 
@@ -243,12 +243,12 @@ void TestSharing::testReferenceSerialization_verioningToCurrent()
     QFETCH(QString, serialized);
     QFETCH(KeeShareSettings::Reference, transformed);
 
-    const KeeShareSettings::Reference restored = KeeShareSettings::Reference::deserialize(serialized);
+    const auto restored = KeeShareSettings::Reference::deserialize(serialized);
 
-    QCOMPARE(restored.password, transformed.password);
-    // QCOMPARE(restored.path, transformed.path);
-    QCOMPARE(restored.paths, transformed.paths);
-    QCOMPARE(restored.uuid, transformed.uuid);
+    QCOMPARE(restored.containerPassword, transformed.containerPassword);
+    QCOMPARE(restored.standardPath, transformed.standardPath);
+    QCOMPARE(restored.overridePaths, transformed.overridePaths);
+    QCOMPARE(restored.groupUuid, transformed.groupUuid);
     QCOMPARE(int(restored.type), int(transformed.type));
 }
 
@@ -258,13 +258,13 @@ void TestSharing::testReferenceSerialization_verioningToCurrent_data()
     QTest::addColumn<KeeShareSettings::Reference>("transformed");
 
     KeeShareSettings::Reference original;
-    original.password = "password";
-    original.paths[""] = "path";
-    original.uuid = QUuid::createUuid();
+    original.containerPassword = "password";
+    original.overridePaths[""] = "path";
+    original.groupUuid = QUuid::createUuid();
     original.type = static_cast<KeeShareSettings::Type>(KeeShareSettings::ImportFrom | KeeShareSettings::ExportTo);
 
     KeeShareSettings::Reference transformed = original;
-    transformed.paths[""] = original.paths[""];
+    transformed.overridePaths[""] = original.overridePaths[""];
 
     QString serialized;
     QXmlStreamWriter writer(&serialized);

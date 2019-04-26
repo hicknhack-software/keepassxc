@@ -175,7 +175,7 @@ namespace
 
         KeePass2Reader reader;
         auto key = QSharedPointer<CompositeKey>::create();
-        key->addKey(QSharedPointer<PasswordKey>::create(reference.password));
+        key->addKey(QSharedPointer<PasswordKey>::create(reference.containerPassword));
         auto sourceDb = QSharedPointer<Database>::create();
         if (!reader.readDatabase(&buffer, key, sourceDb.data())) {
             qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));
@@ -280,7 +280,7 @@ namespace
 
         KeePass2Reader reader;
         auto key = QSharedPointer<CompositeKey>::create();
-        key->addKey(QSharedPointer<PasswordKey>::create(reference.password));
+        key->addKey(QSharedPointer<PasswordKey>::create(reference.containerPassword));
         auto sourceDb = QSharedPointer<Database>::create();
         if (!reader.readDatabase(&buffer, key, sourceDb.data())) {
             qCritical("Error while parsing the database: %s", qPrintable(reader.errorString()));

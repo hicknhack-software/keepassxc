@@ -378,13 +378,13 @@ namespace KeeShareSettings
 
     Reference::Reference()
         : type(Inactive)
-        , uuid(QUuid::createUuid())
+        , groupUuid(QUuid::createUuid())
     {
     }
 
     bool Reference::isNull() const
     {
-        return type == Inactive && KeeShare::unresolvedFilePath(*this).isEmpty() && password.isEmpty();
+        return type == Inactive && KeeShare::unresolvedFilePath(*this).isEmpty() && containerPassword.isEmpty();
     }
 
     bool Reference::isValid() const
@@ -412,8 +412,9 @@ namespace KeeShareSettings
 
     bool Reference::operator==(const Reference& other) const
     {
-        return path == other.path && paths == other.paths && name == other.name && uuid == other.uuid && password == other.password
-               && type == other.type;
+        return standardPath == other.standardPath && overridePaths == other.overridePaths
+               && containerName == other.containerName && groupUuid == other.groupUuid
+               && containerPassword == other.containerPassword && type == other.type;
     }
 
     QString Reference::serialize(const Reference& reference)
@@ -472,13 +473,13 @@ namespace KeeShareSettings
         }
         writer.writeEndElement();
         writer.writeStartElement("Group");
-        writer.writeCharacters(reference.uuid.toRfc4122().toBase64());
+        writer.writeCharacters(reference.groupUuid.toRfc4122().toBase64());
         writer.writeEndElement();
         writer.writeStartElement("Path");
         writer.writeCharacters(KeeShare::unresolvedFilePath(reference).toUtf8().toBase64());
         writer.writeEndElement();
         writer.writeStartElement("Password");
-        writer.writeCharacters(reference.password.toUtf8().toBase64());
+        writer.writeCharacters(reference.containerPassword.toUtf8().toBase64());
         writer.writeEndElement();
     }
 
@@ -495,25 +496,25 @@ namespace KeeShareSettings
             writer.writeEmptyElement("Export");
         }
         writer.writeEndElement();
-        writer.writeStartElement("Group");
-        writer.writeCharacters(reference.uuid.toRfc4122().toBase64());
+        writer.writeStartElement("GroupUuid");
+        writer.writeCharacters(reference.groupUuid.toRfc4122().toBase64());
         writer.writeEndElement();
-        writer.writeStartElement("Name");
-        writer.writeCharacters(reference.name.toUtf8().toBase64());
+        writer.writeStartElement("ContainerName");
+        writer.writeCharacters(reference.containerName.toUtf8().toBase64());
         writer.writeEndElement();
-        writer.writeStartElement("Path");
-        writer.writeCharacters(reference.path.toUtf8().toBase64());
+        writer.writeStartElement("ContainerPassword");
+        writer.writeCharacters(reference.containerPassword.toUtf8().toBase64());
         writer.writeEndElement();
-        writer.writeStartElement("Paths");
-        for (const auto key : reference.paths.keys()) {
+        writer.writeStartElement("StandardPath");
+        writer.writeCharacters(reference.standardPath.toUtf8().toBase64());
+        writer.writeEndElement();
+        writer.writeStartElement("OverridePaths");
+        for (const auto& selector : reference.overridePaths.keys()) {
             writer.writeStartElement("Path");
-            writer.writeAttribute("reference", key);
-            writer.writeCharacters(reference.paths[key].toUtf8().toBase64());
+            writer.writeAttribute("selector", selector);
+            writer.writeCharacters(reference.overridePaths[selector].toUtf8().toBase64());
             writer.writeEndElement();
         }
-        writer.writeEndElement();
-        writer.writeStartElement("Password");
-        writer.writeCharacters(reference.password.toUtf8().toBase64());
         writer.writeEndElement();
 
         writer.writeEndElement();
@@ -536,17 +537,18 @@ namespace KeeShareSettings
             return true;
         }
         if (reader.name() == "Group") {
-            reference.uuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+            reference.groupUuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
         if (reader.name() == "Path") {
             const QFileInfo info(QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1())));
-            reference.path = info.path();
-            reference.name = info.fileName();
+            reference.standardPath = info.path();
+            reference.containerName = info.fileName();
             return true;
         }
         if (reader.name() == "Password") {
-            reference.password = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+            reference.containerPassword =
+                QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
         return false;
@@ -568,32 +570,33 @@ namespace KeeShareSettings
             }
             return true;
         }
-        if (reader.name() == "Group") {
-            reference.uuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+        if (reader.name() == "GroupUuid") {
+            reference.groupUuid = QUuid::fromRfc4122(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
-        if (reader.name() == "Path") {
-            reference.path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+        if (reader.name() == "StandardPath") {
+            reference.standardPath = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
-        if (reader.name() == "Paths") {
+        if (reader.name() == "OverridePaths") {
             while (reader.readNextStartElement()) {
                 if (reader.name() == "Path") {
-                    const auto switcher = reader.attributes().value("reference").toString();
+                    const auto selector = reader.attributes().value("selector").toString();
                     const auto path = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
-                    reference.paths[switcher] = path;
+                    reference.overridePaths[selector] = path;
                 } else {
                     break;
                 }
             }
             return true;
         }
-        if (reader.name() == "Name") {
-            reference.name = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+        if (reader.name() == "ContainerName") {
+            reference.containerName = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
-        if (reader.name() == "Password") {
-            reference.password = QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
+        if (reader.name() == "ContainerPassword") {
+            reference.containerPassword =
+                QString::fromUtf8(QByteArray::fromBase64(reader.readElementText().toLatin1()));
             return true;
         }
         return false;

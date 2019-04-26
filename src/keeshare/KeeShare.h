@@ -67,11 +67,11 @@ public:
     static QString resolvedFilePathWith(const QString& path, const Database& database);
     static QString resolvedFilePathWith(const QString& path, const QString& referencePath);
     static QString unresolvedFilePath(const KeeShareSettings::Reference& reference);
-    static QString unresolvedFilePath(const KeeShareSettings::Reference& reference, const QString& switcher);
+    static QString unresolvedFilePath(const KeeShareSettings::Reference& reference, const QString& selector);
     static QString unresolvedPath(const KeeShareSettings::Reference& reference);
-    static QString unresolvedPath(const KeeShareSettings::Reference& reference, const QString& switcher);
+    static QString unresolvedPath(const KeeShareSettings::Reference& reference, const QString& selector);
 
-    static const QString& referenceSwitch();
+    static const QString& pathSelector();
 
     static const QString& signatureFileName();
     static const QString& containerFileName();

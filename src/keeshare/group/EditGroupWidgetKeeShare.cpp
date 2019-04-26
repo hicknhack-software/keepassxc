@@ -82,7 +82,7 @@ EditGroupWidgetKeeShare::EditGroupWidgetKeeShare(QWidget* parent)
         m_ui->typeComboBox->insertItem(static_cast<int>(type), name, static_cast<int>(type));
     }
 
-    addOverrides(m_ui->pathLocalOverridesLayout, { KeeShare::referenceSwitch() });
+    addOverrides(m_ui->pathLocalOverridesLayout, {KeeShare::pathSelector()});
 }
 
 EditGroupWidgetKeeShare::~EditGroupWidgetKeeShare()
@@ -211,9 +211,9 @@ void EditGroupWidgetKeeShare::reset()
     m_ui->passwordGenerator->hide();
 }
 
-void EditGroupWidgetKeeShare::addOverrides(QFormLayout *layout, const QSet<QString> &keys)
+void EditGroupWidgetKeeShare::addOverrides(QFormLayout* layout, const QSet<QString>& keys)
 {
-    for (const auto &key : keys) {
+    for (const auto& key : keys) {
         auto* systemLabel = new QLabel(m_ui->pathLocalOverrides);
         auto* pathLineEdit = new PathLineEdit(m_ui->pathLocalOverrides);
         Q_ASSERT(!m_overrideLabels.contains(key));
@@ -226,12 +226,12 @@ void EditGroupWidgetKeeShare::addOverrides(QFormLayout *layout, const QSet<QStri
     }
 }
 
-void EditGroupWidgetKeeShare::removeOverrides(QFormLayout *layout, const QSet<QString> &keys)
+void EditGroupWidgetKeeShare::removeOverrides(QFormLayout* layout, const QSet<QString>& keys)
 {
-    for (const auto &key : keys) {
-        auto *systemLabel = m_overrideLabels.take(key);
-        auto *pathLineEdit = m_overridePathEdits.take(key);
-        if (systemLabel){
+    for (const auto& key : keys) {
+        auto* systemLabel = m_overrideLabels.take(key);
+        auto* pathLineEdit = m_overridePathEdits.take(key);
+        if (systemLabel) {
             layout->removeWidget(systemLabel);
             delete systemLabel;
         }
@@ -247,35 +247,34 @@ void EditGroupWidgetKeeShare::reinitialize()
     const auto reference = KeeShare::referenceOf(m_temporaryGroup);
 
     m_ui->typeComboBox->setCurrentIndex(static_cast<int>(reference.type));
-    m_ui->passwordEdit->setText(reference.password);
+    m_ui->passwordEdit->setText(reference.containerPassword);
     m_ui->pathEdit->setText(KeeShare::unresolvedFilePath(reference, ""));
     m_ui->pathLocalOverrides->show();
-    m_ui->pathOverrides->setVisible(!reference.path.isEmpty());
+    m_ui->pathOverrides->setVisible(!reference.standardPath.isEmpty());
 
-    const auto currentKey = KeeShare::referenceSwitch();
-    const auto currentKeys = QSet<QString>{ currentKey };
-    const auto requestedKeys = reference.paths.keys().toSet();
-    const auto existingKeys = m_overrideLabels.keys().toSet();
-    const auto removedKeys = existingKeys - requestedKeys;
-    const auto addedKeys = requestedKeys - existingKeys;
+    const auto currentSelector = KeeShare::pathSelector();
+    const auto currentSelectors = QSet<QString>{currentSelector};
+    const auto requestedSelectors = reference.overridePaths.keys().toSet();
+    const auto existingSelectors = m_overrideLabels.keys().toSet();
+    const auto removedSelectors = existingSelectors - requestedSelectors;
+    const auto addedSelectors = requestedSelectors - existingSelectors;
 
-    addOverrides(m_ui->pathRemoteOverridesLayout, addedKeys - currentKeys);
-    removeOverrides(m_ui->pathRemoteOverridesLayout, removedKeys - currentKeys);
+    addOverrides(m_ui->pathRemoteOverridesLayout, addedSelectors - currentSelectors);
+    removeOverrides(m_ui->pathRemoteOverridesLayout, removedSelectors - currentSelectors);
 
     m_ui->pathLocalPreview->setText(KeeShare::resolvedFilePathWith(reference, *m_database));
 
-    for (const auto &key : requestedKeys + currentKeys) {
-        auto *systemLabel = m_overrideLabels[key];
-        auto *pathLineEdit = m_overridePathEdits[key];
-        systemLabel->setText(tr("Path to \"%1\" on \"%2\"").arg(reference.name).arg(key));
-        systemLabel->setEnabled(key == currentKey);
-        pathLineEdit->setPlaceholderPath(reference.path);
-        pathLineEdit->setEnabled(key == currentKey);
-        if (reference.paths.contains(key)){
-            pathLineEdit->setPath(KeeShare::unresolvedPath(reference, key));
+    for (const auto& selector : requestedSelectors + currentSelectors) {
+        auto* systemLabel = m_overrideLabels[selector];
+        auto* pathLineEdit = m_overridePathEdits[selector];
+        systemLabel->setText(tr("Path to \"%1\" on \"%2\"").arg(reference.containerName).arg(selector));
+        systemLabel->setEnabled(selector == currentSelector);
+        pathLineEdit->setPlaceholderPath(reference.standardPath);
+        pathLineEdit->setEnabled(selector == currentSelector);
+        if (reference.overridePaths.contains(selector)) {
+            pathLineEdit->setPath(KeeShare::unresolvedPath(reference, selector));
         }
     }
-
 
     showSharingState();
 }
@@ -313,7 +312,7 @@ void EditGroupWidgetKeeShare::setGeneratedPassword(const QString& password)
         return;
     }
     auto reference = KeeShare::referenceOf(m_temporaryGroup);
-    reference.password = password;
+    reference.containerPassword = password;
     KeeShare::setReferenceTo(m_temporaryGroup, reference);
     m_ui->togglePasswordGeneratorButton->setChecked(false);
 }
@@ -324,10 +323,9 @@ void EditGroupWidgetKeeShare::selectPath()
         return;
     }
     auto reference = KeeShare::referenceOf(m_temporaryGroup);
-    const auto switcher = KeeShare::referenceSwitch();
     const QFileInfo info(m_ui->pathEdit->text());
-    reference.path = info.path();
-    reference.name = info.fileName();
+    reference.standardPath = info.path();
+    reference.containerName = info.fileName();
     KeeShare::setReferenceTo(m_temporaryGroup, reference);
 }
 
@@ -426,7 +424,7 @@ void EditGroupWidgetKeeShare::selectPassword()
         return;
     }
     auto reference = KeeShare::referenceOf(m_temporaryGroup);
-    reference.password = m_ui->passwordEdit->text();
+    reference.containerPassword = m_ui->passwordEdit->text();
     KeeShare::setReferenceTo(m_temporaryGroup, reference);
 }
 

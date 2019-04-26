@@ -161,11 +161,11 @@ namespace KeeShareSettings
     struct Reference
     {
         Type type;
-        QUuid uuid;
-        QString path;
-        QMap<QString, QString> paths; // defined paths
-        QString name;
-        QString password;
+        QUuid groupUuid;
+        QString standardPath;
+        QMap<QString, QString> overridePaths; // defined paths
+        QString containerName;
+        QString containerPassword;
 
         struct Version0
         {

@@ -60,7 +60,7 @@ namespace
         auto* targetMetadata = targetDb->metadata();
         targetMetadata->setRecycleBinEnabled(false);
         auto key = QSharedPointer<CompositeKey>::create();
-        key->addKey(QSharedPointer<PasswordKey>::create(reference.password));
+        key->addKey(QSharedPointer<PasswordKey>::create(reference.containerPassword));
 
         // Copy the source root as the root of the export database, memory manage the old root node
         auto* targetRoot = sourceRoot->clone(Entry::CloneNoFlags, Group::CloneNoFlags);

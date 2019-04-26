@@ -274,20 +274,20 @@ QString KeeShare::resolvedFilePathWith(const QString& path, const Database& data
     return resolvedFilePathWith(path, QFileInfo(database.filePath()).absolutePath());
 }
 
-QString KeeShare::resolvedFilePathWith(const QString &path, const QString &referencePath)
+QString KeeShare::resolvedFilePathWith(const QString& path, const QString& referencePath)
 {
     const QDir dir(referencePath);
     auto normalizedPath = path;
 #ifdef Q_OS_WIN
-    if (path.startsWith("/") && !path.startWith("//")){
+    if (path.startsWith("/") && !path.startWith("//")) {
         // Just some sanitation to prevent completely invalid paths
         normalizedPath = QDir::cleanPath("." + path.mid(1);
     }
 #else
     const QRegExp windowsAbsoluteDrive("^[a-z]:.*$", Qt::CaseInsensitive);
-    if (path.contains(windowsAbsoluteDrive)){
+    if (path.contains(windowsAbsoluteDrive)) {
         // Just some sanitation to prevent completely invalid paths
-        normalizedPath = QDir::cleanPath(path.mid(0,1) + QDir::separator() + path.mid(2));
+        normalizedPath = QDir::cleanPath(path.mid(0, 1) + QDir::separator() + path.mid(2));
     }
 #endif
     return QDir::cleanPath(dir.absoluteFilePath(normalizedPath));
@@ -295,34 +295,34 @@ QString KeeShare::resolvedFilePathWith(const QString &path, const QString &refer
 
 QString KeeShare::unresolvedFilePath(const KeeShareSettings::Reference& reference)
 {
-    return unresolvedFilePath(reference, referenceSwitch());
+    return unresolvedFilePath(reference, pathSelector());
 }
 
-QString KeeShare::unresolvedFilePath(const KeeShareSettings::Reference& reference, const QString& switcher)
+QString KeeShare::unresolvedFilePath(const KeeShareSettings::Reference& reference, const QString& selector)
 {
-    const auto path = unresolvedPath(reference, switcher);
-    if (path.isEmpty() && reference.name.isEmpty()) {
+    const auto path = unresolvedPath(reference, selector);
+    if (path.isEmpty() && reference.containerName.isEmpty()) {
         return "";
     }
-    return path + "/" + reference.name;
+    return path + "/" + reference.containerName;
 }
 
 QString KeeShare::unresolvedPath(const KeeShareSettings::Reference& reference)
 {
-    return unresolvedPath(reference, referenceSwitch());
+    return unresolvedPath(reference, pathSelector());
 }
 
-QString KeeShare::unresolvedPath(const KeeShareSettings::Reference& reference, const QString& switcher)
+QString KeeShare::unresolvedPath(const KeeShareSettings::Reference& reference, const QString& selector)
 {
-    return reference.paths.value(switcher, reference.path);
+    return reference.overridePaths.value(selector, reference.standardPath);
 }
 
-const QString& KeeShare::referenceSwitch()
+const QString& KeeShare::pathSelector()
 {
     // this may be come from the KeePassXC settings - this way it would be independend of upgrades etc.
     // (we could use some kind of unique id or let the user choose so paths could be reused)
-    static const QString switcher = QString("%1 %2").arg(QSysInfo::productType(), QSysInfo::productVersion());
-    return switcher;
+    static const QString selector = QString("%1 %2").arg(QSysInfo::productType(), QSysInfo::productVersion());
+    return selector;
 }
 
 void KeeShare::handleSettingsChanged(const QString& key)
